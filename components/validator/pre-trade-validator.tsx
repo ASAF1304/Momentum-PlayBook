@@ -110,6 +110,7 @@ interface PreTradeValidatorProps {
     tickerData: TickerResponse;
     amountInvested: number;
     isWhatIf: boolean;
+    failedGates: string[];
   }) => void;
 }
 
@@ -142,8 +143,9 @@ export function PreTradeValidator({
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef    = useRef<AbortController | null>(null);
+  const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef       = useRef<AbortController | null>(null);
+  const amountManualRef = useRef(false);
 
   const fetchTicker = useCallback(async (sym: string) => {
     if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(sym)) return;
@@ -186,6 +188,9 @@ export function PreTradeValidator({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [ticker, fetchTicker]);
 
+  // Reset manual-amount flag when ticker changes so new tickers auto-fill
+  useEffect(() => { amountManualRef.current = false; }, [ticker]);
+
   const sizing = useMemo<PositionSizerResult>(() =>
     calculatePosition({
       accountSize,
@@ -196,9 +201,43 @@ export function PreTradeValidator({
     }),
   [accountSize, entry, stop, maxStopDistancePct, maxPortfolioRiskPct]);
 
+  // Auto-fill Amount Invested from the sizer's recommendation unless user overrode it
+  useEffect(() => {
+    if (sizing.status === 'ok' && !amountManualRef.current) {
+      setAmountInvested(sizing.totalNotional.toFixed(2));
+    }
+  }, [sizing]);
+
   useEffect(() => {
     setGates(g => ({ ...g, stop_under_10pct: sizing.status === 'ok' }));
   }, [sizing.status]);
+
+  // Derive share counts from the user's actual Amount Invested
+  const effectiveSizing = useMemo<PositionSizerResult>(() => {
+    if (sizing.status !== 'ok') return sizing;
+    const amount = parseFloat(amountInvested);
+    const ep     = parseFloat(entry);
+    const sp     = parseFloat(stop);
+    if (!Number.isFinite(amount) || amount <= 0) return sizing;
+    const totalShares = Math.floor(amount / ep);
+    if (totalShares < 1) return sizing;
+    const phase1Shares     = Math.floor(totalShares * 0.5);
+    const phase2Shares     = totalShares - phase1Shares;
+    const riskPerShare     = ep - sp;
+    const dollarRisk       = Math.round(totalShares * riskPerShare * 100) / 100;
+    const portfolioRiskPct = Math.round((dollarRisk / accountSize) * 10000) / 10000;
+    return {
+      ...sizing,
+      totalShares,
+      phase1Shares,
+      phase2Shares,
+      phase1Notional: Math.round(phase1Shares * ep * 100) / 100,
+      phase2Notional: Math.round(phase2Shares * ep * 100) / 100,
+      totalNotional:  Math.round(amount * 100) / 100,
+      dollarRisk,
+      portfolioRiskPct,
+    };
+  }, [sizing, amountInvested, entry, stop, accountSize]);
 
   const now        = getNow();
   const afterClose = now.getHours() >= 20;
@@ -208,6 +247,14 @@ export function PreTradeValidator({
 
   const stopDistPct    = sizing.status === 'ok' ? Math.abs(sizing.stopDistancePct) : null;
   const stopExceedsMax = stopDistPct !== null && stopDistPct > MAX_STOP_PCT;
+
+  const maxPortfolioRisk = maxPortfolioRiskPct ?? 2.5;
+  const exceedsBudget = (
+    effectiveSizing.status === 'ok' &&
+    sizing.status === 'ok' &&
+    effectiveSizing.portfolioRiskPct > maxPortfolioRisk &&
+    Math.abs(effectiveSizing.totalNotional - sizing.totalNotional) > 1
+  );
 
   const failedGates  = (Object.keys(gates) as AllGateKey[]).filter(k => !gates[k]);
   const criticalFail = !gates.stage2 || !gates.vcp_confirmed;
@@ -220,16 +267,22 @@ export function PreTradeValidator({
   const greenLight   = useMemo(() => getGreenLightMessage(quoteSeed), [quoteSeed]);
 
   const handleSubmit = () => {
-    if (!canSubmit || sizing.status !== 'ok' || !data) return;
+    if (!canSubmit || sizing.status !== 'ok' || effectiveSizing.status !== 'ok' || !data) return;
     onSubmit?.({
       ticker: ticker.toUpperCase(),
       entry:  parseFloat(entry),
       stop:   parseFloat(stop),
-      sizing,
+      sizing: effectiveSizing as Extract<PositionSizerResult, { status: 'ok' }>,
       tickerData: data,
       amountInvested: parseFloat(amountInvested) || sizing.totalNotional,
       isWhatIf: !allGreen,
+      failedGates: failedGates as string[],
     });
+  };
+
+  const handleResetAmount = () => {
+    amountManualRef.current = false;
+    if (sizing.status === 'ok') setAmountInvested(sizing.totalNotional.toFixed(2));
   };
 
   const nowDisplay = now.toTimeString().slice(0, 5);
@@ -441,13 +494,26 @@ export function PreTradeValidator({
             />
           )}
 
-          <SizerOutput sizing={sizing} />
+          <SizerOutput sizing={effectiveSizing} />
+
+          {/* Budget-excess advisory — non-blocking, shows when user overrides upward */}
+          {exceedsBudget && effectiveSizing.status === 'ok' && sizing.status === 'ok' && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-[9px] bg-amber-500/[0.06] border border-amber-500/25 text-[11px] text-amber-600">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+              <span>
+                Using ${effectiveSizing.totalNotional.toLocaleString()} — exceeds your {maxPortfolioRisk}% risk budget
+                (auto: ${sizing.totalNotional.toLocaleString()})
+              </span>
+            </div>
+          )}
         </div>
 
         <RiskPreview
           amountInvested={amountInvested}
-          onAmountChange={setAmountInvested}
-          sizing={sizing}
+          onAmountChange={v => { amountManualRef.current = true; setAmountInvested(v); }}
+          sizing={effectiveSizing}
+          autoAmount={sizing.status === 'ok' ? sizing.totalNotional : null}
+          onReset={handleResetAmount}
         />
 
         {/* Submit — green when all gates pass, amber for what-if, grey when no data */}
@@ -853,7 +919,7 @@ function SizerOutput({ sizing }: { sizing: PositionSizerResult }) {
   return (
     <div className="bg-gradient-to-br from-[#22D3EE]/[0.04] to-[#10F088]/[0.04] border border-[#22D3EE]/20 rounded-[12px] p-4 flex flex-col gap-3">
       <Row k="Stop distance"      v={`${sizing.stopDistancePct.toFixed(2)}%`} vClass="text-[#FF3B5C]" />
-      <Row k="Risk budget · 2.5%" v={`$${sizing.dollarRisk.toFixed(2)}`} />
+      <Row k={`Risk · ${sizing.portfolioRiskPct.toFixed(2)}% of account`} v={`$${sizing.dollarRisk.toFixed(2)}`} />
       <Row k="Risk per share"     v={`$${sizing.riskPerShare.toFixed(2)}`} />
       <div className="pt-2.5 border-t border-dashed border-[var(--border-strong)] flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wider">Full position · shares</span>
@@ -881,34 +947,35 @@ function Row({ k, v, vClass }: { k: string; v: string; vClass?: string }) {
 }
 
 function RiskPreview({
-  amountInvested, onAmountChange, sizing,
+  amountInvested, onAmountChange, sizing, autoAmount, onReset,
 }: {
   amountInvested: string;
   onAmountChange: (v: string) => void;
   sizing: PositionSizerResult;
+  autoAmount: number | null;
+  onReset: () => void;
 }) {
-  const stopPct   = sizing.status === 'ok' ? Math.abs(sizing.stopDistancePct) : null;
-  const suggested = sizing.status === 'ok' ? sizing.totalNotional : null;
-  const invested  = parseFloat(amountInvested);
-  const maxLoss   = stopPct !== null && Number.isFinite(invested) && invested > 0
+  const stopPct  = sizing.status === 'ok' ? Math.abs(sizing.stopDistancePct) : null;
+  const invested = parseFloat(amountInvested);
+  const maxLoss  = stopPct !== null && Number.isFinite(invested) && invested > 0
     ? invested * (stopPct / 100) : null;
+  const isCustom = autoAmount !== null && Number.isFinite(invested) && Math.abs(invested - autoAmount) > 1;
 
   return (
     <div className="p-4 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] uppercase tracking-[0.14em] font-bold text-[var(--text-secondary)]">Risk Preview</span>
-        {suggested !== null && (
+        <span className="text-[10px] uppercase tracking-[0.14em] font-bold text-[var(--text-secondary)]">Amount Invested</span>
+        {isCustom && (
           <button
             type="button"
-            onClick={() => onAmountChange(suggested.toFixed(2))}
+            onClick={onReset}
             className="text-[10px] font-mono text-[#22D3EE] hover:underline"
           >
-            use ${suggested.toLocaleString()}
+            Reset to auto (${autoAmount!.toLocaleString()})
           </button>
         )}
       </div>
       <div className="flex flex-col gap-1.5 mb-3">
-        <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)]">Amount Invested ($)</label>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[14px]">$</span>
           <input

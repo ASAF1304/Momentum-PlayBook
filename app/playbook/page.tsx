@@ -9,11 +9,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import {
-  Check, Layers, Loader2, Radar, TrendingDown, TrendingUp, Trophy, X, Zap,
+  AlertTriangle, Check, Layers, Loader2, Plus, Radar, TrendingDown, TrendingUp, Trophy, X, Zap,
 } from 'lucide-react';
 import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
+import { AddWhatIfModal } from '@/components/playbook/add-what-if-modal';
 import { supabase, type Trade, type TradeOutcome, type PartialExit } from '@/lib/supabase-client';
+import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -66,8 +68,10 @@ function PlaybookInner() {
     filterParam === 'what-if'    ? 'what-if'   :
     filterParam === 'charts'     ? 'charts'    : 'all';
 
-  const [trades,  setTrades]  = useState<Trade[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [trades,        setTrades]        = useState<Trade[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [showWhatIf,    setShowWhatIf]    = useState(false);
 
   const fetchTrades = useCallback(async () => {
     setLoading(true);
@@ -151,12 +155,33 @@ function PlaybookInner() {
 
       <main className="max-w-[1200px] mx-auto px-6 py-10 relative">
 
-        <div className="mb-7">
-          <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Playbook</h1>
-          <p className="text-[13px] text-[var(--text-muted)] leading-relaxed">
-            Every trade — closed and live. Stats computed from realized outcomes only.
-          </p>
+        <div className="flex items-start justify-between mb-7">
+          <div>
+            <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Playbook</h1>
+            <p className="text-[13px] text-[var(--text-muted)] leading-relaxed">
+              Every trade — closed and live. Stats computed from realized outcomes only.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowWhatIf(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-amber-500/15 border border-amber-500/30 text-amber-600 hover:bg-amber-500/25 hover:border-amber-500/50 transition-all text-[12px] font-bold uppercase tracking-wider flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Log Off-System Trade
+          </button>
         </div>
+
+        {showWhatIf && user && (
+          <AddWhatIfModal
+            userId={user.id}
+            onClose={() => setShowWhatIf(false)}
+            onSaved={trade => {
+              setTrades(prev => [trade, ...prev]);
+              setShowWhatIf(false);
+            }}
+          />
+        )}
 
         {/* Stats strip */}
         {!loading && stats.closedCount > 0 && (
@@ -528,6 +553,22 @@ function LiveTradeCard({ trade }: { trade: Trade }) {
   );
 }
 
+// ── Gate label map for retrospective ──────────────────────────────────────────
+
+const GATE_LABELS: Record<string, string> = {
+  stage2:           'Stage 2 uptrend not confirmed',
+  vcp_confirmed:    'VCP setup not confirmed',
+  clear_pivot:      'No clear breakout pivot',
+  earnings_safe:    'Earnings risk (imminent)',
+  above_emas:       'Price below key EMAs',
+  rs_above_80:      'RS Rating below 80',
+  market_uptrend:   'Market not in uptrend',
+  time_of_day:      'Suboptimal entry timing',
+  volume_spike:     'No volume spike on breakout',
+  stop_under_10pct: 'Stop distance exceeded cap',
+  manual_entry:     'Manually logged outside validator',
+};
+
 // ── WhatIfTradeCard ────────────────────────────────────────────────────────────
 
 function WhatIfTradeCard({ trade }: { trade: Trade }) {
@@ -595,6 +636,29 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
             <span className={cn('font-mono text-[13px] font-extrabold', pnlPositive ? 'text-[#10F088]' : 'text-[#EF4444]')}>
               {pnlPositive ? '+' : ''}${Math.abs(trade.pnl_dollars).toFixed(0)}
             </span>
+          </div>
+        )}
+
+        {/* Failed-gates retrospective — only on losing What-If trades */}
+        {trade.pnl_dollars !== null && trade.pnl_dollars < 0 && trade.failed_gates && trade.failed_gates.length > 0 && (
+          <div className="px-3 py-2.5 rounded-[9px] bg-[#EF4444]/[0.06] border border-[#EF4444]/25">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <AlertTriangle className="w-3 h-3 text-[#EF4444] flex-shrink-0" />
+              <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#EF4444]">Why this failed</span>
+            </div>
+            <ul className="flex flex-col gap-0.5">
+              {trade.failed_gates.map(g => (
+                <li key={g} className="flex items-start gap-1.5 text-[10px] text-[var(--text-dim)]">
+                  <span className="w-1 h-1 rounded-full bg-[#EF4444]/60 flex-shrink-0 mt-[5px]" />
+                  {GATE_LABELS[g] ?? g}
+                </li>
+              ))}
+            </ul>
+            {trade.what_if_reason && (
+              <p className="text-[10px] text-[var(--text-muted)] italic mt-1.5 leading-snug">
+                "{trade.what_if_reason}"
+              </p>
+            )}
           </div>
         )}
 

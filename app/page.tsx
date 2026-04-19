@@ -86,6 +86,7 @@ export default function Dashboard() {
     tickerData: TickerResponse;
     amountInvested: number;
     isWhatIf: boolean;
+    failedGates: string[];
   }) => {
     if (!user) return;
 
@@ -102,6 +103,8 @@ export default function Dashboard() {
       trend_template_passed: payload.tickerData.trendTemplate.passed,
       status: 'open',
       is_what_if: payload.isWhatIf,
+      failed_gates: payload.isWhatIf ? payload.failedGates : null,
+      what_if_reason: null,
     });
 
     if (error) {

@@ -75,6 +75,10 @@ export interface Trade {
 
   // What-If / non-system trade flag
   is_what_if: boolean;
+
+  // Retrospective — gates that failed at entry time
+  failed_gates: string[] | null;
+  what_if_reason: string | null;
 }
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
