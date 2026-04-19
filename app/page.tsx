@@ -84,6 +84,7 @@ export default function Dashboard() {
     sizing: Extract<PositionSizerResult, { status: 'ok' }>;
     tickerData: TickerResponse;
     amountInvested: number;
+    isWhatIf: boolean;
   }) => {
     if (!user) return;
 
@@ -99,6 +100,7 @@ export default function Dashboard() {
       risk_dollars: payload.sizing.dollarRisk,
       trend_template_passed: payload.tickerData.trendTemplate.passed,
       status: 'open',
+      is_what_if: payload.isWhatIf,
     });
 
     if (error) {
@@ -106,12 +108,21 @@ export default function Dashboard() {
       return;
     }
 
-    toast({
-      title: `${payload.ticker} logged — Phase 1 open`,
-      body: `${payload.sizing.phase1Shares} sh @ $${payload.entry.toFixed(2)} · stop $${payload.stop.toFixed(2)}`,
-      variant: 'success',
-      durationMs: 4500,
-    });
+    if (payload.isWhatIf) {
+      toast({
+        title: `${payload.ticker} logged as non-system trade`,
+        body: `Checklist incomplete — logged for tracking only. Not counted in system stats.`,
+        variant: 'warning',
+        durationMs: 5000,
+      });
+    } else {
+      toast({
+        title: `${payload.ticker} logged — Phase 1 open`,
+        body: `${payload.sizing.phase1Shares} sh @ $${payload.entry.toFixed(2)} · stop $${payload.stop.toFixed(2)}`,
+        variant: 'success',
+        durationMs: 4500,
+      });
+    }
 
     void fetchTrades();
   };
@@ -120,7 +131,7 @@ export default function Dashboard() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#040507] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-[#22D3EE]" />
       </div>
     );
@@ -133,7 +144,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#040507] text-zinc-100 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
       <GridOverlay />
       <AppNav />
 
@@ -212,12 +223,12 @@ export default function Dashboard() {
 
               <div className="flex flex-col gap-2.5">
                 {tradesLoading && (
-                  <div className="flex items-center gap-2 py-6 text-zinc-600 text-[12px]">
+                  <div className="flex items-center gap-2 py-6 text-[var(--text-faint)] text-[12px]">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading positions…
                   </div>
                 )}
                 {!tradesLoading && openTrades.length === 0 && (
-                  <div className="py-8 text-center text-[12px] text-zinc-600">
+                  <div className="py-8 text-center text-[12px] text-[var(--text-faint)]">
                     No open positions. Log a trade using the validator.
                   </div>
                 )}
@@ -227,7 +238,7 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center justify-center gap-2 px-3 py-3 border border-dashed border-white/10 rounded-[10px] text-[12px] text-zinc-500 hover:border-[#22D3EE]/40 hover:text-[#22D3EE] hover:bg-[#22D3EE]/[0.03] transition-all"
+                  className="flex items-center justify-center gap-2 px-3 py-3 border border-dashed border-[var(--border-subtle)] rounded-[10px] text-[12px] text-[var(--text-muted)] hover:border-[#22D3EE]/40 hover:text-[#22D3EE] hover:bg-[#22D3EE]/[0.03] transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span className="font-semibold uppercase tracking-wider">Add position manually</span>
@@ -269,7 +280,7 @@ function PositionCard({ trade }: { trade: Trade }) {
   return (
     <Link
       href="/journal"
-      className="group w-full text-left p-3.5 rounded-[10px] border border-white/[0.06] bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.04] transition-all block"
+      className="group w-full text-left p-3.5 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)] transition-all block"
     >
       <div className="flex items-start justify-between mb-2">
         <div>
@@ -279,12 +290,12 @@ function PositionCard({ trade }: { trade: Trade }) {
               Phase 1
             </span>
             {trade.setup_type && (
-              <span className="text-[9px] font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400">
+              <span className="text-[9px] font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-secondary)]">
                 {trade.setup_type}
               </span>
             )}
           </div>
-          <div className="text-[10px] font-mono text-zinc-500">
+          <div className="text-[10px] font-mono text-[var(--text-muted)]">
             {trade.phase1_shares} sh @ ${trade.phase1_price.toFixed(2)}
             &nbsp;·&nbsp;
             stop ${trade.initial_stop.toFixed(2)}
@@ -294,13 +305,13 @@ function PositionCard({ trade }: { trade: Trade }) {
           <div className="font-mono text-[13px] font-bold text-[#FF3B5C]">
             −{trade.stop_distance_pct.toFixed(2)}%
           </div>
-          <div className="font-mono text-[10px] text-zinc-600">
+          <div className="font-mono text-[10px] text-[var(--text-faint)]">
             stop dist
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-zinc-600">
+      <div className="flex items-center justify-between text-[10px] text-[var(--text-faint)]">
         <span className="font-mono">risk ${trade.risk_dollars.toFixed(0)}</span>
         <span>{daysSince}d in trade</span>
       </div>
@@ -323,10 +334,10 @@ function StatCard({
   };
   const a = accents[accent];
   return (
-    <div className="relative p-3.5 rounded-[10px] border border-white/[0.06] bg-white/[0.025] backdrop-blur overflow-hidden">
+    <div className="relative p-3.5 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] backdrop-blur overflow-hidden">
       <div className="flex items-center gap-2 mb-1.5">
         <Icon className={cn('w-3 h-3', a.text)} />
-        <span className="text-[9px] uppercase tracking-[0.18em] font-bold text-zinc-500">{label}</span>
+        <span className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">{label}</span>
       </div>
       <div className={cn('font-mono text-[20px] font-extrabold tracking-tight', a.text, a.glow)}>
         {value}
@@ -343,7 +354,7 @@ function SectionHeader({
       <h2 className={cn('font-extrabold tracking-tight', compact ? 'text-[13px]' : 'text-[15px]')}>
         {title}
       </h2>
-      <p className="text-[11px] text-zinc-500 mt-0.5">{subtitle}</p>
+      <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{subtitle}</p>
     </div>
   );
 }
@@ -367,12 +378,12 @@ function PlaybookStrip({ counts }: {
         <Link
           key={item.label}
           href={item.href}
-          className="p-3 rounded-[10px] border border-white/[0.06] bg-white/[0.025] hover:bg-white/[0.04] hover:border-white/15 transition-all group"
+          className="p-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] transition-all group"
         >
           <div className={cn('font-mono text-[22px] font-extrabold tracking-tight mb-0.5', accents[item.accent])}>
             {item.count}
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 group-hover:text-zinc-300 transition-colors">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] group-hover:text-[var(--text-dim)] transition-colors">
             {item.label}
           </div>
         </Link>

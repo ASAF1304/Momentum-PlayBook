@@ -109,6 +109,7 @@ interface PreTradeValidatorProps {
     sizing: Extract<PositionSizerResult, { status: 'ok' }>;
     tickerData: TickerResponse;
     amountInvested: number;
+    isWhatIf: boolean;
   }) => void;
 }
 
@@ -211,13 +212,15 @@ export function PreTradeValidator({
   const failedGates  = (Object.keys(gates) as AllGateKey[]).filter(k => !gates[k]);
   const criticalFail = !gates.stage2 || !gates.vcp_confirmed;
   const allGreen     = failedGates.length === 0 && !!data && sizing.status === 'ok' && !stopExceedsMax;
+  // canSubmit: minimum data present to log anything (regular or what-if)
+  const canSubmit    = !!data && sizing.status === 'ok';
 
   const quoteSeed    = now.getDate();
   const mindsetQuote = useMemo(() => getMindsetQuote(quoteSeed), [quoteSeed]);
   const greenLight   = useMemo(() => getGreenLightMessage(quoteSeed), [quoteSeed]);
 
   const handleSubmit = () => {
-    if (!allGreen || sizing.status !== 'ok' || !data) return;
+    if (!canSubmit || sizing.status !== 'ok' || !data) return;
     onSubmit?.({
       ticker: ticker.toUpperCase(),
       entry:  parseFloat(entry),
@@ -225,6 +228,7 @@ export function PreTradeValidator({
       sizing,
       tickerData: data,
       amountInvested: parseFloat(amountInvested) || sizing.totalNotional,
+      isWhatIf: !allGreen,
     });
   };
 
@@ -238,7 +242,7 @@ export function PreTradeValidator({
 
         <div>
           <h2 className="text-[17px] font-bold tracking-tight mb-1">Pre-Trade Checklist</h2>
-          <p className="text-[12px] text-zinc-500 leading-relaxed">
+          <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
             Every gate must be green. Failing Stage 2 or VCP rejects the trade outright.
           </p>
         </div>
@@ -267,10 +271,10 @@ export function PreTradeValidator({
 
         {/* ── 7-gate checklist ─────────────────────────────────────────── */}
         <div>
-          <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-500">
+          <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-[0.14em] font-bold text-[var(--text-muted)]">
             <span>CAN SLIM Gates</span>
-            <span className="flex-1 h-px bg-white/[0.06]" />
-            <span className="text-zinc-600">click to toggle</span>
+            <span className="flex-1 h-px bg-[var(--divider)]" />
+            <span className="text-[var(--text-faint)]">click to toggle</span>
           </div>
           <div className="flex flex-col gap-1.5">
             {MANUAL_GATES.map(gate => {
@@ -287,20 +291,20 @@ export function PreTradeValidator({
                       ? 'bg-[#10F088]/[0.04] border-[#10F088]/30'
                       : gate.isCritical
                         ? 'bg-[#FF3B5C]/[0.03] border-[#FF3B5C]/20 hover:border-[#FF3B5C]/35'
-                        : 'bg-black/20 border-white/[0.06] hover:border-white/15',
+                        : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-hover)]',
                   )}
                 >
                   <span className={cn(
                     'w-[18px] h-[18px] rounded-[5px] border-[1.5px] flex items-center justify-center flex-shrink-0 mt-0.5 transition-all',
                     checked
                       ? 'bg-[#10F088] border-[#10F088] shadow-[0_0_10px_rgba(16,240,136,0.5)]'
-                      : gate.isCritical ? 'border-[#FF3B5C]/40' : 'border-white/20',
+                      : gate.isCritical ? 'border-[#FF3B5C]/40' : 'border-[var(--border-hover)]',
                   )}>
                     {checked && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3.5} />}
                   </span>
                   <Icon className={cn(
                     'w-3.5 h-3.5 flex-shrink-0 mt-1',
-                    checked ? 'text-[#10F088]' : gate.isCritical ? 'text-[#FF3B5C]/50' : 'text-zinc-600',
+                    checked ? 'text-[#10F088]' : gate.isCritical ? 'text-[#FF3B5C]/50' : 'text-[var(--text-faint)]',
                   )} />
                   <div className="flex-1 min-w-0">
                     <div className={cn(
@@ -309,7 +313,7 @@ export function PreTradeValidator({
                     )}>
                       {gate.label}
                     </div>
-                    <div className="text-[10px] text-zinc-500 leading-snug">{gate.sublabel}</div>
+                    <div className="text-[10px] text-[var(--text-muted)] leading-snug">{gate.sublabel}</div>
                   </div>
                 </button>
               );
@@ -351,7 +355,7 @@ export function PreTradeValidator({
                 <h3 className="text-[14px] font-extrabold tracking-tight text-[#10F088] [text-shadow:0_0_12px_rgba(16,240,136,0.45)] mb-1 uppercase">
                   Green Light · {greenLight.headline}
                 </h3>
-                <p className="text-[12px] text-zinc-300 leading-relaxed">{greenLight.body}</p>
+                <p className="text-[12px] text-[var(--text-dim)] leading-relaxed">{greenLight.body}</p>
               </div>
             </div>
           </div>
@@ -359,11 +363,11 @@ export function PreTradeValidator({
 
         {/* ── Wisdom — subtle footer quote, separate from blockers ──────── */}
         {!data && (
-          <div className="p-4 rounded-[12px] border border-white/[0.06] bg-black/20">
+          <div className="p-4 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
             <div className="flex items-start gap-3">
-              <BookOpen className="w-4 h-4 text-zinc-600 flex-shrink-0 mt-0.5" />
+              <BookOpen className="w-4 h-4 text-[var(--text-faint)] flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-[12px] text-zinc-500 italic leading-relaxed mb-1">"{mindsetQuote.text}"</p>
+                <p className="text-[12px] text-[var(--text-muted)] italic leading-relaxed mb-1">"{mindsetQuote.text}"</p>
                 <p className="text-[10px] text-[#A78BFA] font-semibold tracking-wide uppercase">— {mindsetQuote.source}</p>
               </div>
             </div>
@@ -378,7 +382,7 @@ export function PreTradeValidator({
 
         <div>
           <h2 className="text-[17px] font-bold tracking-tight mb-1">Calculator & Position Sizing</h2>
-          <p className="text-[12px] text-zinc-500 leading-relaxed">
+          <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
             Enter the ticker to load live data. Stop loss capped at {MAX_STOP_PCT}%.
           </p>
         </div>
@@ -389,9 +393,9 @@ export function PreTradeValidator({
             value={ticker}
             onChange={e => setTicker(e.target.value.toUpperCase().slice(0, 10))}
             placeholder="TICKER"
-            className="w-full bg-black/30 border border-white/[0.06] rounded-[10px] px-4 py-[14px] font-mono text-[22px] font-bold tracking-tight uppercase text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+            className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[10px] px-4 py-[14px] font-mono text-[22px] font-bold tracking-tight uppercase text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
           />
-          <span className="absolute top-2 right-3 text-[9px] text-zinc-600 tracking-[0.18em] font-bold flex items-center gap-1.5">
+          <span className="absolute top-2 right-3 text-[9px] text-[var(--text-faint)] tracking-[0.18em] font-bold flex items-center gap-1.5">
             {loading && <Loader2 className="w-3 h-3 animate-spin text-[#22D3EE]" />}
             TICKER
           </span>
@@ -407,11 +411,11 @@ export function PreTradeValidator({
         {data && <LiveSnapshot data={data} />}
 
         {/* ── Grouped card: Entry / Stop + Candidates + Sizer output ──── */}
-        <div className="rounded-[14px] border border-white/[0.08] bg-black/15 p-4 flex flex-col gap-4">
+        <div className="rounded-[14px] border border-[var(--border-strong)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4">
 
-          <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
-            <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-zinc-500">Position Sizer</span>
-            <span className="font-mono text-[10px] text-zinc-600">ACC · ${accountSize.toLocaleString()}</span>
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+            <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">Position Sizer</span>
+            <span className="font-mono text-[10px] text-[var(--text-faint)]">ACC · ${accountSize.toLocaleString()}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
@@ -446,22 +450,22 @@ export function PreTradeValidator({
           sizing={sizing}
         />
 
-        {/* Submit — halo glow when all gates pass */}
+        {/* Submit — green when all gates pass, amber for what-if, grey when no data */}
         <button
           onClick={handleSubmit}
-          disabled={!allGreen}
+          disabled={!canSubmit}
           className={cn(
             'w-full py-[14px] rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all',
-            allGreen
-              ? 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_24px_rgba(34,211,238,0.4)] hover:brightness-110 hover:-translate-y-[1px] animate-validator-glow'
-              : 'bg-white/[0.04] text-zinc-600 cursor-not-allowed',
+            !canSubmit
+              ? 'bg-[var(--bg-subtle)] text-[var(--text-faint)] cursor-not-allowed'
+              : allGreen
+                ? 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_24px_rgba(34,211,238,0.4)] hover:brightness-110 hover:-translate-y-[1px] animate-validator-glow'
+                : 'bg-amber-500/90 text-black hover:bg-amber-400 hover:-translate-y-[1px]',
           )}
         >
           {!data ? 'Enter a ticker to begin'
-            : stopExceedsMax ? `Stop exceeds ${MAX_STOP_PCT}% — tighten the stop`
-            : criticalFail   ? 'Blocked — Stage 2 / VCP not confirmed'
-            : allGreen       ? 'Validate & Log Phase 1'
-            : 'Blocked — Resolve checklist above'}
+            : allGreen ? 'Validate & Log Phase 1'
+            : 'Log as Non-System Trade ↗'}
         </button>
       </div>
     </div>
@@ -475,7 +479,7 @@ export function PreTradeValidator({
 function LiveSnapshot({ data }: { data: TickerResponse }) {
   const isUp = data.price.dayChangePct >= 0;
   return (
-    <div className="p-3.5 rounded-[10px] bg-black/20 border border-white/[0.06]">
+    <div className="p-3.5 rounded-[10px] bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
       <div className="flex items-baseline justify-between mb-2">
         <span className="font-mono text-[22px] font-bold tracking-tight">
           ${data.price.last.toFixed(2)}
@@ -488,11 +492,11 @@ function LiveSnapshot({ data }: { data: TickerResponse }) {
           {isUp ? '+' : ''}{data.price.dayChangePct.toFixed(2)}%
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono text-zinc-500">
-        <div className="flex justify-between"><span>52W High</span><span className="text-zinc-300">${data.range52w.high.toFixed(2)}</span></div>
-        <div className="flex justify-between"><span>52W Low</span><span className="text-zinc-300">${data.range52w.low.toFixed(2)}</span></div>
-        <div className="flex justify-between"><span>From high</span><span className="text-zinc-300">{data.range52w.distanceFromHigh.toFixed(1)}%</span></div>
-        <div className="flex justify-between"><span>From low</span><span className="text-zinc-300">+{data.range52w.distanceFromLow.toFixed(1)}%</span></div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono text-[var(--text-muted)]">
+        <div className="flex justify-between"><span>52W High</span><span className="text-[var(--text-dim)]">${data.range52w.high.toFixed(2)}</span></div>
+        <div className="flex justify-between"><span>52W Low</span><span className="text-[var(--text-dim)]">${data.range52w.low.toFixed(2)}</span></div>
+        <div className="flex justify-between"><span>From high</span><span className="text-[var(--text-dim)]">{data.range52w.distanceFromHigh.toFixed(1)}%</span></div>
+        <div className="flex justify-between"><span>From low</span><span className="text-[var(--text-dim)]">+{data.range52w.distanceFromLow.toFixed(1)}%</span></div>
       </div>
     </div>
   );
@@ -525,10 +529,10 @@ function EMAPanel({ data }: { data: TickerResponse }) {
         passed ? 'border-[#10F088]/20' : 'border-[#FF3B5C]/15',
       )}>
         <div>
-          <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-zinc-500 mb-0.5">
+          <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)] mb-0.5">
             Trend Template — Minervini
           </p>
-          <p className="text-[12px] font-semibold text-zinc-400">
+          <p className="text-[12px] font-semibold text-[var(--text-secondary)]">
             {passed ? 'All structural conditions met' : 'One or more conditions failed'}
           </p>
         </div>
@@ -564,7 +568,7 @@ function EMAPanel({ data }: { data: TickerResponse }) {
                 ? <Check className="w-2 h-2 text-[#10F088]" strokeWidth={4} />
                 : <X     className="w-2 h-2 text-[#FF3B5C]" strokeWidth={4} />}
             </span>
-            <span className={c.passed ? 'text-zinc-300' : 'text-zinc-500'}>{k}</span>
+            <span className={c.passed ? 'text-[var(--text-dim)]' : 'text-[var(--text-muted)]'}>{k}</span>
           </div>
         ))}
       </div>
@@ -587,10 +591,10 @@ function AutoGatesPanel({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5 mb-1 text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-500">
+      <div className="flex items-center gap-1.5 mb-1 text-[10px] uppercase tracking-[0.14em] font-bold text-[var(--text-muted)]">
         <span>Auto gates</span>
-        <span className="flex-1 h-px bg-white/[0.06]" />
-        <span className="text-zinc-600">click to override</span>
+        <span className="flex-1 h-px bg-[var(--divider)]" />
+        <span className="text-[var(--text-faint)]">click to override</span>
       </div>
 
       <button type="button" onClick={onToggleTime} className={cn(
@@ -708,12 +712,12 @@ function BlockerItem({ label, detail, critical }: {
         {label && (
           <span className={cn(
             'text-[10px] font-bold uppercase tracking-wider mr-1',
-            critical ? 'text-[#FF3B5C]' : 'text-zinc-500',
+            critical ? 'text-[#FF3B5C]' : 'text-[var(--text-muted)]',
           )}>
             {label} —
           </span>
         )}
-        <span className="text-[12px] text-zinc-300 leading-snug">{detail}</span>
+        <span className="text-[12px] text-[var(--text-dim)] leading-snug">{detail}</span>
       </div>
     </div>
   );
@@ -727,7 +731,7 @@ function WisdomPanel({ quote }: { quote: { text: string; source: string } }) {
       <div className="flex items-start gap-2">
         <BookOpen className="w-3 h-3 text-[#A78BFA] flex-shrink-0 mt-[3px]" />
         <div>
-          <p className="text-[11px] text-zinc-500 italic leading-relaxed">"{quote.text}"</p>
+          <p className="text-[11px] text-[var(--text-muted)] italic leading-relaxed">"{quote.text}"</p>
           <p className="text-[9px] text-[#A78BFA] font-semibold tracking-wide uppercase mt-0.5">
             — {quote.source}
           </p>
@@ -748,10 +752,10 @@ function StopCandidatesPanel({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-500">
+      <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-[0.14em] font-bold text-[var(--text-muted)]">
         <Info className="w-3 h-3" />
         <span>Stop candidates</span>
-        <span className="text-zinc-700 font-mono normal-case tracking-normal">click to use</span>
+        <span className="text-[var(--text-faint)] font-mono normal-case tracking-normal">click to use</span>
       </div>
       <div className="flex flex-col gap-1">
         {stops.map(c => {
@@ -768,7 +772,7 @@ function StopCandidatesPanel({
               className={cn(
                 'flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all',
                 isSelected && !isGrayed  && 'border-[#22D3EE]/40 bg-[#22D3EE]/[0.06]',
-                !isSelected && !isGrayed && 'border-white/[0.06] bg-black/20 hover:border-white/15',
+                !isSelected && !isGrayed && 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)]',
                 isGrayed && !isSelected  && 'border-[#FF3B5C]/20 bg-[#FF3B5C]/[0.03] opacity-60 hover:opacity-80',
                 isGrayed && isSelected   && 'border-[#FF3B5C]/40 bg-[#FF3B5C]/[0.06]',
               )}
@@ -776,7 +780,7 @@ function StopCandidatesPanel({
               <div className="flex flex-col gap-0.5">
                 <span className={cn(
                   'text-[12px] font-semibold',
-                  isSelected ? 'text-[#22D3EE]' : isGrayed ? 'text-zinc-500' : 'text-zinc-300',
+                  isSelected ? 'text-[#22D3EE]' : isGrayed ? 'text-[var(--text-muted)]' : 'text-[var(--text-dim)]',
                 )}>
                   {label}
                 </span>
@@ -786,19 +790,19 @@ function StopCandidatesPanel({
                   </span>
                 )}
                 {!exceeds8Pct && c.notes && (
-                  <span className="text-[10px] text-zinc-600">{c.notes}</span>
+                  <span className="text-[10px] text-[var(--text-faint)]">{c.notes}</span>
                 )}
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 <span className={cn(
                   'font-mono text-[13px] font-bold',
-                  isGrayed ? 'text-[#FF3B5C]' : 'text-zinc-100',
+                  isGrayed ? 'text-[#FF3B5C]' : 'text-[var(--text-primary)]',
                 )}>
                   ${c.price.toFixed(2)}
                 </span>
                 <span className={cn(
                   'font-mono text-[10px]',
-                  isGrayed ? 'text-[#FF3B5C]' : 'text-zinc-500',
+                  isGrayed ? 'text-[#FF3B5C]' : 'text-[var(--text-muted)]',
                 )}>
                   {c.distancePct.toFixed(2)}%
                   {exceeds8Pct && ' · exceeds 8% cap'}
@@ -817,7 +821,7 @@ function PriceField({
   label, accent, value, onChange,
 }: { label: string; accent: 'cyan' | 'red'; value: string; onChange: (s: string) => void }) {
   const palette = accent === 'cyan'
-    ? { label: 'text-[#22D3EE]', ring: 'focus:border-[#22D3EE] focus:ring-[#22D3EE]/15', text: 'text-zinc-100' }
+    ? { label: 'text-[#22D3EE]', ring: 'focus:border-[#22D3EE] focus:ring-[#22D3EE]/15', text: 'text-[var(--text-primary)]' }
     : { label: 'text-[#FF3B5C]', ring: 'focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15', text: 'text-[#FF3B5C]' };
   return (
     <div className="flex flex-col gap-1.5">
@@ -829,7 +833,7 @@ function PriceField({
         value={value}
         onChange={e => onChange(e.target.value)}
         className={cn(
-          'bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 font-mono text-[15px] font-semibold transition focus:outline-none focus:ring-[3px]',
+          'bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 font-mono text-[15px] font-semibold transition focus:outline-none focus:ring-[3px]',
           palette.ring, palette.text,
         )}
       />
@@ -851,7 +855,7 @@ function SizerOutput({ sizing }: { sizing: PositionSizerResult }) {
       <Row k="Stop distance"      v={`${sizing.stopDistancePct.toFixed(2)}%`} vClass="text-[#FF3B5C]" />
       <Row k="Risk budget · 2.5%" v={`$${sizing.dollarRisk.toFixed(2)}`} />
       <Row k="Risk per share"     v={`$${sizing.riskPerShare.toFixed(2)}`} />
-      <div className="pt-2.5 border-t border-dashed border-white/[0.08] flex items-center justify-between">
+      <div className="pt-2.5 border-t border-dashed border-[var(--border-strong)] flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wider">Full position · shares</span>
         <span className="font-mono text-[26px] font-extrabold tracking-tight text-[#22D3EE] [text-shadow:0_0_20px_rgba(34,211,238,0.4)]">
           {sizing.totalShares}
@@ -870,8 +874,8 @@ function SizerOutput({ sizing }: { sizing: PositionSizerResult }) {
 function Row({ k, v, vClass }: { k: string; v: string; vClass?: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">{k}</span>
-      <span className={cn('font-mono text-[14px] font-bold text-zinc-100', vClass)}>{v}</span>
+      <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)]">{k}</span>
+      <span className={cn('font-mono text-[14px] font-bold text-[var(--text-primary)]', vClass)}>{v}</span>
     </div>
   );
 }
@@ -890,9 +894,9 @@ function RiskPreview({
     ? invested * (stopPct / 100) : null;
 
   return (
-    <div className="p-4 rounded-[12px] border border-white/[0.06] bg-black/20">
+    <div className="p-4 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-400">Risk Preview</span>
+        <span className="text-[10px] uppercase tracking-[0.14em] font-bold text-[var(--text-secondary)]">Risk Preview</span>
         {suggested !== null && (
           <button
             type="button"
@@ -904,27 +908,27 @@ function RiskPreview({
         )}
       </div>
       <div className="flex flex-col gap-1.5 mb-3">
-        <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-500">Amount Invested ($)</label>
+        <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)]">Amount Invested ($)</label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[14px]">$</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[14px]">$</span>
           <input
             inputMode="decimal"
             value={amountInvested}
             onChange={e => onAmountChange(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-black/30 border border-white/[0.06] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+            className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
           />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="flex flex-col items-center justify-center px-3 py-2.5 rounded-[9px] border border-[#FF3B5C]/20 bg-[#FF3B5C]/[0.04]">
-          <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-zinc-600 mb-0.5">Max Loss at Stop</span>
+          <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-0.5">Max Loss at Stop</span>
           <span className="font-mono text-[16px] font-extrabold text-[#FF3B5C]">
             {stopPct !== null ? `−${stopPct.toFixed(2)}%` : '—'}
           </span>
         </div>
         <div className="flex flex-col items-center justify-center px-3 py-2.5 rounded-[9px] border border-[#FF3B5C]/20 bg-[#FF3B5C]/[0.04]">
-          <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-zinc-600 mb-0.5">Max Loss ($)</span>
+          <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-0.5">Max Loss ($)</span>
           <span className="font-mono text-[22px] font-extrabold text-[#FF3B5C] [text-shadow:0_0_18px_rgba(255,59,92,0.4)]">
             {maxLoss !== null ? `−$${maxLoss.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}
           </span>
