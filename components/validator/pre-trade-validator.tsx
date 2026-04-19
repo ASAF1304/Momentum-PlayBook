@@ -1,7 +1,7 @@
 // components/validator/pre-trade-validator.tsx
 //
 // Pre-Trade Validator — CAN SLIM / Minervini strict methodology.
-// Layout: Left = Checklist + Blockers | Right = Calculator & Position Sizing.
+// Layout: Left = Trend Template + Gates + Blockers | Right = Ticker + Sizer + Submit.
 // Hard rules:
 //   • Stop loss NEVER > 8% (absolute cap).
 //   • Stage 2 + VCP both required — failing either triggers REJECTED banner.
@@ -45,7 +45,7 @@ interface ManualGate {
   label: string;
   sublabel: string;
   icon: typeof Check;
-  isCritical?: boolean;  // failing blocks with red REJECTED banner
+  isCritical?: boolean;
 }
 
 const MANUAL_GATES: ManualGate[] = [
@@ -125,16 +125,16 @@ export function PreTradeValidator({
   const [amountInvested, setAmountInvested] = useState<string>('');
 
   const [gates, setGates] = useState<Record<AllGateKey, boolean>>({
-    stage2:         false,
-    above_emas:     false,
-    rs_above_80:    false,
-    vcp_confirmed:  false,
-    market_uptrend: false,
-    clear_pivot:    false,
-    earnings_safe:  false,
-    time_of_day:    true,
+    stage2:           false,
+    above_emas:       false,
+    rs_above_80:      false,
+    vcp_confirmed:    false,
+    market_uptrend:   false,
+    clear_pivot:      false,
+    earnings_safe:    false,
+    time_of_day:      true,
     stop_under_10pct: true,
-    volume_spike:   false,
+    volume_spike:     false,
   });
 
   const [data,    setData]    = useState<TickerResponse | null>(null);
@@ -205,16 +205,14 @@ export function PreTradeValidator({
     setGates(g => ({ ...g, time_of_day: afterClose }));
   }, [afterClose]);
 
-  // Stop distance check — 8% absolute hard cap
   const stopDistPct    = sizing.status === 'ok' ? Math.abs(sizing.stopDistancePct) : null;
   const stopExceedsMax = stopDistPct !== null && stopDistPct > MAX_STOP_PCT;
 
-  // Gate logic
   const failedGates  = (Object.keys(gates) as AllGateKey[]).filter(k => !gates[k]);
   const criticalFail = !gates.stage2 || !gates.vcp_confirmed;
   const allGreen     = failedGates.length === 0 && !!data && sizing.status === 'ok' && !stopExceedsMax;
 
-  const quoteSeed   = now.getDate();
+  const quoteSeed    = now.getDate();
   const mindsetQuote = useMemo(() => getMindsetQuote(quoteSeed), [quoteSeed]);
   const greenLight   = useMemo(() => getGreenLightMessage(quoteSeed), [quoteSeed]);
 
@@ -233,10 +231,10 @@ export function PreTradeValidator({
   const nowDisplay = now.toTimeString().slice(0, 5);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-      {/* ══════════════ LEFT: Checklist & Blockers ══════════════ */}
-      <div className="flex flex-col gap-[18px]">
+      {/* ══════════════ LEFT: Trend Template + Checklist + Feedback ══════════════ */}
+      <div className="flex flex-col gap-5">
 
         <div>
           <h2 className="text-[17px] font-bold tracking-tight mb-1">Pre-Trade Checklist</h2>
@@ -245,7 +243,10 @@ export function PreTradeValidator({
           </p>
         </div>
 
-        {/* ── REJECTED banner (technical, not motivational) ─────────── */}
+        {/* ── Trend Template — most prominent item on left col ─────────── */}
+        {data && <EMAPanel data={data} />}
+
+        {/* ── REJECTED banner (Stage 2 / VCP critical failure) ─────────── */}
         {data && criticalFail && (
           <div className="flex items-center gap-3 px-4 py-3.5 rounded-[10px] bg-[#FF3B5C]/10 border-2 border-[#FF3B5C]/50">
             <AlertTriangle className="w-5 h-5 text-[#FF3B5C] flex-shrink-0" />
@@ -264,7 +265,7 @@ export function PreTradeValidator({
           </div>
         )}
 
-        {/* ── 7-gate checklist ──────────────────────────────────────── */}
+        {/* ── 7-gate checklist ─────────────────────────────────────────── */}
         <div>
           <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-500">
             <span>CAN SLIM Gates</span>
@@ -316,7 +317,7 @@ export function PreTradeValidator({
           </div>
         </div>
 
-        {/* ── Auto gates ────────────────────────────────────────────── */}
+        {/* ── Auto gates ───────────────────────────────────────────────── */}
         {data && (
           <AutoGatesPanel
             timeGate={gates.time_of_day}
@@ -324,23 +325,56 @@ export function PreTradeValidator({
             nowDisplay={nowDisplay}
             volumeGate={gates.volume_spike}
             volumeDetail={data.volumeCheck.detail}
-            onToggleTime={()   => setGates(g => ({ ...g, time_of_day:   !g.time_of_day   }))}
-            onToggleVolume={()  => setGates(g => ({ ...g, volume_spike:  !g.volume_spike  }))}
+            onToggleTime={()  => setGates(g => ({ ...g, time_of_day:  !g.time_of_day  }))}
+            onToggleVolume={() => setGates(g => ({ ...g, volume_spike: !g.volume_spike }))}
           />
         )}
 
-        {/* ── Mindset panel ─────────────────────────────────────────── */}
-        <MindsetPanel
-          hasData={!!data}
-          allGreen={allGreen}
-          failedGates={failedGates}
-          greenLight={greenLight}
-          mindsetQuote={mindsetQuote}
-        />
+        {/* ── Blockers — plain technical facts, no quotes ───────────────── */}
+        {data && !allGreen && (
+          <BlockersPanel
+            gates={gates}
+            failedGates={failedGates}
+            stopExceedsMax={stopExceedsMax}
+            stopDistPct={stopDistPct}
+          />
+        )}
+
+        {/* ── Green light ───────────────────────────────────────────────── */}
+        {data && allGreen && (
+          <div className="p-4 rounded-[12px] border border-[#10F088]/40 bg-gradient-to-br from-[#10F088]/[0.08] to-[#22D3EE]/[0.04] shadow-[0_0_32px_rgba(16,240,136,0.15)]">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#10F088]/20 border border-[#10F088]/50 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_14px_rgba(16,240,136,0.4)]">
+                <Check className="w-4 h-4 text-[#10F088]" strokeWidth={3} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[14px] font-extrabold tracking-tight text-[#10F088] [text-shadow:0_0_12px_rgba(16,240,136,0.45)] mb-1 uppercase">
+                  Green Light · {greenLight.headline}
+                </h3>
+                <p className="text-[12px] text-zinc-300 leading-relaxed">{greenLight.body}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Wisdom — subtle footer quote, separate from blockers ──────── */}
+        {!data && (
+          <div className="p-4 rounded-[12px] border border-white/[0.06] bg-black/20">
+            <div className="flex items-start gap-3">
+              <BookOpen className="w-4 h-4 text-zinc-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[12px] text-zinc-500 italic leading-relaxed mb-1">"{mindsetQuote.text}"</p>
+                <p className="text-[10px] text-[#A78BFA] font-semibold tracking-wide uppercase">— {mindsetQuote.source}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {data && <WisdomPanel quote={mindsetQuote} />}
+
       </div>
 
       {/* ══════════════ RIGHT: Calculator & Sizing ══════════════ */}
-      <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-col gap-5">
 
         <div>
           <h2 className="text-[17px] font-bold tracking-tight mb-1">Calculator & Position Sizing</h2>
@@ -371,40 +405,40 @@ export function PreTradeValidator({
         )}
 
         {data && <LiveSnapshot data={data} />}
-        {data && <EMAPanel data={data} />}
 
-        {/* Stop candidates — with 8% hard cap enforcement */}
-        {data && data.stops.candidates.length > 0 && (
-          <StopCandidatesPanel
-            stops={data.stops.candidates}
-            selected={parseFloat(stop)}
-            onSelect={price => setStop(price.toFixed(2))}
-          />
-        )}
+        {/* ── Grouped card: Entry / Stop + Candidates + Sizer output ──── */}
+        <div className="rounded-[14px] border border-white/[0.08] bg-black/15 p-4 flex flex-col gap-4">
 
-        {/* Price inputs */}
-        <div>
-          <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/[0.06]">
+          <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
             <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-zinc-500">Position Sizer</span>
             <span className="font-mono text-[10px] text-zinc-600">ACC · ${accountSize.toLocaleString()}</span>
           </div>
-          <div className="grid grid-cols-2 gap-2.5 mb-4">
+
+          <div className="grid grid-cols-2 gap-2.5">
             <PriceField label="Entry · Breakout" accent="cyan" value={entry} onChange={setEntry} />
             <PriceField label="Technical Stop"   accent="red"  value={stop}  onChange={setStop} />
           </div>
 
-          {/* 8% hard cap error — sits right under the stop input */}
           {stopExceedsMax && (
-            <div className="flex items-center gap-2 px-3.5 py-2.5 mb-3 rounded-[9px] bg-[#FF3B5C]/10 border-2 border-[#FF3B5C]/50 text-[#FF3B5C]">
+            <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[9px] bg-[#FF3B5C]/10 border-2 border-[#FF3B5C]/50 text-[#FF3B5C]">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span className="text-[12px] font-extrabold uppercase tracking-wider">
                 Max Stop Loss Exceeded ({stopDistPct?.toFixed(2)}% &gt; {MAX_STOP_PCT}% limit)
               </span>
             </div>
           )}
-        </div>
 
-        <SizerOutput sizing={sizing} />
+          {/* Stop candidates — visually grouped with the sizer */}
+          {data && data.stops.candidates.length > 0 && (
+            <StopCandidatesPanel
+              stops={data.stops.candidates}
+              selected={parseFloat(stop)}
+              onSelect={price => setStop(price.toFixed(2))}
+            />
+          )}
+
+          <SizerOutput sizing={sizing} />
+        </div>
 
         <RiskPreview
           amountInvested={amountInvested}
@@ -412,14 +446,14 @@ export function PreTradeValidator({
           sizing={sizing}
         />
 
-        {/* Submit */}
+        {/* Submit — halo glow when all gates pass */}
         <button
           onClick={handleSubmit}
           disabled={!allGreen}
           className={cn(
             'w-full py-[14px] rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all',
             allGreen
-              ? 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_24px_rgba(34,211,238,0.4)] hover:brightness-110 hover:-translate-y-[1px]'
+              ? 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_24px_rgba(34,211,238,0.4)] hover:brightness-110 hover:-translate-y-[1px] animate-validator-glow'
               : 'bg-white/[0.04] text-zinc-600 cursor-not-allowed',
           )}
         >
@@ -464,36 +498,62 @@ function LiveSnapshot({ data }: { data: TickerResponse }) {
   );
 }
 
+// EMAPanel is the anchor of the left col — made deliberately prominent.
 function EMAPanel({ data }: { data: TickerResponse }) {
   const { passed, checks } = data.trendTemplate;
   const items = [
-    { k: 'Price > 20-EMA',      c: checks.priceAboveEMA20   },
-    { k: 'Price > 50-EMA',      c: checks.priceAboveEMA50   },
-    { k: 'Price > 150-EMA',     c: checks.priceAboveEMA150  },
-    { k: 'Price > 200-EMA',     c: checks.priceAboveEMA200  },
-    { k: '50-EMA > 150-EMA',    c: checks.ema50AboveEma150  },
-    { k: '150-EMA > 200-EMA',   c: checks.ema150AboveEma200 },
-    { k: '200-EMA rising (4mo)',c: checks.ema200Uptrending  },
-    { k: 'Within 25% of 52W hi',c: checks.closeTo52wHigh    },
-    { k: '30%+ above 52W low',  c: checks.farFrom52wLow     },
+    { k: 'Price > 20-EMA',       c: checks.priceAboveEMA20   },
+    { k: 'Price > 50-EMA',       c: checks.priceAboveEMA50   },
+    { k: 'Price > 150-EMA',      c: checks.priceAboveEMA150  },
+    { k: 'Price > 200-EMA',      c: checks.priceAboveEMA200  },
+    { k: '50-EMA > 150-EMA',     c: checks.ema50AboveEma150  },
+    { k: '150-EMA > 200-EMA',    c: checks.ema150AboveEma200 },
+    { k: '200-EMA rising (4mo)', c: checks.ema200Uptrending  },
+    { k: 'Within 25% of 52W hi', c: checks.closeTo52wHigh    },
+    { k: '30%+ above 52W low',   c: checks.farFrom52wLow     },
   ];
   return (
     <div className={cn(
-      'p-3.5 rounded-[10px] border',
-      passed ? 'bg-[#10F088]/[0.04] border-[#10F088]/30' : 'bg-[#FF3B5C]/[0.04] border-[#FF3B5C]/25',
+      'rounded-[12px] border-2 overflow-hidden',
+      passed
+        ? 'border-[#10F088]/40 bg-[#10F088]/[0.04] shadow-[0_0_28px_rgba(16,240,136,0.1)]'
+        : 'border-[#FF3B5C]/30 bg-[#FF3B5C]/[0.04]',
     )}>
-      <div className="flex items-center justify-between mb-2.5">
-        <span className="text-[10px] uppercase tracking-[0.14em] font-bold text-zinc-400">
-          Trend Template — Minervini
-        </span>
-        <span className={cn(
-          'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded',
-          passed ? 'bg-[#10F088]/20 text-[#10F088]' : 'bg-[#FF3B5C]/20 text-[#FF3B5C]',
+      {/* Header — large PASS/FAIL badge */}
+      <div className={cn(
+        'flex items-center justify-between px-4 py-3 border-b',
+        passed ? 'border-[#10F088]/20' : 'border-[#FF3B5C]/15',
+      )}>
+        <div>
+          <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-zinc-500 mb-0.5">
+            Trend Template — Minervini
+          </p>
+          <p className="text-[12px] font-semibold text-zinc-400">
+            {passed ? 'All structural conditions met' : 'One or more conditions failed'}
+          </p>
+        </div>
+        <div className={cn(
+          'flex flex-col items-center justify-center px-4 py-2 rounded-[10px] border min-w-[72px]',
+          passed
+            ? 'bg-[#10F088]/15 border-[#10F088]/40 shadow-[0_0_16px_rgba(16,240,136,0.3)]'
+            : 'bg-[#FF3B5C]/10 border-[#FF3B5C]/35',
         )}>
-          {passed ? '✓ PASS' : '✗ FAIL'}
-        </span>
+          <span className={cn(
+            'text-[18px] font-extrabold tracking-tight leading-none',
+            passed ? 'text-[#10F088]' : 'text-[#FF3B5C]',
+          )}>
+            {passed ? '✓' : '✗'}
+          </span>
+          <span className={cn(
+            'text-[9px] font-extrabold uppercase tracking-widest mt-0.5',
+            passed ? 'text-[#10F088]' : 'text-[#FF3B5C]',
+          )}>
+            {passed ? 'PASS' : 'FAIL'}
+          </span>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+      {/* Check grid */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 px-4 py-3">
         {items.map(({ k, c }) => (
           <div key={k} className="flex items-center gap-2 text-[11px]">
             <span className={cn(
@@ -579,6 +639,106 @@ function AutoGatesPanel({
   );
 }
 
+// ── BlockersPanel — plain technical failure reasons, no quotes ─────────────────
+
+function BlockersPanel({
+  gates, failedGates, stopExceedsMax, stopDistPct,
+}: {
+  gates: Record<AllGateKey, boolean>;
+  failedGates: AllGateKey[];
+  stopExceedsMax: boolean;
+  stopDistPct: number | null;
+}) {
+  const isGateKey = (k: AllGateKey): k is GateKey => k in GATE_FAILURES;
+
+  const manualFailed  = MANUAL_GATES.filter(g => !gates[g.key]);
+  const autoReasons: string[] = [
+    ...(!gates.time_of_day      ? ['Entry timing: before 20:00 — professionals act in the final hour.']      : []),
+    ...(!gates.volume_spike     ? ['No breakout volume spike — confirm volume confirmation before entry.']    : []),
+    ...(!gates.stop_under_10pct ? ['Stop distance exceeds your max setting — tighten the stop to continue.'] : []),
+  ];
+
+  const total = manualFailed.length + autoReasons.length + (stopExceedsMax ? 1 : 0);
+  if (total === 0) return null;
+
+  return (
+    <div className="p-4 rounded-[12px] border-2 border-[#FF3B5C]/35 bg-[#FF3B5C]/[0.04]">
+      <div className="flex items-center gap-2 mb-3.5">
+        <AlertTriangle className="w-4 h-4 text-[#FF3B5C] flex-shrink-0" />
+        <h3 className="text-[12px] font-extrabold text-[#FF3B5C] uppercase tracking-[0.1em]">
+          Blockers — {total} to resolve
+        </h3>
+      </div>
+      <div className="flex flex-col gap-2.5">
+        {stopExceedsMax && (
+          <BlockerItem
+            label="Stop too wide"
+            detail={`${stopDistPct?.toFixed(2)}% from entry — exceeds the ${MAX_STOP_PCT}% hard cap. Choose a tighter stop or wait for a tighter base.`}
+            critical
+          />
+        )}
+        {manualFailed.map(gate => (
+          <BlockerItem
+            key={gate.key}
+            label={gate.label}
+            detail={isGateKey(gate.key) ? GATE_FAILURES[gate.key].why : gate.sublabel}
+            critical={gate.isCritical}
+          />
+        ))}
+        {autoReasons.map(reason => (
+          <BlockerItem key={reason} label="" detail={reason} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlockerItem({ label, detail, critical }: {
+  label: string;
+  detail: string;
+  critical?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span className={cn(
+        'w-1.5 h-1.5 rounded-full mt-[5px] flex-shrink-0',
+        critical ? 'bg-[#FF3B5C]' : 'bg-[#FF3B5C]/50',
+      )} />
+      <div className="min-w-0">
+        {label && (
+          <span className={cn(
+            'text-[10px] font-bold uppercase tracking-wider mr-1',
+            critical ? 'text-[#FF3B5C]' : 'text-zinc-500',
+          )}>
+            {label} —
+          </span>
+        )}
+        <span className="text-[12px] text-zinc-300 leading-snug">{detail}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── WisdomPanel — subtle rotating quote, footer-style ─────────────────────────
+
+function WisdomPanel({ quote }: { quote: { text: string; source: string } }) {
+  return (
+    <div className="px-1 py-1.5 opacity-35 hover:opacity-65 transition-opacity duration-500 select-none">
+      <div className="flex items-start gap-2">
+        <BookOpen className="w-3 h-3 text-[#A78BFA] flex-shrink-0 mt-[3px]" />
+        <div>
+          <p className="text-[11px] text-zinc-500 italic leading-relaxed">"{quote.text}"</p>
+          <p className="text-[9px] text-[#A78BFA] font-semibold tracking-wide uppercase mt-0.5">
+            — {quote.source}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── StopCandidatesPanel ────────────────────────────────────────────────────────
+
 function StopCandidatesPanel({
   stops, selected, onSelect,
 }: {
@@ -607,10 +767,10 @@ function StopCandidatesPanel({
               onClick={() => onSelect(c.price)}
               className={cn(
                 'flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all',
-                isSelected && !isGrayed   && 'border-[#22D3EE]/40 bg-[#22D3EE]/[0.06]',
-                !isSelected && !isGrayed  && 'border-white/[0.06] bg-black/20 hover:border-white/15',
-                isGrayed && !isSelected   && 'border-[#FF3B5C]/20 bg-[#FF3B5C]/[0.03] opacity-60 hover:opacity-80',
-                isGrayed && isSelected    && 'border-[#FF3B5C]/40 bg-[#FF3B5C]/[0.06]',
+                isSelected && !isGrayed  && 'border-[#22D3EE]/40 bg-[#22D3EE]/[0.06]',
+                !isSelected && !isGrayed && 'border-white/[0.06] bg-black/20 hover:border-white/15',
+                isGrayed && !isSelected  && 'border-[#FF3B5C]/20 bg-[#FF3B5C]/[0.03] opacity-60 hover:opacity-80',
+                isGrayed && isSelected   && 'border-[#FF3B5C]/40 bg-[#FF3B5C]/[0.06]',
               )}
             >
               <div className="flex flex-col gap-0.5">
@@ -770,97 +930,6 @@ function RiskPreview({
           </span>
         </div>
       </div>
-    </div>
-  );
-}
-
-function MindsetPanel({
-  hasData, allGreen, failedGates, greenLight, mindsetQuote,
-}: {
-  hasData: boolean;
-  allGreen: boolean;
-  failedGates: AllGateKey[];
-  greenLight: { headline: string; body: string };
-  mindsetQuote: { text: string; source: string };
-}) {
-  if (!hasData) {
-    return (
-      <div className="p-4 rounded-[12px] border border-white/[0.06] bg-black/20">
-        <div className="flex items-start gap-3">
-          <BookOpen className="w-4 h-4 text-zinc-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-[12px] text-zinc-500 italic leading-relaxed mb-1">"{mindsetQuote.text}"</p>
-            <p className="text-[10px] text-[#A78BFA] font-semibold tracking-wide uppercase">— {mindsetQuote.source}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (allGreen) {
-    return (
-      <div className="p-4 rounded-[12px] border border-[#10F088]/40 bg-gradient-to-br from-[#10F088]/[0.08] to-[#22D3EE]/[0.04] shadow-[0_0_32px_rgba(16,240,136,0.15)]">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#10F088]/20 border border-[#10F088]/50 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_14px_rgba(16,240,136,0.4)]">
-            <Check className="w-4 h-4 text-[#10F088]" strokeWidth={3} />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-[14px] font-extrabold tracking-tight text-[#10F088] [text-shadow:0_0_12px_rgba(16,240,136,0.45)] mb-1 uppercase">
-              Green Light · {greenLight.headline}
-            </h3>
-            <p className="text-[12px] text-zinc-300 leading-relaxed">{greenLight.body}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Only show specific failure explanations for core GateKey failures (ones in GATE_FAILURES)
-  const coreFailures   = failedGates.filter(k => k in GATE_FAILURES) as GateKey[];
-  const failuresToShow = coreFailures.slice(0, 3);
-
-  return (
-    <div className="flex flex-col gap-3">
-      {/* Motivational quote — always separate from technical blockers */}
-      <div className="p-3.5 rounded-[10px] border border-[#A78BFA]/25 bg-[#A78BFA]/[0.04]">
-        <div className="flex items-start gap-2.5">
-          <BookOpen className="w-3.5 h-3.5 text-[#A78BFA] flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-[12px] text-zinc-300 italic leading-relaxed mb-1">"{mindsetQuote.text}"</p>
-            <p className="text-[10px] text-[#A78BFA] font-semibold tracking-wide uppercase">— {mindsetQuote.source}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Technical failure details — only when core gates fail */}
-      {failuresToShow.length > 0 && (
-        <div className="p-4 rounded-[12px] border border-[#FF3B5C]/30 bg-[#FF3B5C]/[0.04]">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-[#FF3B5C] flex-shrink-0" />
-            <h3 className="text-[13px] font-extrabold tracking-tight text-[#FF3B5C] uppercase">
-              {failedGates.length} blocker{failedGates.length > 1 ? 's' : ''} to resolve
-            </h3>
-          </div>
-          <div className="flex flex-col gap-2.5">
-            {failuresToShow.map(key => {
-              const exp = GATE_FAILURES[key];
-              return (
-                <div key={key} className="pl-3 border-l-2 border-[#FF3B5C]/40">
-                  <p className="text-[12px] text-zinc-300 leading-relaxed mb-1">{exp.why}</p>
-                  <p className="text-[11px] text-zinc-500 italic leading-relaxed">
-                    "{exp.quote}" <span className="text-zinc-600 not-italic">— {exp.source}</span>
-                  </p>
-                </div>
-              );
-            })}
-            {failedGates.length > failuresToShow.length && (
-              <p className="text-[10px] text-zinc-600 italic">
-                +{failedGates.length - failuresToShow.length} more blocker{failedGates.length - failuresToShow.length > 1 ? 's' : ''} above
-              </p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

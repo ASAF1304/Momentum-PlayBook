@@ -41,6 +41,11 @@ body {
   to   { opacity: 1; }
 }
 
+@keyframes validator-glow {
+  0%, 100% { box-shadow: 0 -4px 20px rgba(16,240,136,0.18), 0 0 24px rgba(34,211,238,0.32); }
+  50%       { box-shadow: 0 -10px 36px rgba(16,240,136,0.42), 0 0 44px rgba(34,211,238,0.58); }
+}
+
 /* ── Utility classes ─────────────────────────────────────────────────────────── */
 
 .animate-modal-enter {
@@ -49,4 +54,8 @@ body {
 
 .animate-fade-in {
   animation: fade-in 200ms ease both;
+}
+
+.animate-validator-glow {
+  animation: validator-glow 2.5s ease-in-out infinite;
 }
