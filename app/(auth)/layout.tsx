@@ -5,7 +5,7 @@
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#040507] flex items-center justify-center p-4 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
+    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
       <GridOverlay />
       <div className="relative z-10 w-full max-w-[400px]">
         {children}

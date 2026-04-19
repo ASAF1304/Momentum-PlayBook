@@ -150,7 +150,7 @@ export default function JournalPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#040507] text-zinc-100">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       <GridOverlay />
       <AppNav />
 
@@ -160,12 +160,13 @@ export default function JournalPage() {
         <div className="flex items-start justify-between mb-7">
           <div>
             <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Trade Journal</h1>
-            <p className="text-[12px] text-zinc-500">Every trade logged. Every lesson earned.</p>
+            <p className="text-[12px] text-[var(--text-muted)]">Every trade logged. Every lesson earned.</p>
           </div>
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black text-[12px] font-extrabold uppercase tracking-wider shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 hover:-translate-y-px transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-[var(--text-primary)] text-[var(--bg-primary)] text-[12px] font-extrabold uppercase tracking-wider hover:opacity-90 hover:-translate-y-px transition-all"
+          style={{ boxShadow: 'var(--shadow-card)' }}
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={3} />
             New Trade
@@ -173,7 +174,7 @@ export default function JournalPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-7">
           <StatCard label="Total Trades" value={stats.total > 0 ? String(stats.total) : '—'} accent="cyan" />
           <StatCard label="Open" value={stats.open > 0 ? String(stats.open) : '—'} accent="amber" />
           <StatCard
@@ -188,8 +189,8 @@ export default function JournalPage() {
           />
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 mb-5">
+        {/* Segmented control filter tabs */}
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--tab-strip-bg)] mb-5 w-fit">
           {([
             { key: 'all',         label: 'All'         },
             { key: 'open',        label: 'Open'        },
@@ -200,16 +201,19 @@ export default function JournalPage() {
               key={key}
               onClick={() => setStatusFilter(key)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] font-semibold transition-all',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all whitespace-nowrap',
                 statusFilter === key
-                  ? 'bg-[#22D3EE]/15 border border-[#22D3EE]/40 text-[#22D3EE]'
-                  : 'border border-white/[0.06] text-zinc-500 hover:text-zinc-200 hover:border-white/15',
+                  ? 'bg-[var(--tab-active-bg)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
               )}
             >
               {label}
               <span className={cn(
-                'font-mono text-[10px] px-1.5 py-0.5 rounded',
-                statusFilter === key ? 'bg-[#22D3EE]/20 text-[#22D3EE]' : 'bg-white/[0.06] text-zinc-600',
+                'font-mono text-[10px] px-1.5 py-0.5 rounded-full tabular-nums',
+                statusFilter === key
+                  ? key === 'open' ? 'bg-amber-400/20 text-amber-600'
+                    : 'bg-slate-400/20 text-slate-500'
+                  : 'bg-[var(--bg-elevated)] text-[var(--text-faint)]',
               )}>
                 {counts[key]}
               </span>
@@ -261,19 +265,13 @@ function TradeTable({
   onDelete: (id: string) => void;
 }) {
   return (
-    <div
-      className="rounded-[12px] border border-white/[0.06] overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.01) 100%)',
-        backdropFilter: 'blur(8px)',
-      }}
-    >
-      <div className="grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6rem] gap-x-3 px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.015]">
+    <div className="rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
+      <div className="grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6rem] gap-x-3 px-4 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)]">
         {['Date', 'Ticker', 'Avg Entry', 'Stop', 'Shares', 'Template', 'Status', 'PnL%', 'PnL$'].map(h => (
-          <span key={h} className="text-[9px] uppercase tracking-[0.18em] font-bold text-zinc-600">{h}</span>
+          <span key={h} className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-faint)]">{h}</span>
         ))}
       </div>
-      <div className="divide-y divide-white/[0.04]">
+      <div className="divide-y divide-[var(--divider)]">
         {trades.map(t => (
           <TradeRow key={t.id} trade={t} onClick={() => onRowClick(t)} onDelete={() => onDelete(t.id)} />
         ))}
@@ -294,22 +292,22 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
   return (
     <div
       onClick={onClick}
-      className="relative w-full grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6rem] gap-x-3 px-4 py-3.5 items-center text-left hover:bg-white/[0.03] transition-colors group cursor-pointer"
+      className="relative w-full grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6rem] gap-x-3 px-4 py-3.5 items-center text-left hover:bg-[var(--bg-elevated)] transition-colors group cursor-pointer"
     >
       <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-r-full bg-gradient-to-b from-[#22D3EE] to-[#10F088] opacity-0 group-hover:opacity-100 transition-opacity" />
 
-      <span className="text-[11px] font-mono text-zinc-500 whitespace-nowrap">
+      <span className="text-[11px] font-mono text-[var(--text-muted)] whitespace-nowrap">
         {formatDate(trade.phase1_date)}
       </span>
 
       <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
         {trade.screenshot_url && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={trade.screenshot_url} alt="" className="w-8 h-5 rounded object-cover flex-shrink-0 opacity-60 border border-white/10" />
+          <img src={trade.screenshot_url} alt="" className="w-8 h-5 rounded object-cover flex-shrink-0 opacity-60 border border-[var(--border-subtle)]" />
         )}
         <span className="font-mono text-[15px] font-extrabold tracking-tight truncate">{trade.ticker}</span>
         {trade.setup_type && (
-          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-500 flex-shrink-0">
+          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-muted)] flex-shrink-0">
             {trade.setup_type}
           </span>
         )}
@@ -328,17 +326,17 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
       </div>
 
       {/* Avg entry — cyan if scaled in, normal otherwise */}
-      <span className={cn('font-mono text-[12px] whitespace-nowrap', hasScaleIn ? 'text-[#22D3EE]' : 'text-zinc-300')}>
+      <span className={cn('font-mono text-[12px] whitespace-nowrap', hasScaleIn ? 'text-[#22D3EE]' : 'text-[var(--text-dim)]')}>
         ${avgEntry.toFixed(2)}
       </span>
       <span className="font-mono text-[12px] text-[#FF3B5C] whitespace-nowrap">
         ${trade.initial_stop.toFixed(2)}
       </span>
-      <span className="font-mono text-[12px] text-zinc-400 whitespace-nowrap">
+      <span className="font-mono text-[12px] text-[var(--text-secondary)] whitespace-nowrap">
         {getCurrentShares(trade)}
       </span>
 
-      <span className={cn('text-[10px] font-bold whitespace-nowrap', trade.trend_template_passed ? 'text-[#10F088]' : 'text-zinc-600')}>
+      <span className={cn('text-[10px] font-bold whitespace-nowrap', trade.trend_template_passed ? 'text-[#10F088]' : 'text-[var(--text-faint)]')}>
         {trade.trend_template_passed ? '✓ Pass' : '✗ Fail'}
       </span>
 
@@ -346,7 +344,7 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
 
       <span className={cn(
         'font-mono text-[12px] font-bold whitespace-nowrap',
-        trade.pnl_pct === null  && 'text-zinc-600',
+        trade.pnl_pct === null  && 'text-[var(--text-faint)]',
         trade.pnl_pct !== null  && pnlPositive  && 'text-[#10F088]',
         trade.pnl_pct !== null  && !pnlPositive && 'text-[#FF3B5C]',
       )}>
@@ -356,7 +354,7 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
       <div className="flex items-center gap-1.5">
         <span className={cn(
           'font-mono text-[12px] font-bold whitespace-nowrap flex-1 min-w-0',
-          trade.pnl_dollars === null  && 'text-zinc-600',
+          trade.pnl_dollars === null  && 'text-[var(--text-faint)]',
           trade.pnl_dollars !== null  && pnlPositive  && 'text-[#10F088]',
           trade.pnl_dollars !== null  && !pnlPositive && 'text-[#FF3B5C]',
         )}>
@@ -365,12 +363,12 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-zinc-600 hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/10 transition-all"
+          className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-[var(--text-faint)] hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/10 transition-all"
           aria-label="Delete trade"
         >
           <Trash2 className="w-3 h-3" />
         </button>
-        <ChevronRight className="w-3 h-3 text-zinc-700 group-hover:text-[#22D3EE] transition-colors flex-shrink-0" />
+        <ChevronRight className="w-3 h-3 text-[var(--text-faint)] group-hover:text-[#22D3EE] transition-colors flex-shrink-0" />
       </div>
     </div>
   );
@@ -467,9 +465,7 @@ function EditModal({
     if (!Number.isFinite(sh) || sh < 1) return null;
 
     const newTotalShares = currentShares + sh;
-    // Weighted avg: (currentShares × avgEntry + newShares × buyPrice) / newTotal
     const newAvgEntry = (avgEntryPrice * currentShares + sh * pr) / newTotalShares;
-    // Risk recalculated on new avg vs same stop
     const newRiskDollars = Math.max(0, (newAvgEntry - trade.initial_stop) * newTotalShares);
     const totalCost = sh * pr;
 
@@ -531,7 +527,6 @@ function EditModal({
       const newCurrentShares = Math.max(0, currentShares - sellCalc.sh);
       const isNowClosed      = newCurrentShares === 0;
 
-      // Total realized PnL = all sell partials including this one
       const newRealizedPnL = sells.reduce((s, p) => s + p.pnl_dollars, 0) + sellCalc.pnl;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -591,7 +586,7 @@ function EditModal({
         shares:      buyCalc.sh,
         price:       buyCalc.pr,
         action:      'buy',
-        pnl_dollars: 0,   // no realized PnL on buy; cost basis shifts
+        pnl_dollars: 0,
         pnl_pct:     0,
         r_multiple:  0,
       };
@@ -599,9 +594,6 @@ function EditModal({
       const newPartials      = [...partials, newPartial];
       const newCurrentShares = currentShares + buyCalc.sh;
 
-      // We deliberately do NOT mutate phase1_price or phase1_shares in the DB.
-      // The weighted avg is always computed dynamically from partials.
-      // Only current_shares and risk_dollars need updating.
       const patch = {
         partials:       newPartials,
         current_shares: newCurrentShares,
@@ -625,7 +617,7 @@ function EditModal({
       setBuyShares('');
       setBuyPrice('');
 
-      onPartialLogged(updatedTrade);  // keep modal open
+      onPartialLogged(updatedTrade);
     } catch (err) {
       toast({ title: 'Scale-in failed', body: err instanceof Error ? err.message : 'Unknown error', variant: 'error' });
     } finally {
@@ -707,17 +699,17 @@ function EditModal({
       onClick={e => { if (e.target === backdropRef.current) onClose(); }}
       className="fixed inset-0 z-[9999] flex items-center justify-center px-4 py-6"
       style={{
-        background: 'rgba(4,5,7,0.88)',
+        background: 'var(--modal-overlay)',
         backdropFilter: 'blur(20px) saturate(130%)',
         WebkitBackdropFilter: 'blur(20px) saturate(130%)',
       }}
     >
-      <div className="animate-modal-enter relative w-full max-w-[560px] rounded-2xl border border-white/[0.08] bg-[#07090f] shadow-[0_32px_80px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="animate-modal-enter relative w-full max-w-[560px] rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-modal)] overflow-hidden flex flex-col max-h-[92vh]" style={{ boxShadow: 'var(--shadow-modal)' }}>
 
         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[#22D3EE] to-[#10F088] z-10" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-[var(--border-subtle)] flex-shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2.5 mb-0.5 flex-wrap">
               <span className="font-mono text-[20px] font-extrabold tracking-tight">{trade.ticker}</span>
@@ -735,7 +727,7 @@ function EditModal({
                 </span>
               )}
             </div>
-            <div className="text-[11px] text-zinc-500 font-mono leading-relaxed">
+            <div className="text-[11px] text-[var(--text-muted)] font-mono leading-relaxed">
               orig {trade.phase1_shares} sh @ ${trade.phase1_price.toFixed(2)}
               {hasScaleIns && (
                 <span className="text-[#22D3EE]"> · avg ${avgEntryPrice.toFixed(2)}</span>
@@ -747,7 +739,7 @@ function EditModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors ml-3 flex-shrink-0"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition-colors ml-3 flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -779,7 +771,7 @@ function EditModal({
                   </div>
 
                   {/* Sell / Buy tab toggle */}
-                  <div className="flex items-center rounded-[8px] border border-white/[0.08] overflow-hidden text-[11px] font-bold">
+                  <div className="flex items-center rounded-[8px] border border-[var(--border-strong)] overflow-hidden text-[11px] font-bold">
                     <button
                       type="button"
                       onClick={() => setScaleTab('sell')}
@@ -787,13 +779,13 @@ function EditModal({
                         'flex items-center gap-1.5 px-3 py-1.5 transition-all',
                         scaleTab === 'sell'
                           ? 'bg-[#A78BFA]/20 text-[#A78BFA]'
-                          : 'text-zinc-500 hover:text-zinc-300',
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-dim)]',
                       )}
                     >
                       <ArrowDownLeft className="w-3 h-3" />
                       Trim
                     </button>
-                    <span className="w-px h-5 bg-white/[0.08]" />
+                    <span className="w-px h-5 bg-[var(--border-strong)]" />
                     <button
                       type="button"
                       onClick={() => setScaleTab('buy')}
@@ -801,7 +793,7 @@ function EditModal({
                         'flex items-center gap-1.5 px-3 py-1.5 transition-all',
                         scaleTab === 'buy'
                           ? 'bg-[#22D3EE]/15 text-[#22D3EE]'
-                          : 'text-zinc-500 hover:text-zinc-300',
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-dim)]',
                       )}
                     >
                       <ArrowUpRight className="w-3 h-3" />
@@ -829,7 +821,7 @@ function EditModal({
                             'flex-1 py-1.5 rounded-[7px] text-[11px] font-bold border transition-all',
                             sellShares === String(b.shares)
                               ? 'bg-[#A78BFA]/20 border-[#A78BFA]/40 text-[#A78BFA]'
-                              : 'border-white/[0.07] text-zinc-400 hover:border-[#A78BFA]/30 hover:text-[#A78BFA]',
+                              : 'border-[var(--border-dim)] text-[var(--text-secondary)] hover:border-[#A78BFA]/30 hover:text-[#A78BFA]',
                           )}
                         >
                           {b.label}
@@ -845,14 +837,14 @@ function EditModal({
                         type="date"
                         value={sellDate}
                         onChange={e => setSellDate(e.target.value)}
-                        className={cn(fieldCls, '[color-scheme:dark] focus:border-[#A78BFA] focus:ring-[#A78BFA]/15')}
+                        className={cn(fieldCls, 'focus:border-[#A78BFA] focus:ring-[#A78BFA]/15')}
                       />
                     </div>
 
                     {/* Shares + Price */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">Shares to sell</label>
+                        <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Shares to sell</label>
                         <input
                           inputMode="numeric"
                           value={sellShares}
@@ -864,7 +856,7 @@ function EditModal({
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#A78BFA]">Exit Price ($)</label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[13px]">$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[13px]">$</span>
                           <input
                             inputMode="decimal"
                             value={sellPrice}
@@ -909,19 +901,19 @@ function EditModal({
                         type="date"
                         value={buyDate}
                         onChange={e => setBuyDate(e.target.value)}
-                        className={cn(fieldCls, '[color-scheme:dark] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15')}
+                        className={cn(fieldCls, 'focus:border-[#22D3EE] focus:ring-[#22D3EE]/15')}
                       />
                     </div>
 
                     {/* Amount + Price → auto-shares */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+                        <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                           Amount to Invest ($)
-                          <span className="ml-1 text-zinc-600 normal-case tracking-normal font-normal">optional</span>
+                          <span className="ml-1 text-[var(--text-faint)] normal-case tracking-normal font-normal">optional</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[13px]">$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[13px]">$</span>
                           <input
                             inputMode="decimal"
                             value={buyAmount}
@@ -934,7 +926,7 @@ function EditModal({
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">Buy Price ($)</label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[13px]">$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[13px]">$</span>
                           <input
                             inputMode="decimal"
                             value={buyPrice}
@@ -948,9 +940,9 @@ function EditModal({
 
                     {/* Shares (auto-filled or direct) */}
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+                      <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                         Shares to Add
-                        <span className="ml-1 text-zinc-600 normal-case tracking-normal font-normal">auto-calculated · or enter directly</span>
+                        <span className="ml-1 text-[var(--text-faint)] normal-case tracking-normal font-normal">auto-calculated · or enter directly</span>
                       </label>
                       <div className="relative">
                         <input
@@ -961,7 +953,7 @@ function EditModal({
                           className={cn(fieldCls, 'focus:border-[#22D3EE] focus:ring-[#22D3EE]/15 pr-16')}
                         />
                         {buyCalc && (
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-zinc-500">
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-[var(--text-muted)]">
                             ${(buyCalc.totalCost).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                           </span>
                         )}
@@ -1001,9 +993,9 @@ function EditModal({
             {partials.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-2.5">
-                  <span className="text-[10px] uppercase tracking-[0.16em] font-bold text-zinc-500">Trade History</span>
-                  <span className="flex-1 h-px bg-white/[0.05]" />
-                  <span className="font-mono text-[10px] text-zinc-600">
+                  <span className="text-[10px] uppercase tracking-[0.16em] font-bold text-[var(--text-muted)]">Trade History</span>
+                  <span className="flex-1 h-px bg-[var(--divider-dim)]" />
+                  <span className="font-mono text-[10px] text-[var(--text-faint)]">
                     realized: {realizedPnL >= 0 ? '+' : ''}${realizedPnL.toFixed(0)}
                   </span>
                 </div>
@@ -1017,7 +1009,7 @@ function EditModal({
                           'flex items-center gap-3 px-3 py-2 rounded-[8px] border',
                           isBuy
                             ? 'bg-[#22D3EE]/[0.03] border-[#22D3EE]/10'
-                            : 'bg-white/[0.02] border-white/[0.05]',
+                            : 'bg-[var(--bg-surface)] border-[var(--divider-dim)]',
                         )}
                       >
                         {/* Action badge */}
@@ -1030,10 +1022,10 @@ function EditModal({
                           {isBuy ? 'Add' : 'Trim'}
                         </span>
 
-                        <span className="text-[10px] font-mono text-zinc-600 flex-shrink-0">
+                        <span className="text-[10px] font-mono text-[var(--text-faint)] flex-shrink-0">
                           {formatDate(p.date)}
                         </span>
-                        <span className="text-[10px] font-mono text-zinc-500 flex-shrink-0">
+                        <span className="text-[10px] font-mono text-[var(--text-muted)] flex-shrink-0">
                           {isBuy ? '+' : '−'}{p.shares} sh @ ${p.price.toFixed(2)}
                         </span>
 
@@ -1055,7 +1047,7 @@ function EditModal({
                         )}
 
                         {isBuy && (
-                          <span className="ml-auto text-[10px] font-mono text-zinc-600 flex-shrink-0">
+                          <span className="ml-auto text-[10px] font-mono text-[var(--text-faint)] flex-shrink-0">
                             ${(p.shares * p.price).toLocaleString('en-US', { maximumFractionDigits: 0 })} deployed
                           </span>
                         )}
@@ -1067,10 +1059,10 @@ function EditModal({
             )}
 
             {/* ── Close / Full Exit ─────────────────────────────────────── */}
-            <section className="rounded-[12px] border border-white/[0.08] bg-black/20 p-4 flex flex-col gap-4">
+            <section className="rounded-[12px] border border-[var(--border-strong)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4">
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#22D3EE]" />
-                <span className="text-[10px] uppercase tracking-[0.16em] font-bold text-zinc-400">
+                <span className="text-[10px] uppercase tracking-[0.16em] font-bold text-[var(--text-secondary)]">
                   {trade.status === 'open'
                     ? (currentShares > 0 ? 'Close Position' : 'Fully Closed via Trims')
                     : 'Exit Details'}
@@ -1084,7 +1076,7 @@ function EditModal({
                       Exit Price ({currentShares} sh)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[13px]">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[13px]">$</span>
                       <input
                         inputMode="decimal"
                         value={exitPrice}
@@ -1096,11 +1088,11 @@ function EditModal({
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">Status</label>
+                    <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Status</label>
                     <select
                       value={status}
                       onChange={e => setStatus(e.target.value as TradeStatus)}
-                      className="bg-black/40 border border-white/[0.07] rounded-[8px] px-3 py-2.5 text-[13px] font-semibold text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition appearance-none"
+                      className="bg-[var(--bg-input)] border border-[var(--border-dim)] rounded-[8px] px-3 py-2.5 text-[13px] font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition appearance-none"
                     >
                       <option value="open">Open</option>
                       <option value="closed">Closed</option>
@@ -1128,7 +1120,7 @@ function EditModal({
 
               {/* Already-realized reminder when no exit price yet */}
               {sells.length > 0 && !closeCalc && (
-                <div className="text-[11px] text-zinc-600 px-1">
+                <div className="text-[11px] text-[var(--text-faint)] px-1">
                   {sells.length} trim{sells.length > 1 ? 's' : ''} realized: {realizedPnL >= 0 ? '+' : ''}${realizedPnL.toFixed(0)}.
                   {currentShares > 0 ? ` Enter exit price to close ${currentShares} remaining shares.` : ' Position fully closed.'}
                 </div>
@@ -1136,16 +1128,16 @@ function EditModal({
 
               {/* Outcome selector */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Outcome{closeCalc && (outcome as string) === '' ? ' (auto)' : ''}
                 </label>
                 <div className="flex gap-2">
                   {(['winner', 'loser', 'breakeven'] as TradeOutcome[]).map(opt => {
                     const active = effectiveOutcome === opt;
                     const palette: Record<TradeOutcome, string> = {
-                      winner:    active ? 'bg-[#10F088]/15 border-[#10F088]/40 text-[#10F088]' : 'border-white/[0.06] text-zinc-500 hover:border-white/15',
-                      loser:     active ? 'bg-[#FF3B5C]/15 border-[#FF3B5C]/40 text-[#FF3B5C]' : 'border-white/[0.06] text-zinc-500 hover:border-white/15',
-                      breakeven: active ? 'bg-amber-400/15 border-amber-400/40 text-amber-400'  : 'border-white/[0.06] text-zinc-500 hover:border-white/15',
+                      winner:    active ? 'bg-[#10F088]/15 border-[#10F088]/40 text-[#10F088]' : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border-hover)]',
+                      loser:     active ? 'bg-[#FF3B5C]/15 border-[#FF3B5C]/40 text-[#FF3B5C]' : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border-hover)]',
+                      breakeven: active ? 'bg-amber-400/15 border-amber-400/40 text-amber-400'  : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-[var(--border-hover)]',
                     };
                     return (
                       <button
@@ -1164,7 +1156,7 @@ function EditModal({
                   })}
                 </div>
                 {(outcome as string) !== '' && (
-                  <button onClick={() => setOutcome('')} className="self-start text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">
+                  <button onClick={() => setOutcome('')} className="self-start text-[10px] text-[var(--text-faint)] hover:text-[var(--text-secondary)] transition-colors">
                     Reset to auto
                   </button>
                 )}
@@ -1174,23 +1166,23 @@ function EditModal({
             {/* ── Notes ───────────────────────────────────────────────── */}
             <section className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">Notes</label>
+                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Notes</label>
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   rows={2}
                   placeholder="What happened? Execution notes..."
-                  className="bg-black/40 border border-white/[0.07] rounded-[8px] px-3 py-2.5 text-[13px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition resize-none"
+                  className="bg-[var(--bg-input)] border border-[var(--border-dim)] rounded-[8px] px-3 py-2.5 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition resize-none"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">Lesson Learned</label>
+                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Lesson Learned</label>
                 <textarea
                   value={lessonLearned}
                   onChange={e => setLessonLearned(e.target.value)}
                   rows={2}
                   placeholder="What would you do differently?"
-                  className="bg-black/40 border border-white/[0.07] rounded-[8px] px-3 py-2.5 text-[13px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#A78BFA] focus:ring-[3px] focus:ring-[#A78BFA]/15 transition resize-none"
+                  className="bg-[var(--bg-input)] border border-[var(--border-dim)] rounded-[8px] px-3 py-2.5 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#A78BFA] focus:ring-[3px] focus:ring-[#A78BFA]/15 transition resize-none"
                 />
               </div>
             </section>
@@ -1200,7 +1192,7 @@ function EditModal({
               <div className="flex gap-2.5">
                 <button
                   onClick={onClose}
-                  className="flex-1 py-3 rounded-[10px] border border-white/[0.08] text-[12px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-all"
+                  className="flex-1 py-3 rounded-[10px] border border-[var(--border-strong)] text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-dim)] hover:border-[var(--border-hover)] transition-all"
                 >
                   Cancel
                 </button>
@@ -1210,7 +1202,7 @@ function EditModal({
                   className={cn(
                     'flex-[2] py-3 rounded-[10px] text-[12px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
                     saving
-                      ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
+                      ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                       : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.25)] hover:brightness-110 hover:-translate-y-px',
                   )}
                 >
@@ -1277,13 +1269,13 @@ function ScreenshotSection({ trade }: { trade: Trade }) {
   return (
     <section>
       <div className="flex items-center gap-2 mb-2.5">
-        <span className="text-[10px] uppercase tracking-[0.16em] font-bold text-zinc-500">Chart at Entry</span>
-        <span className="flex-1 h-px bg-white/[0.05]" />
+        <span className="text-[10px] uppercase tracking-[0.16em] font-bold text-[var(--text-muted)]">Chart at Entry</span>
+        <span className="flex-1 h-px bg-[var(--divider-dim)]" />
         {(preview || uploadedUrl) && (
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="text-[10px] text-zinc-600 hover:text-[#22D3EE] transition-colors font-semibold"
+            className="text-[10px] text-[var(--text-faint)] hover:text-[#22D3EE] transition-colors font-semibold"
           >
             Change
           </button>
@@ -1291,7 +1283,7 @@ function ScreenshotSection({ trade }: { trade: Trade }) {
       </div>
 
       {preview ? (
-        <div className="relative rounded-[10px] overflow-hidden border border-white/[0.08] bg-black/30" style={{ aspectRatio: '16/7' }}>
+        <div className="relative rounded-[10px] overflow-hidden border border-[var(--border-strong)] bg-[var(--bg-input)]" style={{ aspectRatio: '16/7' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt={`${trade.ticker} chart`} className="w-full h-full object-cover" />
           {uploading && (
@@ -1317,11 +1309,11 @@ function ScreenshotSection({ trade }: { trade: Trade }) {
           onClick={() => fileInputRef.current?.click()}
           className={cn(
             'cursor-pointer rounded-[10px] border-2 border-dashed px-4 py-5 flex flex-col items-center justify-center gap-2 transition-all select-none',
-            isDragging ? 'border-[#22D3EE]/60 bg-[#22D3EE]/[0.07]' : 'border-white/[0.08] bg-black/20 hover:border-white/20',
+            isDragging ? 'border-[#22D3EE]/60 bg-[#22D3EE]/[0.07]' : 'border-[var(--border-strong)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)]',
           )}
         >
-          <UploadCloud className={cn('w-5 h-5 transition-colors', isDragging ? 'text-[#22D3EE]' : 'text-zinc-600')} />
-          <p className="text-[11px] text-zinc-500">
+          <UploadCloud className={cn('w-5 h-5 transition-colors', isDragging ? 'text-[#22D3EE]' : 'text-[var(--text-faint)]')} />
+          <p className="text-[11px] text-[var(--text-muted)]">
             Drop chart or <span className="text-[#22D3EE] font-semibold">click to upload</span>
           </p>
         </div>
@@ -1341,7 +1333,7 @@ function ScreenshotSection({ trade }: { trade: Trade }) {
 // ── Small shared UI atoms ──────────────────────────────────────────────────────
 
 const fieldCls =
-  'w-full bg-black/40 border border-white/[0.07] rounded-[8px] px-3 py-2.5 font-mono text-[14px] text-zinc-100 focus:outline-none focus:ring-[3px] transition';
+  'w-full bg-[var(--bg-input)] border border-[var(--border-dim)] rounded-[8px] px-3 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition';
 
 function PreviewGrid({
   items, positive, large = false, accent = 'default',
@@ -1363,7 +1355,7 @@ function PreviewGrid({
     <div className={cn('grid gap-2 p-3 rounded-[9px] border', bg, `grid-cols-${items.length}`)}>
       {items.map(({ label, val }) => (
         <div key={label} className="text-center">
-          <div className="text-[9px] uppercase tracking-wider font-bold text-zinc-600 mb-0.5">{label}</div>
+          <div className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-faint)] mb-0.5">{label}</div>
           <div className={cn('font-mono font-extrabold', large ? 'text-[16px]' : 'text-[13px]', color)}>
             {val}
           </div>
@@ -1396,7 +1388,7 @@ function ActionButton({
       className={cn(
         'w-full py-2.5 rounded-[9px] text-[12px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
         disabled
-          ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
+          ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
           : active,
       )}
     >
@@ -1412,23 +1404,24 @@ function ActionButton({
 function StatCard({ label, value, accent }: {
   label: string; value: string; accent: 'cyan' | 'green' | 'red' | 'amber';
 }) {
-  const colors = { cyan: 'text-[#22D3EE]', green: 'text-[#10F088]', red: 'text-[#FF3B5C]', amber: 'text-amber-400' };
+  const dots = { cyan: 'bg-[#22D3EE]', green: 'bg-[#10F088]', red: 'bg-[#EF4444]', amber: 'bg-amber-400' };
   return (
-    <div className="p-4 rounded-[12px] border border-white/[0.06] overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
-        backdropFilter: 'blur(8px)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-      }}>
-      <div className="text-[9px] uppercase tracking-[0.18em] font-bold text-zinc-600 mb-1">{label}</div>
-      <div className={cn('font-mono text-[22px] font-extrabold tracking-tight', colors[accent])}>{value}</div>
+    <div
+      className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
+      <div className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)] mb-2 opacity-70">{label}</div>
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[22px] font-extrabold tracking-tight text-[var(--text-primary)]">{value}</span>
+        {value !== '—' && <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', dots[accent])} />}
+      </div>
     </div>
   );
 }
 
 function LoadingState() {
   return (
-    <div className="flex items-center justify-center py-24 gap-3 text-zinc-500">
+    <div className="flex items-center justify-center py-24 gap-3 text-[var(--text-muted)]">
       <Loader2 className="w-5 h-5 animate-spin text-[#22D3EE]" />
       <span className="text-[13px] font-semibold">Loading trades…</span>
     </div>
@@ -1451,10 +1444,10 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 function EmptyState({ filter, onAdd }: { filter: StatusFilter; onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="text-[13px] font-semibold text-zinc-500 mb-2">
+      <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-2">
         {filter === 'all' ? 'No trades logged yet' : `No ${filter.replace('_', ' ')} trades`}
       </div>
-      <p className="text-[12px] text-zinc-700 mb-6">
+      <p className="text-[12px] text-[var(--text-faint)] mb-6">
         {filter === 'all' ? 'Log your first trade using the button above.' : 'Switch to "All" to see all trades.'}
       </p>
       {filter === 'all' && (

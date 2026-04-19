@@ -4,9 +4,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BookOpen, Layers, LineChart, List, LogOut, Settings, TrendingUp,
+  BookOpen, Layers, LineChart, List, LogOut, Moon, Settings, Sun, TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useTheme } from '@/lib/theme-context';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
@@ -20,6 +21,7 @@ export function AppNav() {
   const pathname = usePathname();
   const router   = useRouter();
   const { signOut, profile } = useAuth();
+  const { effectiveTheme, toggleTheme } = useTheme();
 
   const handleLogout = async () => {
     await signOut();
@@ -28,8 +30,9 @@ export function AppNav() {
 
   return (
     <nav
-      className="sticky top-0 z-40 bg-[#040507]/85 backdrop-blur-xl"
+      className="sticky top-0 z-40 backdrop-blur-xl"
       style={{
+        background: 'var(--nav-bg)',
         borderBottom: '1px solid transparent',
         borderImageSource: 'linear-gradient(90deg, rgba(34,211,238,0.18) 0%, rgba(16,240,136,0.10) 50%, transparent 100%)',
         borderImageSlice: 1,
@@ -45,8 +48,8 @@ export function AppNav() {
             <TrendingUp className="w-3.5 h-3.5 text-black" strokeWidth={3.5} />
           </div>
           <div className="flex flex-col leading-none">
-            <span className="text-[14px] font-extrabold tracking-tight">Momentum Playbook</span>
-            <span className="text-[9px] text-zinc-600 tracking-[0.22em] uppercase font-semibold mt-0.5">
+            <span className="text-[14px] font-extrabold tracking-tight text-[var(--text-primary)]">Momentum Playbook</span>
+            <span className="text-[9px] text-[var(--text-faint)] tracking-[0.22em] uppercase font-semibold mt-0.5">
               {profile?.display_name ?? 'Stage 2 only'}
             </span>
           </div>
@@ -63,8 +66,8 @@ export function AppNav() {
                 className={cn(
                   'relative flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold tracking-tight transition-colors',
                   active
-                    ? 'text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]',
+                    ? 'text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]',
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -85,17 +88,40 @@ export function AppNav() {
               'p-1.5 rounded-md transition-colors ml-1',
               pathname === '/settings'
                 ? 'text-[#22D3EE] bg-[#22D3EE]/10'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]',
+                : 'text-[var(--text-muted)] hover:text-[var(--text-dim)] hover:bg-[var(--bg-elevated)]',
             )}
             aria-label="Settings"
           >
             <Settings className="w-4 h-4" />
           </Link>
 
+          {/* Theme toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition-all"
+            aria-label={effectiveTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <span className="relative block w-4 h-4">
+              <Sun
+                className={cn(
+                  'absolute inset-0 w-4 h-4 transition-all duration-300',
+                  effectiveTheme === 'dark' ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 rotate-90 scale-75',
+                )}
+              />
+              <Moon
+                className={cn(
+                  'absolute inset-0 w-4 h-4 transition-all duration-300',
+                  effectiveTheme === 'light' ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-75',
+                )}
+              />
+            </span>
+          </button>
+
           <button
             type="button"
             onClick={handleLogout}
-            className="p-1.5 rounded-md text-zinc-500 hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/[0.06] transition-colors"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/[0.06] transition-colors"
             aria-label="Sign out"
           >
             <LogOut className="w-4 h-4" />

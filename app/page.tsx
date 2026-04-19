@@ -72,6 +72,7 @@ export default function Dashboard() {
     winners:    trades.filter(t => t.outcome === 'winner').length,
     losers:     trades.filter(t => t.outcome === 'loser').length,
     breakevens: trades.filter(t => t.outcome === 'breakeven').length,
+    whatIf:     trades.filter(t => t.is_what_if).length,
     all:        trades.length,
   }), [trades]);
 
@@ -327,20 +328,28 @@ function StatCard({
   accent: 'cyan' | 'green' | 'red' | 'amber';
 }) {
   const accents = {
-    cyan:  { text: 'text-[#22D3EE]', glow: 'shadow-[0_0_14px_rgba(34,211,238,0.25)]' },
-    green: { text: 'text-[#10F088]', glow: 'shadow-[0_0_14px_rgba(16,240,136,0.25)]' },
-    red:   { text: 'text-[#FF3B5C]', glow: 'shadow-[0_0_14px_rgba(255,59,92,0.25)]'  },
-    amber: { text: 'text-amber-400', glow: 'shadow-[0_0_14px_rgba(251,191,36,0.22)]' },
+    cyan:  { dot: 'bg-[#22D3EE]', icon: 'text-[#22D3EE]' },
+    green: { dot: 'bg-[#10F088]', icon: 'text-[#10F088]' },
+    red:   { dot: 'bg-[#EF4444]', icon: 'text-[#EF4444]'  },
+    amber: { dot: 'bg-amber-400', icon: 'text-amber-400'  },
   };
   const a = accents[accent];
   return (
-    <div className="relative p-3.5 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] backdrop-blur overflow-hidden">
-      <div className="flex items-center gap-2 mb-1.5">
-        <Icon className={cn('w-3 h-3', a.text)} />
-        <span className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">{label}</span>
+    <div
+      className="relative p-5 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={cn('w-3 h-3', a.icon)} />
+        <span className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)] opacity-70">{label}</span>
       </div>
-      <div className={cn('font-mono text-[20px] font-extrabold tracking-tight', a.text, a.glow)}>
-        {value}
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[22px] font-extrabold tracking-tight text-[var(--text-primary)]">
+          {value}
+        </span>
+        {value !== '—' && (
+          <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', a.dot)} />
+        )}
       </div>
     </div>
   );
@@ -360,31 +369,32 @@ function SectionHeader({
 }
 
 function PlaybookStrip({ counts }: {
-  counts: { winners: number; losers: number; breakevens: number; all: number };
+  counts: { winners: number; losers: number; breakevens: number; whatIf: number; all: number };
 }) {
   const items = [
-    { label: 'Winners',    count: counts.winners,    href: '/playbook?filter=winners',    accent: 'green' as const },
-    { label: 'Losers',     count: counts.losers,     href: '/playbook?filter=losers',     accent: 'red'   as const },
-    { label: 'Breakevens', count: counts.breakevens, href: '/playbook?filter=breakevens', accent: 'cyan'  as const },
-    { label: 'All',        count: counts.all,        href: '/playbook',                   accent: 'amber' as const },
+    { label: 'Winners',    count: counts.winners,    href: '/playbook?filter=winners',    dot: 'bg-[#10F088]' },
+    { label: 'Losers',     count: counts.losers,     href: '/playbook?filter=losers',     dot: 'bg-[#EF4444]' },
+    { label: 'Breakevens', count: counts.breakevens, href: '/playbook?filter=breakevens', dot: 'bg-[#22D3EE]' },
+    { label: 'What-If',    count: counts.whatIf,     href: '/playbook?filter=what-if',    dot: 'bg-amber-500' },
+    { label: 'All',        count: counts.all,        href: '/playbook',                   dot: 'bg-[var(--text-faint)]' },
   ];
-  const accents = {
-    green: 'text-[#10F088]', red: 'text-[#FF3B5C]',
-    cyan: 'text-[#22D3EE]', amber: 'text-amber-400',
-  };
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-5 gap-2">
       {items.map(item => (
         <Link
           key={item.label}
           href={item.href}
-          className="p-3 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] transition-all group"
+          className="p-3.5 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] transition-all group"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
-          <div className={cn('font-mono text-[22px] font-extrabold tracking-tight mb-0.5', accents[item.accent])}>
-            {item.count}
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', item.dot)} />
+            <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] group-hover:text-[var(--text-muted)] transition-colors">
+              {item.label}
+            </span>
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] group-hover:text-[var(--text-dim)] transition-colors">
-            {item.label}
+          <div className="font-mono text-[22px] font-extrabold tracking-tight text-[var(--text-primary)]">
+            {item.count}
           </div>
         </Link>
       ))}

@@ -1,8 +1,71 @@
 @import "tailwindcss";
 
-:root {
-  --background: #040507;
-  --foreground: #f4f4f5;
+/* ── Theme tokens ─────────────────────────────────────────────────────────────── */
+
+:root, [data-theme="dark"] {
+  --background:     #040507;
+  --foreground:     #f4f4f5;
+
+  --bg-primary:    #040507;
+  --bg-surface:    rgba(255,255,255,0.03);
+  --bg-elevated:   rgba(255,255,255,0.055);
+  --bg-subtle:     rgba(255,255,255,0.015);
+  --bg-input:      rgba(0,0,0,0.35);
+  --bg-modal:      #07090f;
+  --nav-bg:        rgba(4,5,7,0.85);
+  --modal-overlay: rgba(4,5,7,0.88);
+  --tab-strip-bg:  rgba(255,255,255,0.055);
+  --tab-active-bg: rgba(255,255,255,0.1);
+
+  --text-primary:     #f4f4f5;
+  --text-dim:         #d4d4d8;
+  --text-secondary:   #a1a1aa;
+  --text-muted:       #71717a;
+  --text-faint:       #52525b;
+  --text-placeholder: #3f3f46;
+
+  --border-subtle:  rgba(255,255,255,0.06);
+  --border-dim:     rgba(255,255,255,0.07);
+  --border-hover:   rgba(255,255,255,0.15);
+  --border-strong:  rgba(255,255,255,0.08);
+  --divider:        rgba(255,255,255,0.04);
+  --divider-dim:    rgba(255,255,255,0.05);
+
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --shadow-modal: 0 24px 80px rgba(0,0,0,0.7), 0 8px 24px rgba(0,0,0,0.4);
+}
+
+[data-theme="light"] {
+  --background:     #F1F5F9;
+  --foreground:     #18181b;
+
+  --bg-primary:    #F1F5F9;
+  --bg-surface:    #FFFFFF;
+  --bg-elevated:   #F8FAFC;
+  --bg-subtle:     rgba(0,0,0,0.03);
+  --bg-input:      rgba(0,0,0,0.04);
+  --bg-modal:      #ffffff;
+  --nav-bg:        rgba(241,245,249,0.90);
+  --modal-overlay: rgba(15,23,42,0.35);
+  --tab-strip-bg:  rgba(0,0,0,0.055);
+  --tab-active-bg: #FFFFFF;
+
+  --text-primary:     #18181b;
+  --text-dim:         #3f3f46;
+  --text-secondary:   #52525b;
+  --text-muted:       #71717a;
+  --text-faint:       #a1a1aa;
+  --text-placeholder: #a1a1aa;
+
+  --border-subtle:  rgba(0,0,0,0.08);
+  --border-dim:     rgba(0,0,0,0.07);
+  --border-hover:   rgba(0,0,0,0.18);
+  --border-strong:  rgba(0,0,0,0.1);
+  --divider:        rgba(0,0,0,0.05);
+  --divider-dim:    rgba(0,0,0,0.06);
+
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.05);
+  --shadow-modal: 0 24px 60px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.1);
 }
 
 @theme inline {
@@ -13,10 +76,26 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-inter, ui-sans-serif, system-ui, sans-serif);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* JetBrains Mono for all monospace elements */
+.font-mono {
+  font-family: var(--font-jetbrains-mono, ui-monospace, SFMono-Regular, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Date/time inputs follow the active color scheme */
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="time"] {
+  color-scheme: dark;
+}
+[data-theme="light"] input[type="date"],
+[data-theme="light"] input[type="time"] {
+  color-scheme: light;
 }
 
 /* ── Animations ─────────────────────────────────────────────────────────────── */

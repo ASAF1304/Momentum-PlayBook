@@ -72,32 +72,32 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#040507] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-[#22D3EE]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#040507] flex items-center justify-center p-4 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
+    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
       <GridOverlay />
       <div className="relative z-10 w-full max-w-[440px]">
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur p-8">
+        <div className="rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-surface)] backdrop-blur p-8">
 
           {/* Logo + welcome */}
           <div className="flex items-center gap-2.5 mb-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#22D3EE] to-[#10F088] flex items-center justify-center">
               <TrendingUp className="w-4 h-4 text-black" strokeWidth={3.5} />
             </div>
-            <span className="text-[15px] font-extrabold tracking-tight text-zinc-100">
+            <span className="text-[15px] font-extrabold tracking-tight text-[var(--text-primary)]">
               Momentum Playbook
             </span>
           </div>
 
-          <h1 className="text-[20px] font-extrabold tracking-tight text-zinc-100 mb-1 mt-6">
+          <h1 className="text-[20px] font-extrabold tracking-tight text-[var(--text-primary)] mb-1 mt-6">
             Set up your account
           </h1>
-          <p className="text-[12px] text-zinc-500 mb-6 leading-relaxed">
+          <p className="text-[12px] text-[var(--text-muted)] mb-6 leading-relaxed">
             These parameters drive the position sizer and risk engine. You can change them later in Settings.
           </p>
 
@@ -105,15 +105,15 @@ export default function OnboardingPage() {
 
             {/* Display name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
-                Display Name <span className="text-zinc-600 normal-case tracking-normal">(optional)</span>
+              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+                Display Name <span className="text-[var(--text-faint)] normal-case tracking-normal">(optional)</span>
               </label>
               <input
                 type="text"
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
                 placeholder="Asaf"
-                className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
               />
             </div>
 
@@ -123,7 +123,7 @@ export default function OnboardingPage() {
                 Account Size ($) <span className="text-[#FF3B5C]">*</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[14px]">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[14px]">$</span>
                 <input
                   type="number"
                   value={accountSize}
@@ -132,7 +132,7 @@ export default function OnboardingPage() {
                   min="100"
                   step="100"
                   placeholder="25000"
-                  className="w-full bg-black/30 border border-white/[0.06] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
                 />
               </div>
             </div>
@@ -140,7 +140,7 @@ export default function OnboardingPage() {
             {/* Risk params side by side */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Risk / Trade
                 </label>
                 <div className="relative">
@@ -151,15 +151,15 @@ export default function OnboardingPage() {
                     min="0.1"
                     max="10"
                     step="0.1"
-                    className="w-full bg-black/30 border border-white/[0.06] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[13px]">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[13px]">%</span>
                 </div>
-                <span className="text-[9px] text-zinc-600">Minervini default: 2.5%</span>
+                <span className="text-[9px] text-[var(--text-faint)]">Minervini default: 2.5%</span>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Stop Distance
                 </label>
                 <div className="relative">
@@ -170,11 +170,11 @@ export default function OnboardingPage() {
                     min="0.5"
                     max="25"
                     step="0.5"
-                    className="w-full bg-black/30 border border-white/[0.06] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[13px]">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[13px]">%</span>
                 </div>
-                <span className="text-[9px] text-zinc-600">O'Neil hard cap: 10%</span>
+                <span className="text-[9px] text-[var(--text-faint)]">O'Neil hard cap: 10%</span>
               </div>
             </div>
 
@@ -190,7 +190,7 @@ export default function OnboardingPage() {
               className={cn(
                 'mt-1 w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2',
                 submitting
-                  ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
+                  ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                   : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110',
               )}
             >

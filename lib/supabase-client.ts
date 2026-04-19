@@ -72,6 +72,9 @@ export interface Trade {
   // Partial-exit columns — added via migration
   partials: PartialExit[];
   current_shares: number;
+
+  // What-If / non-system trade flag
+  is_what_if: boolean;
 }
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────

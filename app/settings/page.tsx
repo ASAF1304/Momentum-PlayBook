@@ -84,34 +84,34 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#040507] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-[#22D3EE]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#040507] text-zinc-100 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
       <GridOverlay />
       <AppNav />
 
       <main className="max-w-[520px] mx-auto px-6 py-10 relative">
         <div className="mb-6">
           <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Settings</h1>
-          <p className="text-[12px] text-zinc-500">
+          <p className="text-[12px] text-[var(--text-muted)]">
             Account size and risk parameters used by the position sizer.
           </p>
         </div>
 
         <form onSubmit={handleSave} className="flex flex-col gap-4">
 
-          <div className="p-5 rounded-[12px] border border-white/[0.06] bg-white/[0.025] flex flex-col gap-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-zinc-500">
+          <div className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col gap-4">
+            <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
               Profile
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                 Display Name
               </label>
               <input
@@ -119,13 +119,13 @@ export default function SettingsPage() {
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
                 placeholder="Your name"
-                className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
               />
             </div>
           </div>
 
-          <div className="p-5 rounded-[12px] border border-white/[0.06] bg-white/[0.025] flex flex-col gap-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-zinc-500">
+          <div className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col gap-4">
+            <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
               Risk Engine
             </div>
 
@@ -134,21 +134,21 @@ export default function SettingsPage() {
                 Account Size ($)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[14px]">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[14px]">$</span>
                 <input
                   type="number"
                   value={accountSize}
                   onChange={e => setAccountSize(e.target.value)}
                   min="100"
                   step="100"
-                  className="w-full bg-black/30 border border-white/[0.06] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Risk / Trade
                 </label>
                 <div className="relative">
@@ -159,14 +159,14 @@ export default function SettingsPage() {
                     min="0.1"
                     max="10"
                     step="0.1"
-                    className="w-full bg-black/30 border border-white/[0.06] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[12px]">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[12px]">%</span>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Stop Distance
                 </label>
                 <div className="relative">
@@ -177,9 +177,9 @@ export default function SettingsPage() {
                     min="0.5"
                     max="25"
                     step="0.5"
-                    className="w-full bg-black/30 border border-white/[0.06] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-[12px]">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[12px]">%</span>
                 </div>
               </div>
             </div>
@@ -191,7 +191,7 @@ export default function SettingsPage() {
             className={cn(
               'w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2',
               saving
-                ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
+                ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                 : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110',
             )}
           >
@@ -203,4 +203,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

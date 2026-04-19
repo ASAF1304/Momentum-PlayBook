@@ -115,28 +115,33 @@ export function AddPositionModal({
 
   if (!mounted) return null;
 
+  const inputCls = 'w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/20 transition';
+
   const modal = (
     <div
       ref={backdropRef}
       onClick={e => { if (e.target === backdropRef.current) onClose(); }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
-      style={{ background: 'rgba(4,5,7,0.85)', backdropFilter: 'blur(16px) saturate(120%)', WebkitBackdropFilter: 'blur(16px) saturate(120%)' }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 backdrop-blur-sm"
+      style={{ background: 'var(--modal-overlay)' }}
     >
-      <div className="animate-modal-enter relative w-full max-w-[500px] rounded-2xl border border-white/[0.08] bg-[#07090f] shadow-[0_32px_80px_rgba(0,0,0,0.7)] overflow-hidden">
+      <div
+        className="animate-modal-enter relative w-full max-w-[500px] rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-modal)] overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-modal)' }}
+      >
         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-[#22D3EE] to-[#10F088]" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)]">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <TrendingUp className="w-4 h-4 text-[#22D3EE]" />
-              <span className="text-[14px] font-extrabold tracking-tight">Add Position Manually</span>
+              <span className="text-[14px] font-extrabold tracking-tight text-[var(--text-primary)]">Add Position Manually</span>
             </div>
-            <p className="text-[11px] text-zinc-500">Backfill a trade without running the validator.</p>
+            <p className="text-[11px] text-[var(--text-muted)]">Backfill a trade without running the validator.</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -154,17 +159,17 @@ export function AddPositionModal({
                 value={ticker}
                 onChange={e => setTicker(e.target.value.toUpperCase().slice(0, 10))}
                 placeholder="NVDA"
-                className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 font-mono text-[16px] font-bold uppercase text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                className={cn(inputCls, 'font-mono text-[16px] font-bold uppercase focus:border-[#22D3EE] focus:ring-[#22D3EE]/20')}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                 Setup Type
               </label>
               <select
                 value={setupType}
                 onChange={e => setSetupType(e.target.value as SetupType | '')}
-                className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[13px] text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition appearance-none"
+                className={cn(inputCls, 'text-[13px] appearance-none')}
               >
                 <option value="">— optional —</option>
                 {SETUP_TYPES.map(t => (
@@ -176,14 +181,14 @@ export function AddPositionModal({
 
           {/* Entry date */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
               Entry Date
             </label>
             <input
               type="date"
               value={entryDate}
               onChange={e => setEntryDate(e.target.value)}
-              className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[13px] text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition [color-scheme:dark]"
+              className={cn(inputCls, 'text-[13px]')}
             />
           </div>
 
@@ -198,11 +203,11 @@ export function AddPositionModal({
                 value={entryPrice}
                 onChange={e => setEntryPrice(e.target.value)}
                 placeholder="0.00"
-                className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 font-mono text-[14px] text-zinc-100 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                className={cn(inputCls, 'font-mono text-[14px]')}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                 Shares
               </label>
               <input
@@ -210,11 +215,11 @@ export function AddPositionModal({
                 value={shares}
                 onChange={e => setShares(e.target.value)}
                 placeholder="0"
-                className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 font-mono text-[14px] text-zinc-100 focus:outline-none focus:border-white/30 focus:ring-[3px] focus:ring-white/10 transition"
+                className={cn(inputCls, 'font-mono text-[14px]')}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#FF3B5C]">
+              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#EF4444]">
                 Stop $
               </label>
               <input
@@ -222,7 +227,7 @@ export function AddPositionModal({
                 value={stopPrice}
                 onChange={e => setStopPrice(e.target.value)}
                 placeholder="0.00"
-                className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 font-mono text-[14px] text-[#FF3B5C] focus:outline-none focus:border-[#FF3B5C] focus:ring-[3px] focus:ring-[#FF3B5C]/15 transition"
+                className={cn(inputCls, 'font-mono text-[14px] text-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]/15')}
               />
             </div>
           </div>
@@ -232,25 +237,25 @@ export function AddPositionModal({
             <div className={cn(
               'grid grid-cols-3 gap-2 p-3 rounded-[9px] border text-center',
               stopTooWide
-                ? 'bg-[#FF3B5C]/[0.06] border-[#FF3B5C]/30'
+                ? 'bg-[#EF4444]/[0.06] border-[#EF4444]/30'
                 : 'bg-[#22D3EE]/[0.04] border-[#22D3EE]/20',
             )}>
               <div>
-                <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-zinc-600 mb-0.5">Stop Dist</div>
-                <div className={cn('font-mono text-[14px] font-bold', stopTooWide ? 'text-[#FF3B5C]' : 'text-[#22D3EE]')}>
+                <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-0.5">Stop Dist</div>
+                <div className={cn('font-mono text-[14px] font-bold', stopTooWide ? 'text-[#EF4444]' : 'text-[#22D3EE]')}>
                   {computed.stopDistPct.toFixed(2)}%
                   {stopTooWide && ` > ${maxStopDistancePct}%`}
                 </div>
               </div>
               <div>
-                <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-zinc-600 mb-0.5">Risk / Share</div>
-                <div className="font-mono text-[14px] font-bold text-zinc-300">
+                <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-0.5">Risk / Share</div>
+                <div className="font-mono text-[14px] font-bold text-[var(--text-dim)]">
                   ${computed.riskPerShare.toFixed(2)}
                 </div>
               </div>
               <div>
-                <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-zinc-600 mb-0.5">Total Risk</div>
-                <div className="font-mono text-[14px] font-bold text-[#FF3B5C]">
+                <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-0.5">Total Risk</div>
+                <div className="font-mono text-[14px] font-bold text-[#EF4444]">
                   ${computed.riskDollars.toFixed(0)}
                 </div>
               </div>
@@ -258,7 +263,7 @@ export function AddPositionModal({
           )}
 
           {error && (
-            <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-[12px] text-[#FF3B5C]">
+            <div className="px-3 py-2.5 rounded-[8px] bg-[#EF4444]/[0.06] border border-[#EF4444]/30 text-[12px] text-[#EF4444]">
               {error}
             </div>
           )}
@@ -267,7 +272,7 @@ export function AddPositionModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-[10px] border border-white/[0.08] text-[12px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-all"
+              className="flex-1 py-3 rounded-[10px] border border-[var(--border-strong)] text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
             >
               Cancel
             </button>
@@ -277,8 +282,8 @@ export function AddPositionModal({
               className={cn(
                 'flex-[2] py-3 rounded-[10px] text-[12px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
                 saving || stopTooWide
-                  ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
-                  : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 hover:-translate-y-px',
+                  ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
+                  : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90 hover:-translate-y-px shadow-[var(--shadow-card)]',
               )}
             >
               {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Saving…</> : 'Log Position'}

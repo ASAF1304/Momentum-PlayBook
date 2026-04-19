@@ -125,7 +125,7 @@ export default function WatchlistPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#040507] text-zinc-100">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       <GridOverlay />
       <AppNav />
 
@@ -133,7 +133,7 @@ export default function WatchlistPage() {
 
         <div className="mb-7">
           <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Watchlist</h1>
-          <p className="text-[12px] text-zinc-500">
+          <p className="text-[12px] text-[var(--text-muted)]">
             Add tickers to track. Click a row to see a live chart, EMA status, and Trend Template.
           </p>
         </div>
@@ -144,7 +144,7 @@ export default function WatchlistPage() {
             value={tickerInput}
             onChange={e => setTickerInput(e.target.value.toUpperCase().slice(0, 10))}
             placeholder="TICKER"
-            className="flex-1 bg-black/30 border border-white/[0.06] rounded-[10px] px-4 py-3 font-mono text-[18px] font-bold uppercase text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+            className="flex-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[10px] px-4 py-3 font-mono text-[18px] font-bold uppercase text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
           />
           <button
             type="submit"
@@ -152,7 +152,7 @@ export default function WatchlistPage() {
             className={cn(
               'flex items-center gap-2 px-5 py-3 rounded-[10px] text-[12px] font-extrabold uppercase tracking-wider transition-all',
               adding || !tickerInput.trim()
-                ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
+                ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                 : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.25)] hover:brightness-110 hover:-translate-y-px',
             )}
           >
@@ -163,12 +163,12 @@ export default function WatchlistPage() {
 
         {/* List */}
         {loadingList ? (
-          <div className="flex items-center gap-2 py-10 text-zinc-600 text-[13px]">
+          <div className="flex items-center gap-2 py-10 text-[var(--text-faint)] text-[13px]">
             <Loader2 className="w-4 h-4 animate-spin text-[#22D3EE]" />
             Loading watchlist…
           </div>
         ) : items.length === 0 ? (
-          <div className="py-16 text-center text-zinc-600 text-[13px]">
+          <div className="py-16 text-center text-[var(--text-faint)] text-[13px]">
             Watchlist is empty. Add a ticker above.
           </div>
         ) : (
@@ -208,7 +208,7 @@ function WatchlistRow({
       'rounded-[12px] border transition-all overflow-hidden',
       expanded
         ? 'border-[#22D3EE]/30 bg-[#22D3EE]/[0.03]'
-        : 'border-white/[0.06] bg-white/[0.025] hover:border-white/15',
+        : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)]',
     )}>
       {/* Header row */}
       <div className="flex items-center gap-3 px-4 py-3.5">
@@ -221,13 +221,13 @@ function WatchlistRow({
           className="flex-1 flex items-center gap-3 text-left"
         >
           <span className="font-mono text-[18px] font-extrabold tracking-tight">{item.ticker}</span>
-          <span className="text-[10px] text-zinc-600 font-mono">
+          <span className="text-[10px] text-[var(--text-faint)] font-mono">
             added {formatDate(item.added_at)}
           </span>
           <span className="ml-auto">
             {expanded
               ? <ChevronUp className="w-3.5 h-3.5 text-[#22D3EE]" />
-              : <ChevronDown className="w-3.5 h-3.5 text-zinc-600" />}
+              : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-faint)]" />}
           </span>
         </button>
 
@@ -235,7 +235,7 @@ function WatchlistRow({
           ref={removeRef}
           type="button"
           onClick={onRemove}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/[0.08] transition-colors flex-shrink-0"
+          className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-faint)] hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/[0.08] transition-colors flex-shrink-0"
           aria-label={`Remove ${item.ticker}`}
         >
           <X className="w-3.5 h-3.5" />
@@ -244,7 +244,7 @@ function WatchlistRow({
 
       {/* Expanded content */}
       {expanded && (
-        <div className="border-t border-white/[0.06]">
+        <div className="border-t border-[var(--border-subtle)]">
           {/* TradingView chart — full bleed, maximum height */}
           <div className="pt-1">
             <TradingViewChart ticker={item.ticker} height={540} />
@@ -253,7 +253,7 @@ function WatchlistRow({
           {/* Snapshot panel */}
           <div className="px-4 pb-4 pt-3">
             {!snapshot || snapshot === 'loading' ? (
-              <div className="flex items-center gap-2 py-4 text-zinc-600 text-[12px]">
+              <div className="flex items-center gap-2 py-4 text-[var(--text-faint)] text-[12px]">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />
                 Fetching live data…
               </div>
@@ -300,7 +300,7 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
           {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
           {isUp ? '+' : ''}{data.price.dayChangePct.toFixed(2)}%
         </span>
-        <span className="ml-auto text-[10px] font-mono text-zinc-600">
+        <span className="ml-auto text-[10px] font-mono text-[var(--text-faint)]">
           vol {(data.volume.ratio).toFixed(1)}× avg
         </span>
       </div>
@@ -318,7 +318,7 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
                   ? <Check className="w-2 h-2 text-[#10F088]" strokeWidth={4} />
                   : <X className="w-2 h-2 text-[#FF3B5C]" strokeWidth={4} />}
               </span>
-              <span className={ok ? 'text-zinc-300' : 'text-zinc-600'}>{label}</span>
+              <span className={ok ? 'text-[var(--text-dim)]' : 'text-[var(--text-faint)]'}>{label}</span>
             </div>
           ))}
         </div>
@@ -329,7 +329,7 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
             ? 'bg-[#10F088]/[0.06] border-[#10F088]/30'
             : 'bg-[#FF3B5C]/[0.06] border-[#FF3B5C]/25',
         )}>
-          <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-zinc-600 mb-1">
+          <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-1">
             Template
           </span>
           <span className={cn(
@@ -350,8 +350,8 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
           { label: 'From Low',  val: `+${data.range52w.distanceFromLow.toFixed(1)}%` },
         ].map(({ label, val }) => (
           <div key={label} className="flex flex-col gap-0.5">
-            <span className="text-zinc-600 text-[9px] uppercase tracking-wider">{label}</span>
-            <span className="text-zinc-300 font-semibold">{val}</span>
+            <span className="text-[var(--text-faint)] text-[9px] uppercase tracking-wider">{label}</span>
+            <span className="text-[var(--text-dim)] font-semibold">{val}</span>
           </div>
         ))}
       </div>
