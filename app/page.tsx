@@ -22,15 +22,30 @@ export default function Dashboard() {
 
   const [trades,        setTrades]        = useState<Trade[]>([]);
   const [tradesLoading, setTradesLoading] = useState(true);
+  const [tradesError,   setTradesError]   = useState<string | null>(null);
   const [showAddModal,  setShowAddModal]  = useState(false);
 
-  const fetchTrades = useCallback(async () => {
+  const fetchTrades = useCallback(async (attempt = 0) => {
     if (!user) return;
-    setTradesLoading(true);
-    const { data, error } = await supabase
-      .from('trades').select('*').order('phase1_date', { ascending: false });
-    if (!error) setTrades((data as Trade[]) ?? []);
-    setTradesLoading(false);
+    if (attempt === 0) { setTradesLoading(true); setTradesError(null); }
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 15_000);
+    let ok = false;
+    try {
+      const { data, error } = await supabase
+        .from('trades').select('*').order('phase1_date', { ascending: false })
+        .abortSignal(controller.signal);
+      if (error) throw new Error(error.message);
+      setTrades((data as Trade[]) ?? []);
+      ok = true;
+    } catch (err) {
+      if (attempt === 0) { setTimeout(() => void fetchTrades(1), 2_000); return; }
+      const isTimeout = (err as Error).name === 'AbortError';
+      setTradesError(isTimeout ? 'Request timed out — check your connection.' : ((err as Error).message || 'Failed to load.'));
+    } finally {
+      clearTimeout(tid);
+      if (ok || attempt > 0) setTradesLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
@@ -163,10 +178,18 @@ export default function Dashboard() {
                       <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
                     </div>
                   )}
-                  {!tradesLoading && openTrades.length === 0 && (
+                  {!tradesLoading && tradesError && (
+                    <div className="py-4 flex flex-col gap-2 items-start">
+                      <p className="text-[11px] text-red-500">{tradesError}</p>
+                      <button onClick={() => void fetchTrades()} className="text-[11px] font-semibold text-[#22D3EE] hover:underline">
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                  {!tradesLoading && !tradesError && openTrades.length === 0 && (
                     <PositionsEmptyState />
                   )}
-                  {!tradesLoading && openTrades.slice(0, 6).map(trade => (
+                  {!tradesLoading && !tradesError && openTrades.slice(0, 6).map(trade => (
                     <PositionCard key={trade.id} trade={trade} />
                   ))}
                 </div>

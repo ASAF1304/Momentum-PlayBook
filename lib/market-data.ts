@@ -34,6 +34,9 @@ export interface MarketData {
   ema150: number;
   ema200: number;
 
+  // Simple moving average (used for Minervini's 50-EMA > 200-SMA condition)
+  sma200: number;
+
   // 200 EMA ~80 trading days (~4 months) ago — for uptrend detection
   ema200_80daysAgo: number;
 
@@ -123,6 +126,9 @@ export async function getMarketData(symbol: string): Promise<MarketData> {
 
   const closes = candles.map((c) => c.close);
 
+  // 200-day SMA (simple average of latest 200 closes; closes is newest-first)
+  const sma200 = avg(closes.slice(0, 200));
+
   // Compute EMAs (oldest-first order, then grab the last = most-recent value)
   const ema20Series  = emaSeries(closes, 20);
   const ema50Series  = emaSeries(closes, 50);
@@ -162,6 +168,7 @@ export async function getMarketData(symbol: string): Promise<MarketData> {
     ema50,
     ema150,
     ema200,
+    sma200,
     ema200_80daysAgo,
     volumeAvg50,
     latestVolume,

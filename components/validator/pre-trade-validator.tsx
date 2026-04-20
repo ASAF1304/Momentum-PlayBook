@@ -48,12 +48,11 @@ interface ManualGate {
   label: string;
   sublabel: string;
   icon: typeof Check;
-  isCritical?: boolean;
 }
 
 const MANUAL_GATES: ManualGate[] = [
-  { key: 'stage2',        label: 'Price > 50 SMA & 200 SMA',              sublabel: '50 SMA above 200 SMA; price in Stage 2 uptrend — not basing, not topping', icon: TrendingUp,  isCritical: true },
-  { key: 'vcp_confirmed', label: 'VCP Characteristics (Volume dry-up)',    sublabel: 'Volatility contracts left→right, volume dries up at pivot — no wide-and-loose bars', icon: ShieldCheck, isCritical: true },
+  { key: 'stage2',        label: 'Price > 50 SMA & 200 SMA',              sublabel: '50 SMA above 200 SMA; price in Stage 2 uptrend — not basing, not topping', icon: TrendingUp  },
+  { key: 'vcp_confirmed', label: 'VCP Characteristics (Volume dry-up)',    sublabel: 'Volatility contracts left→right, volume dries up at pivot — no wide-and-loose bars', icon: ShieldCheck },
   { key: 'clear_pivot',   label: 'Clear Breakout Pivot',                   sublabel: 'Well-defined pivot point with tight price action; handle or base shelf is clean', icon: Target },
   { key: 'earnings_safe', label: 'Earnings Date is Safe (Not Imminent)',   sublabel: 'No earnings report within the next 3–4 weeks — never buy before earnings', icon: Calendar },
   { key: 'above_emas',    label: 'Price above 20-EMA, 50-EMA, 200-EMA',   sublabel: 'Institutional support intact — riding all three moving averages', icon: Zap },
@@ -82,7 +81,7 @@ interface ValidatorState {
   exceedsBudget: boolean;
   maxPortfolioRisk: number;
   failedGates: AllGateKey[];
-  criticalFail: boolean;
+  trendTemplatePassed: boolean;
   allGreen: boolean;
   canSubmit: boolean;
   afterClose: boolean;
@@ -218,10 +217,10 @@ export function ValidatorProvider({
     effectiveSizing.portfolioRiskPct > maxPortfolioRisk &&
     Math.abs(effectiveSizing.totalNotional - sizing.totalNotional) > 1;
 
-  const failedGates  = (Object.keys(gates) as AllGateKey[]).filter(k => !gates[k]);
-  const criticalFail = !gates.stage2 || !gates.vcp_confirmed;
-  const allGreen     = failedGates.length === 0 && !!data && sizing.status === 'ok' && !stopExceedsMax;
-  const canSubmit    = !!data && sizing.status === 'ok';
+  const failedGates        = (Object.keys(gates) as AllGateKey[]).filter(k => !gates[k]);
+  const trendTemplatePassed = !!data && data.trendTemplate.passed;
+  const allGreen            = trendTemplatePassed && sizing.status === 'ok';
+  const canSubmit           = !!data && sizing.status === 'ok';
 
   const quoteSeed    = now.getDate();
   const mindsetQuote = useMemo(() => getMindsetQuote(quoteSeed), [quoteSeed]);
@@ -256,7 +255,7 @@ export function ValidatorProvider({
       amountInvested, onAmountChange, gates, toggleGate, onToggleTime, onToggleVolume,
       data, loading, error, sizing, effectiveSizing,
       stopDistPct, stopExceedsMax, exceedsBudget, maxPortfolioRisk,
-      failedGates, criticalFail, allGreen, canSubmit,
+      failedGates, trendTemplatePassed, allGreen, canSubmit,
       afterClose, nowDisplay, mindsetQuote, greenLight,
       handleSubmit, handleResetAmount, accountSize,
     }}>
@@ -269,10 +268,12 @@ export function ValidatorProvider({
 
 export function ChecklistCard({ className }: { className?: string }) {
   const {
-    data, gates, toggleGate, failedGates, allGreen, criticalFail,
-    stopExceedsMax, stopDistPct, afterClose, nowDisplay, mindsetQuote, greenLight,
+    data, gates, toggleGate, trendTemplatePassed, allGreen,
+    afterClose, nowDisplay, mindsetQuote, greenLight,
     onToggleTime, onToggleVolume,
   } = useValidator();
+
+  const allOptionalGreen = MANUAL_GATES.every(g => gates[g.key]);
 
   return (
     <div
@@ -288,35 +289,63 @@ export function ChecklistCard({ className }: { className?: string }) {
           Pre-Trade Checklist
         </h2>
         <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">
-          Every gate must be green. Stage 2 or VCP failure rejects the trade.
+          Trend Template is the only hard gate. Optional checks below are quality enhancers.
         </p>
       </div>
 
       {/* Trend Template — most prominent */}
       {data && <EMAPanel data={data} />}
 
-      {/* REJECTED banner */}
-      {data && criticalFail && (
+      {/* Status banners */}
+      {data && !trendTemplatePassed && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-[10px] bg-red-500/10 border border-red-500/30">
           <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-[12px] font-bold text-red-500 uppercase tracking-wider leading-tight">
-              REJECTED — Fails Stage 2 / VCP
+              BLOCKED — Fails Trend Template
             </p>
             <p className="text-[11px] text-red-500/70 mt-0.5 leading-snug">
-              {!gates.stage2 && !gates.vcp_confirmed
-                ? 'Price not in Stage 2 and VCP not confirmed.'
-                : !gates.stage2
-                  ? 'Stock not in a Stage 2 uptrend — wait for proper base.'
-                  : 'VCP structure not confirmed — wait for volume dry-up at pivot.'}
+              One or more structural conditions not met — will be logged as a non-system trade.
             </p>
           </div>
         </div>
       )}
+      {data && trendTemplatePassed && allGreen && allOptionalGreen && (
+        <div className="p-4 rounded-[10px] border border-[#10F088]/30 bg-[#10F088]/[0.06]">
+          <div className="flex items-start gap-3">
+            <div className="w-7 h-7 rounded-full bg-[#10F088]/20 border border-[#10F088]/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3.5 h-3.5 text-[#10F088]" strokeWidth={3} />
+            </div>
+            <div>
+              <h3 className="text-[13px] font-bold text-[#10F088] mb-0.5 uppercase tracking-wider">
+                PASS — High Conviction Setup · {greenLight.headline}
+              </h3>
+              <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">{greenLight.body}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {data && trendTemplatePassed && allGreen && !allOptionalGreen && (
+        <div className="p-4 rounded-[10px] border border-amber-400/30 bg-amber-400/[0.04]">
+          <div className="flex items-start gap-3">
+            <div className="w-7 h-7 rounded-full bg-amber-400/15 border border-amber-400/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Check className="w-3.5 h-3.5 text-amber-400" strokeWidth={3} />
+            </div>
+            <div>
+              <h3 className="text-[13px] font-bold text-amber-500 mb-0.5 uppercase tracking-wider">
+                PASS — Consider Optional Checks
+              </h3>
+              <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">
+                Trend Template clear. Review the optional quality gates below for higher conviction.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* CAN SLIM gates */}
+      {/* Optional quality gates */}
       <div>
-        <SectionLabel text="CAN SLIM Gates" aside="click to toggle" />
+        <SectionLabel text="Optional Quality Checks" aside="quality enhancers, not blockers" />
         <div className="flex flex-col gap-1.5 mt-2">
           {MANUAL_GATES.map(gate => {
             const Icon    = gate.icon;
@@ -330,24 +359,22 @@ export function ChecklistCard({ className }: { className?: string }) {
                   'flex items-start gap-3 px-3 py-2.5 border rounded-[9px] text-left transition-all',
                   checked
                     ? 'bg-[#10F088]/[0.05] border-[#10F088]/25'
-                    : gate.isCritical
-                      ? 'bg-red-500/[0.03] border-red-500/20 hover:border-red-500/35'
-                      : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-hover)]',
+                    : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-hover)]',
                 )}
               >
                 <span className={cn(
                   'w-[17px] h-[17px] rounded-[4px] border flex items-center justify-center flex-shrink-0 mt-px transition-all',
-                  checked ? 'bg-[#10F088] border-[#10F088]' : gate.isCritical ? 'border-red-500/40' : 'border-[var(--border-hover)]',
+                  checked ? 'bg-[#10F088] border-[#10F088]' : 'border-[var(--border-hover)]',
                 )}>
                   {checked && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3.5} />}
                 </span>
                 <Icon className={cn(
                   'w-3.5 h-3.5 flex-shrink-0 mt-[3px]',
-                  checked ? 'text-[#10F088]' : gate.isCritical ? 'text-red-500/50' : 'text-[var(--text-faint)]',
+                  checked ? 'text-[#10F088]' : 'text-[var(--text-faint)]',
                 )} />
                 <div className="flex-1 min-w-0">
                   <div className={cn('text-[12px] font-semibold leading-tight',
-                    checked ? 'text-[var(--text-dim)]' : gate.isCritical ? 'text-red-500/80' : 'text-[var(--text-secondary)]',
+                    checked ? 'text-[var(--text-dim)]' : 'text-[var(--text-secondary)]',
                   )}>
                     {gate.label}
                   </div>
@@ -383,30 +410,8 @@ export function ChecklistCard({ className }: { className?: string }) {
         </div>
       )}
 
-      {/* Blockers */}
-      {data && !allGreen && (
-        <BlockersPanel gates={gates} failedGates={failedGates} stopExceedsMax={stopExceedsMax} stopDistPct={stopDistPct} />
-      )}
-
-      {/* Green light */}
-      {data && allGreen && (
-        <div className="p-4 rounded-[10px] border border-[#10F088]/30 bg-[#10F088]/[0.06]">
-          <div className="flex items-start gap-3">
-            <div className="w-7 h-7 rounded-full bg-[#10F088]/20 border border-[#10F088]/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Check className="w-3.5 h-3.5 text-[#10F088]" strokeWidth={3} />
-            </div>
-            <div>
-              <h3 className="text-[13px] font-bold text-[#10F088] mb-0.5 uppercase tracking-wider">
-                Green Light · {greenLight.headline}
-              </h3>
-              <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">{greenLight.body}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Wisdom quote — only when no data or all green */}
-      {(!data || allGreen) && (
+      {/* Wisdom quote — only when no data */}
+      {!data && (
         <div className="mt-auto px-1 opacity-40 hover:opacity-60 transition-opacity duration-500 select-none">
           <div className="flex items-start gap-2">
             <BookOpen className="w-3 h-3 text-violet-400 flex-shrink-0 mt-[3px]" />
@@ -625,6 +630,7 @@ function EMAPanel({ data }: { data: TickerResponse }) {
     { k: 'Price > 200-EMA',   c: checks.priceAboveEMA200  },
     { k: '50-EMA > 150-EMA',  c: checks.ema50AboveEma150  },
     { k: '150-EMA > 200-EMA', c: checks.ema150AboveEma200 },
+    { k: '50-EMA > 200-SMA',  c: checks.ema50AboveSma200  },
     { k: '200-EMA rising',    c: checks.ema200Uptrending  },
     { k: 'Within 25% of hi',  c: checks.closeTo52wHigh    },
     { k: '30%+ above low',    c: checks.farFrom52wLow     },
@@ -705,8 +711,7 @@ function BlockersPanel({ gates, failedGates, stopExceedsMax, stopDistPct }: {
         )}
         {manualFailed.map(gate => (
           <BlockerItem key={gate.key} label={gate.label}
-            detail={isGateKey(gate.key) ? GATE_FAILURES[gate.key].why : gate.sublabel}
-            critical={gate.isCritical} />
+            detail={isGateKey(gate.key) ? GATE_FAILURES[gate.key].why : gate.sublabel} />
         ))}
         {autoReasons.map(reason => (
           <BlockerItem key={reason} label="" detail={reason} />

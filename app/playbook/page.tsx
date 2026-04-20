@@ -69,18 +69,38 @@ function PlaybookInner() {
     filterParam === 'charts'     ? 'charts'    : 'all';
 
   const { user } = useAuth();
-  const [trades,        setTrades]        = useState<Trade[]>([]);
-  const [loading,       setLoading]       = useState(true);
-  const [showWhatIf,    setShowWhatIf]    = useState(false);
+  const [trades,      setTrades]      = useState<Trade[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [fetchError,  setFetchError]  = useState<string | null>(null);
+  const [slowLoad,    setSlowLoad]    = useState(false);
+  const [showWhatIf,  setShowWhatIf]  = useState(false);
 
-  const fetchTrades = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .order('phase1_date', { ascending: false });
-    if (!error) setTrades((data as Trade[]) ?? []);
-    setLoading(false);
+  useEffect(() => {
+    if (!loading) { setSlowLoad(false); return; }
+    const t = setTimeout(() => setSlowLoad(true), 8_000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  const fetchTrades = useCallback(async (attempt = 0) => {
+    if (attempt === 0) { setLoading(true); setFetchError(null); }
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 15_000);
+    let ok = false;
+    try {
+      const { data, error } = await supabase
+        .from('trades').select('*').order('phase1_date', { ascending: false })
+        .abortSignal(controller.signal);
+      if (error) throw new Error(error.message);
+      setTrades((data as Trade[]) ?? []);
+      ok = true;
+    } catch (err) {
+      if (attempt === 0) { setTimeout(() => void fetchTrades(1), 2_000); return; }
+      const isTimeout = (err as Error).name === 'AbortError';
+      setFetchError(isTimeout ? 'Request timed out — check your connection.' : ((err as Error).message || 'Failed to load trades.'));
+    } finally {
+      clearTimeout(tid);
+      if (ok || attempt > 0) setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
@@ -240,17 +260,31 @@ function PlaybookInner() {
 
         {/* Content */}
         {loading && (
-          <div className="flex items-center justify-center py-24 gap-3 text-[var(--text-muted)]">
-            <Loader2 className="w-5 h-5 animate-spin text-[#22D3EE]" />
-            <span className="text-[13px] font-semibold">Loading trades…</span>
+          <div className="flex flex-col items-center justify-center py-24 gap-3 text-[var(--text-muted)]">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 animate-spin text-[#22D3EE]" />
+              <span className="text-[13px] font-semibold">Loading trades…</span>
+            </div>
+            {slowLoad && <p className="text-[11px] text-[var(--text-faint)]">Taking longer than usual — still trying…</p>}
           </div>
         )}
 
-        {!loading && visible.length === 0 && (
+        {!loading && fetchError && (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+            <div className="px-4 py-3 rounded-[10px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-[#FF3B5C] text-[13px] max-w-md">
+              {fetchError}
+            </div>
+            <button onClick={() => void fetchTrades()} className="text-[12px] font-semibold text-[#22D3EE] hover:underline uppercase tracking-wider">
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !fetchError && visible.length === 0 && (
           <EmptyState filter={filter} />
         )}
 
-        {!loading && visible.length > 0 && filter === 'charts' && (
+        {!loading && !fetchError && visible.length > 0 && filter === 'charts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visible.map(trade => (
               <ChartCard key={trade.id} trade={trade} />
@@ -258,7 +292,7 @@ function PlaybookInner() {
           </div>
         )}
 
-        {!loading && visible.length > 0 && filter !== 'charts' && (
+        {!loading && !fetchError && visible.length > 0 && filter !== 'charts' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {visible.map(trade =>
               trade.is_what_if

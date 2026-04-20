@@ -71,23 +71,39 @@ export default function JournalPage() {
   const [trades,        setTrades]        = useState<Trade[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [fetchError,    setFetchError]    = useState<string | null>(null);
+  const [slowLoad,      setSlowLoad]      = useState(false);
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all');
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [showAddModal,  setShowAddModal]  = useState(false);
 
+  useEffect(() => {
+    if (!loading) { setSlowLoad(false); return; }
+    const t = setTimeout(() => setSlowLoad(true), 8_000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
-  const fetchTrades = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
-    const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .order('phase1_date', { ascending: false });
-
-    if (error) setFetchError(error.message);
-    else setTrades((data as Trade[]) ?? []);
-    setLoading(false);
+  const fetchTrades = useCallback(async (attempt = 0) => {
+    if (attempt === 0) { setLoading(true); setFetchError(null); }
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 15_000);
+    let ok = false;
+    try {
+      const { data, error } = await supabase
+        .from('trades').select('*').order('phase1_date', { ascending: false })
+        .abortSignal(controller.signal);
+      if (error) throw new Error(error.message);
+      setTrades((data as Trade[]) ?? []);
+      ok = true;
+    } catch (err) {
+      if (attempt === 0) { setTimeout(() => void fetchTrades(1), 2_000); return; }
+      const isTimeout = (err as Error).name === 'AbortError';
+      setFetchError(isTimeout ? 'Request timed out — check your connection.' : ((err as Error).message || 'Failed to load trades.'));
+    } finally {
+      clearTimeout(tid);
+      if (ok || attempt > 0) setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
@@ -222,7 +238,7 @@ export default function JournalPage() {
         </div>
 
         {/* Body */}
-        {loading && <LoadingState />}
+        {loading && <LoadingState slow={slowLoad} />}
         {!loading && fetchError && <ErrorState message={fetchError} onRetry={fetchTrades} />}
         {!loading && !fetchError && filteredTrades.length === 0 && (
           <EmptyState filter={statusFilter} onAdd={() => setShowAddModal(true)} />
@@ -403,6 +419,9 @@ function EditModal({
 }) {
   const [mounted, setMounted] = useState(false);
 
+  type AutoClosedInfo = { outcome: TradeOutcome; pnl: number; pct: number; r: number };
+  const [autoClosed,    setAutoClosed]    = useState<AutoClosedInfo | null>(null);
+
   // Full-close fields
   const [exitPrice,     setExitPrice]     = useState(trade.exit_price?.toFixed(2) ?? '');
   const [status,        setStatus]        = useState<TradeStatus>(trade.status);
@@ -556,7 +575,7 @@ function EditModal({
 
       toast({
         title:   `Trim logged · ${trade.ticker}`,
-        body:    `${sellCalc.sh} sh @ $${sellCalc.pr.toFixed(2)} · ${sellCalc.pnl >= 0 ? '+' : ''}$${sellCalc.pnl.toFixed(0)} · ${sellCalc.rMult >= 0 ? '+' : ''}${sellCalc.rMult.toFixed(2)}R${newCurrentShares > 0 ? ` · ${newCurrentShares} sh left` : ' · position closed'}`,
+        body:    `${sellCalc.sh} sh @ $${sellCalc.pr.toFixed(2)} · ${sellCalc.pnl >= 0 ? '+' : ''}$${sellCalc.pnl.toFixed(0)} · ${sellCalc.rMult >= 0 ? '+' : ''}${sellCalc.rMult.toFixed(2)}R${newCurrentShares > 0 ? ` · ${newCurrentShares} sh left` : ''}`,
         variant: 'success',
         durationMs: 5000,
       });
@@ -565,8 +584,14 @@ function EditModal({
       setSellShares('');
       setSellPrice('');
 
-      if (isNowClosed) onSaved(updatedTrade);
-      else onPartialLogged(updatedTrade);
+      if (isNowClosed) {
+        const autoOut: TradeOutcome = (patch as Record<string, TradeOutcome>).outcome ?? 'breakeven';
+        setAutoClosed({ outcome: autoOut, pnl: (patch as Record<string, number>).pnl_dollars, pct: (patch as Record<string, number>).pnl_pct, r: (patch as Record<string, number>).r_multiple });
+        setStatus('closed');
+        onPartialLogged(updatedTrade);
+      } else {
+        onPartialLogged(updatedTrade);
+      }
     } catch (err) {
       toast({ title: 'Trim failed', body: err instanceof Error ? err.message : 'Unknown error', variant: 'error' });
     } finally {
@@ -984,6 +1009,51 @@ function EditModal({
                   </>
                 )}
               </section>
+            )}
+
+            {/* ── Auto-close badge ──────────────────────────────────────── */}
+            {autoClosed && (
+              <div className={cn(
+                'flex items-start gap-3 px-4 py-3.5 rounded-[10px] border',
+                autoClosed.outcome === 'winner'
+                  ? 'bg-[#10F088]/[0.08] border-[#10F088]/30'
+                  : autoClosed.outcome === 'loser'
+                    ? 'bg-[#FF3B5C]/[0.08] border-[#FF3B5C]/30'
+                    : 'bg-amber-400/[0.08] border-amber-400/30',
+              )}>
+                <div className={cn(
+                  'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                  autoClosed.outcome === 'winner' ? 'bg-[#10F088]/20' : autoClosed.outcome === 'loser' ? 'bg-[#FF3B5C]/20' : 'bg-amber-400/20',
+                )}>
+                  {autoClosed.outcome === 'winner'
+                    ? <TrendingUp   className="w-3.5 h-3.5 text-[#10F088]" />
+                    : autoClosed.outcome === 'loser'
+                      ? <TrendingDown className="w-3.5 h-3.5 text-[#FF3B5C]" />
+                      : <span className="text-[10px] font-bold text-amber-400">BE</span>}
+                </div>
+                <div>
+                  <p className={cn(
+                    'text-[13px] font-bold uppercase tracking-wider',
+                    autoClosed.outcome === 'winner' ? 'text-[#10F088]' : autoClosed.outcome === 'loser' ? 'text-[#FF3B5C]' : 'text-amber-400',
+                  )}>
+                    Auto-closed as {autoClosed.outcome.toUpperCase()}
+                  </p>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    All shares sold via trims. Add notes if needed, then save.
+                  </p>
+                  <div className="flex gap-3 mt-1.5 text-[11px] font-mono font-bold">
+                    <span className={autoClosed.pnl >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]'}>
+                      {autoClosed.pnl >= 0 ? '+' : ''}${autoClosed.pnl.toFixed(0)}
+                    </span>
+                    <span className={autoClosed.pnl >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]'}>
+                      {autoClosed.pct >= 0 ? '+' : ''}{autoClosed.pct.toFixed(2)}%
+                    </span>
+                    <span className={autoClosed.r >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]'}>
+                      {autoClosed.r >= 0 ? '+' : ''}{autoClosed.r.toFixed(2)}R
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* ── Chart Screenshot ──────────────────────────────────────── */}
@@ -1419,11 +1489,16 @@ function StatCard({ label, value, accent }: {
   );
 }
 
-function LoadingState() {
+function LoadingState({ slow }: { slow?: boolean }) {
   return (
-    <div className="flex items-center justify-center py-24 gap-3 text-[var(--text-muted)]">
-      <Loader2 className="w-5 h-5 animate-spin text-[#22D3EE]" />
-      <span className="text-[13px] font-semibold">Loading trades…</span>
+    <div className="flex flex-col items-center justify-center py-24 gap-3 text-[var(--text-muted)]">
+      <div className="flex items-center gap-3">
+        <Loader2 className="w-5 h-5 animate-spin text-[#22D3EE]" />
+        <span className="text-[13px] font-semibold">Loading trades…</span>
+      </div>
+      {slow && (
+        <p className="text-[11px] text-[var(--text-faint)]">Taking longer than usual — still trying…</p>
+      )}
     </div>
   );
 }

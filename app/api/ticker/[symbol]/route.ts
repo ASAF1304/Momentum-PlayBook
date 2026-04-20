@@ -21,6 +21,7 @@ export interface TickerResponse {
     ema50: number;
     ema150: number;
     ema200: number;
+    sma200: number;
   };
   volume: {
     latest: number;
@@ -42,6 +43,7 @@ export interface TickerResponse {
       priceAboveEMA200:       { passed: boolean; detail: string };
       ema50AboveEma150:       { passed: boolean; detail: string };
       ema150AboveEma200:      { passed: boolean; detail: string };
+      ema50AboveSma200:       { passed: boolean; detail: string };
       ema200Uptrending:       { passed: boolean; detail: string };
       closeTo52wHigh:         { passed: boolean; detail: string };
       farFrom52wLow:          { passed: boolean; detail: string };
@@ -88,7 +90,7 @@ export async function GET(
 
 function buildResponse(data: MarketData, stops: StopAnalysis): TickerResponse {
   const {
-    price, ema20, ema50, ema150, ema200, ema200_80daysAgo,
+    price, ema20, ema50, ema150, ema200, sma200, ema200_80daysAgo,
     volumeAvg50, latestVolume,
     high52w, low52w, distanceFrom52wHigh, distanceFrom52wLow,
   } = data;
@@ -99,6 +101,7 @@ function buildResponse(data: MarketData, stops: StopAnalysis): TickerResponse {
   const priceAboveEMA200 = price > ema200;
   const ema50AboveEma150 = ema50 > ema150;
   const ema150AboveEma200 = ema150 > ema200;
+  const ema50AboveSma200 = ema50 > sma200;
   const ema200Uptrending = ema200 > ema200_80daysAgo;
   const closeTo52wHigh = distanceFrom52wHigh >= -25;
   const farFrom52wLow  = distanceFrom52wLow  >=  30;
@@ -122,11 +125,15 @@ function buildResponse(data: MarketData, stops: StopAnalysis): TickerResponse {
     },
     ema50AboveEma150: {
       passed: ema50AboveEma150,
-      detail: `50-EMA vs 150-EMA`,
+      detail: `50-EMA $${ema50.toFixed(2)} vs 150-EMA $${ema150.toFixed(2)}`,
     },
     ema150AboveEma200: {
       passed: ema150AboveEma200,
-      detail: `150-EMA vs 200-EMA`,
+      detail: `150-EMA $${ema150.toFixed(2)} vs 200-EMA $${ema200.toFixed(2)}`,
+    },
+    ema50AboveSma200: {
+      passed: ema50AboveSma200,
+      detail: `50-EMA $${ema50.toFixed(2)} vs 200-SMA $${sma200.toFixed(2)}`,
     },
     ema200Uptrending: {
       passed: ema200Uptrending,
@@ -159,7 +166,7 @@ function buildResponse(data: MarketData, stops: StopAnalysis): TickerResponse {
       previousClose: data.previousClose,
       dayChangePct: data.dayChangePct,
     },
-    movingAverages: { ema20, ema50, ema150, ema200 },
+    movingAverages: { ema20, ema50, ema150, ema200, sma200 },
     volume: {
       latest: latestVolume,
       avg50: volumeAvg50,
