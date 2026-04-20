@@ -23,18 +23,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}>
       <head>
-        {/* Anti-flash: set data-theme before React hydrates */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          try {
-            var t = localStorage.getItem('theme') || 'system';
-            var eff = t === 'light' ? 'light'
-              : t === 'dark' ? 'dark'
-              : window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', eff);
-          } catch(e) {}
-        `}} />
+        {/* Anti-flash: runs synchronously before React hydrates. suppressHydrationWarning
+            on <html> tells React to accept the intentional data-theme mismatch. */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var s=localStorage.getItem('theme');var eff=s==='light'?'light':s==='dark'?'dark':window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',eff);}catch(e){}})();` }} />
       </head>
       <body className="min-h-full flex flex-col bg-[var(--bg-primary)]">
         <ThemeProvider>
