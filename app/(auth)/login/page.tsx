@@ -4,17 +4,22 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AlertTriangle, Loader2, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
+import { clearAuthStorage } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reason = searchParams.get('reason');
+
   const [email,      setEmail]      = useState('');
   const [password,   setPassword]   = useState('');
   const [error,      setError]      = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [clearing,   setClearing]   = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +38,13 @@ export default function LoginPage() {
     router.push('/');
   };
 
+  const handleClearSession = async () => {
+    setClearing(true);
+    await clearAuthStorage();
+    // Reload so the middleware re-evaluates the now-empty session
+    window.location.replace('/login?reason=cleared');
+  };
+
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur p-8">
       {/* Logo */}
@@ -49,6 +61,22 @@ export default function LoginPage() {
           </span>
         </div>
       </div>
+
+      {/* Session-related banners */}
+      {reason === 'timeout' && (
+        <div className="mb-5 flex items-start gap-2.5 px-3 py-2.5 rounded-[8px] bg-amber-500/[0.08] border border-amber-500/30">
+          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[12px] text-amber-300 font-semibold">Session timed out</p>
+            <p className="text-[11px] text-amber-400/70 mt-0.5">Your session took too long to load and was cleared. Please sign in again.</p>
+          </div>
+        </div>
+      )}
+      {reason === 'cleared' && (
+        <div className="mb-5 px-3 py-2.5 rounded-[8px] bg-[#22D3EE]/[0.06] border border-[#22D3EE]/25">
+          <p className="text-[12px] text-[#22D3EE]">Session cleared. Please sign in.</p>
+        </div>
+      )}
 
       <h1 className="text-[20px] font-extrabold tracking-tight text-zinc-100 mb-1">
         Sign in
@@ -115,6 +143,20 @@ export default function LoginPage() {
           Sign up
         </Link>
       </p>
+
+      {/* Escape hatch for stuck/corrupted sessions */}
+      <div className="mt-6 pt-5 border-t border-white/[0.05]">
+        <p className="text-[10px] text-zinc-700 text-center mb-2.5">Having trouble loading the app?</p>
+        <button
+          type="button"
+          onClick={handleClearSession}
+          disabled={clearing}
+          className="w-full py-2 rounded-[8px] border border-white/[0.06] text-[11px] text-zinc-600 hover:text-zinc-400 hover:border-white/10 transition-colors flex items-center justify-center gap-1.5"
+        >
+          {clearing && <Loader2 className="w-3 h-3 animate-spin" />}
+          {clearing ? 'Clearing…' : 'Clear session data'}
+        </button>
+      </div>
     </div>
   );
 }

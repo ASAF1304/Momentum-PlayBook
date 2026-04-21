@@ -13,15 +13,22 @@ export async function middleware(request: NextRequest) {
     request: { headers: request.headers },
   });
 
-  const supabase = createMiddlewareClient(request, response);
-
-  // getSession() reads the JWT from the cookie — no network round-trip (~0ms).
-  // getUser() was a ~779ms network call to Supabase Auth on every navigation.
-  // Auth is already enforced server-side via JWT validation on every API call.
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
-
   const path = request.nextUrl.pathname;
+  let user = null;
+
+  try {
+    const supabase = createMiddlewareClient(request, response);
+
+    // getSession() reads the JWT from the cookie — no network round-trip (~0ms).
+    // getUser() was a ~779ms network call to Supabase Auth on every navigation.
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) console.error('[MIDDLEWARE-FAIL] getSession() error:', error.message);
+    user = session?.user ?? null;
+  } catch (err) {
+    // Corrupted cookie or unexpected error — treat as unauthenticated rather
+    // than crashing into a 500. The client-side auth context will handle cleanup.
+    console.error('[MIDDLEWARE-FAIL] getSession() threw:', err);
+  }
 
   // Unauthenticated + protected route → send to /login
   if (!user && !PUBLIC_PATHS.includes(path)) {

@@ -16,6 +16,18 @@ import { supabase, type UserProfile } from './supabase-client';
 const profileCache = new Map<string, { profile: UserProfile; ts: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+// Nukes all Supabase auth data from localStorage. Call when the session is
+// corrupt or timed out so the user gets a clean slate on next login.
+export async function clearAuthStorage() {
+  try { await supabase.auth.signOut(); } catch {}
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('sb-')) localStorage.removeItem(k);
+    });
+  } catch {}
+  profileCache.clear();
+}
+
 interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
@@ -33,13 +45,18 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]       = useState<User | null>(null);
+  const [user,    setUser]    = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const inFlight = useRef(false);
+  const inFlight   = useRef(false);
+  const isResolved = useRef(false); // tracks whether auth has resolved (for timeout)
+
+  const markResolved = useCallback(() => {
+    isResolved.current = true;
+    setLoading(false);
+  }, []);
 
   const fetchProfile = useCallback(async (userId: string, force = false) => {
-    // Serve from cache if fresh
     if (!force) {
       const cached = profileCache.get(userId);
       if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
@@ -47,62 +64,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
     }
-    // Prevent concurrent duplicate fetches
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      console.time('[AUTH] fetchProfile (user_profiles select)');
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      console.timeEnd('[AUTH] fetchProfile (user_profiles select)');
+      if (error) {
+        console.error('[AUTH-FAIL] fetchProfile DB error:', error.message);
+        return;
+      }
       const p = (data as UserProfile) ?? null;
       if (p) profileCache.set(userId, { profile: p, ts: Date.now() });
       setProfile(p);
+    } catch (err) {
+      console.error('[AUTH-FAIL] fetchProfile threw:', err);
     } finally {
       inFlight.current = false;
     }
   }, []);
 
   useEffect(() => {
-    // getSession() reads the JWT from localStorage — no network round-trip (~0ms).
-    // Middleware already validates the token server-side on every request, so
-    // an extra client-side getUser() call is redundant and slow (~779ms).
-    console.time('[AUTH] getSession() initial');
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.timeEnd('[AUTH] getSession() initial');
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        await fetchProfile(u.id);
+    // 10-second escape hatch — if auth hasn't resolved (loading is still true),
+    // nuke the session and redirect to /login so the user is never permanently stuck.
+    const timer = setTimeout(async () => {
+      if (!isResolved.current) {
+        console.error('[AUTH-FAIL] Auth timed out after 10s — clearing session and redirecting');
+        await clearAuthStorage();
+        window.location.replace('/login?reason=timeout');
       }
-      setLoading(false);
-    });
+    }, 10_000);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // TOKEN_REFRESHED fires frequently and doesn't require a profile re-fetch
-        if (event === 'TOKEN_REFRESHED') return;
+    // getSession() reads from localStorage — no network call.
+    // We call setLoading(false) immediately after learning the session state,
+    // BEFORE awaiting fetchProfile — so a slow/hung DB call never blocks the UI.
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) console.error('[AUTH-FAIL] getSession() error:', error.message);
         const u = session?.user ?? null;
         setUser(u);
-        if (u) {
-          await fetchProfile(u.id);
-        } else {
-          setProfile(null);
-          profileCache.clear();
+        markResolved(); // unblock UI immediately
+        if (u) void fetchProfile(u.id); // fire-and-forget
+      })
+      .catch(err => {
+        console.error('[AUTH-FAIL] getSession() threw:', err);
+        markResolved(); // always unblock even on error
+      });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        try {
+          // TOKEN_REFRESHED fires frequently; no profile re-fetch needed
+          if (event === 'TOKEN_REFRESHED') return;
+          const u = session?.user ?? null;
+          setUser(u);
+          markResolved(); // unblock UI immediately
+          if (u) {
+            void fetchProfile(u.id); // fire-and-forget
+          } else {
+            setProfile(null);
+            profileCache.clear();
+          }
+        } catch (err) {
+          console.error('[AUTH-FAIL] onAuthStateChange threw:', err);
+          markResolved();
         }
-        setLoading(false);
       },
     );
 
-    return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+    return () => {
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile, markResolved]);
 
   const signOut = async () => {
     profileCache.clear();
-    await supabase.auth.signOut();
+    try { await supabase.auth.signOut(); } catch {}
     setUser(null);
     setProfile(null);
   };
