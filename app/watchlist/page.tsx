@@ -247,25 +247,27 @@ function WatchlistRow({
       {/* Expanded content */}
       {expanded && (
         <div className="border-t border-[var(--border-subtle)]">
-          {/* TradingView chart — full bleed, maximum height */}
-          <div className="pt-1">
-            <TradingViewChart ticker={item.ticker} height={540} />
-          </div>
+          <div className="flex gap-0">
+            {/* Chart — 70% */}
+            <div className="flex-[7] min-w-0">
+              <TradingViewChart ticker={item.ticker} height={500} />
+            </div>
 
-          {/* Snapshot panel */}
-          <div className="px-4 pb-4 pt-3">
-            {!snapshot || snapshot === 'loading' ? (
-              <div className="flex items-center gap-2 py-4 text-[var(--text-faint)] text-[12px]">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />
-                Fetching live data…
-              </div>
-            ) : snapshot === 'error' ? (
-              <div className="py-3 text-[12px] text-[#FF3B5C]">
-                Failed to fetch data. Check the ticker or try again.
-              </div>
-            ) : (
-              <TickerSnapshot data={snapshot} />
-            )}
+            {/* Validator panel — 30% */}
+            <div className="flex-[3] min-w-0 border-l border-[var(--border-subtle)] px-4 py-4 overflow-y-auto" style={{ maxHeight: 500 }}>
+              {!snapshot || snapshot === 'loading' ? (
+                <div className="flex items-center gap-2 py-6 text-[var(--text-faint)] text-[12px]">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />
+                  Fetching live data…
+                </div>
+              ) : snapshot === 'error' ? (
+                <div className="py-3 text-[12px] text-[#FF3B5C]">
+                  Failed to fetch data.
+                </div>
+              ) : (
+                <TickerSnapshot data={snapshot} />
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -276,6 +278,7 @@ function WatchlistRow({
 // ── TickerSnapshot ─────────────────────────────────────────────────────────────
 
 function TickerSnapshot({ data }: { data: TickerResponse }) {
+  const [showDetails, setShowDetails] = useState(false);
   const isUp = data.price.dayChangePct >= 0;
   const { passed, checks } = data.trendTemplate;
 
@@ -288,74 +291,102 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
     { label: '200-EMA rising',  ok: checks.ema200Uptrending.passed },
   ];
 
+  const passCount = emaChecks.filter(c => c.ok).length;
+
   return (
-    <div className="flex flex-col gap-3">
-      {/* Price strip */}
-      <div className="flex items-baseline gap-3">
-        <span className="font-mono text-[24px] font-extrabold tracking-tight">
+    <div className="flex flex-col gap-4">
+      {/* Price */}
+      <div className="flex flex-col gap-1">
+        <span className="font-mono text-[22px] font-extrabold tracking-tight text-[var(--text-primary)]">
           ${data.price.last.toFixed(2)}
         </span>
-        <span className={cn(
-          'font-mono text-[13px] font-semibold flex items-center gap-1',
-          isUp ? 'text-[#10F088]' : 'text-[#FF3B5C]',
-        )}>
-          {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-          {isUp ? '+' : ''}{data.price.dayChangePct.toFixed(2)}%
-        </span>
-        <span className="ml-auto text-[10px] font-mono text-[var(--text-faint)]">
-          vol {(data.volume.ratio).toFixed(1)}× avg
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            'font-mono text-[12px] font-semibold flex items-center gap-1',
+            isUp ? 'text-[#10F088]' : 'text-[#FF3B5C]',
+          )}>
+            {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {isUp ? '+' : ''}{data.price.dayChangePct.toFixed(2)}%
+          </span>
+          <span className="text-[10px] font-mono text-[var(--text-faint)]">
+            vol {data.volume.ratio.toFixed(1)}× avg
+          </span>
+        </div>
       </div>
 
-      {/* EMA grid + Trend Template badge */}
-      <div className="flex items-start gap-4">
-        <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1.5">
-          {emaChecks.map(({ label, ok }) => (
-            <div key={label} className="flex items-center gap-1.5 text-[11px]">
-              <span className={cn(
-                'w-3 h-3 rounded-sm flex items-center justify-center flex-shrink-0',
-                ok ? 'bg-[#10F088]/25' : 'bg-[#FF3B5C]/20',
-              )}>
-                {ok
-                  ? <Check className="w-2 h-2 text-[#10F088]" strokeWidth={4} />
-                  : <X className="w-2 h-2 text-[#FF3B5C]" strokeWidth={4} />}
-              </span>
-              <span className={ok ? 'text-[var(--text-dim)]' : 'text-[var(--text-faint)]'}>{label}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className={cn(
-          'flex flex-col items-center justify-center px-3 py-2.5 rounded-[9px] border min-w-[90px]',
-          passed
-            ? 'bg-[#10F088]/[0.06] border-[#10F088]/30'
-            : 'bg-[#FF3B5C]/[0.06] border-[#FF3B5C]/25',
-        )}>
-          <span className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-1">
-            Template
-          </span>
-          <span className={cn(
-            'text-[13px] font-extrabold uppercase tracking-wider',
+      {/* Trend Template — prominent */}
+      <div className={cn(
+        'flex items-center justify-between px-3 py-3 rounded-[10px] border',
+        passed
+          ? 'bg-[#10F088]/[0.06] border-[#10F088]/30'
+          : 'bg-[#FF3B5C]/[0.06] border-[#FF3B5C]/25',
+      )}>
+        <div>
+          <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-0.5">
+            Trend Template
+          </div>
+          <div className={cn(
+            'text-[16px] font-extrabold uppercase tracking-wider',
             passed ? 'text-[#10F088]' : 'text-[#FF3B5C]',
           )}>
             {passed ? '✓ Pass' : '✗ Fail'}
-          </span>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[9px] uppercase tracking-[0.14em] font-bold text-[var(--text-faint)] mb-0.5">
+            Checks
+          </div>
+          <div className="font-mono text-[14px] font-bold text-[var(--text-dim)]">
+            {passCount}/{emaChecks.length}
+          </div>
         </div>
       </div>
 
       {/* 52W range */}
-      <div className="grid grid-cols-4 gap-2 text-[10px] font-mono">
+      <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
         {[
           { label: '52W High',  val: `$${data.range52w.high.toFixed(2)}` },
           { label: '52W Low',   val: `$${data.range52w.low.toFixed(2)}`  },
           { label: 'From High', val: `${data.range52w.distanceFromHigh.toFixed(1)}%` },
           { label: 'From Low',  val: `+${data.range52w.distanceFromLow.toFixed(1)}%` },
         ].map(({ label, val }) => (
-          <div key={label} className="flex flex-col gap-0.5">
-            <span className="text-[var(--text-faint)] text-[9px] uppercase tracking-wider">{label}</span>
-            <span className="text-[var(--text-dim)] font-semibold">{val}</span>
+          <div key={label} className="flex flex-col gap-0.5 p-2 rounded-[6px] bg-[var(--bg-elevated)]">
+            <span className="text-[var(--text-faint)] text-[8px] uppercase tracking-wider">{label}</span>
+            <span className="text-[var(--text-dim)] font-semibold text-[11px]">{val}</span>
           </div>
         ))}
+      </div>
+
+      {/* Collapsible EMA checks */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowDetails(v => !v)}
+          className="flex items-center gap-1.5 text-[10px] text-[var(--text-faint)] hover:text-[var(--text-secondary)] transition-colors uppercase tracking-wider font-semibold"
+        >
+          {showDetails
+            ? <ChevronUp className="w-3 h-3" />
+            : <ChevronDown className="w-3 h-3" />}
+          {showDetails ? 'Hide details' : 'Show EMA details'}
+        </button>
+
+        {showDetails && (
+          <div className="mt-2 flex flex-col gap-1.5">
+            {emaChecks.map(({ label, ok }) => (
+              <div key={label} className="flex items-center gap-2 text-[11px]">
+                <span className={cn(
+                  'w-3.5 h-3.5 rounded-sm flex items-center justify-center flex-shrink-0',
+                  ok ? 'bg-[#10F088]/25' : 'bg-[#FF3B5C]/20',
+                )}>
+                  {ok
+                    ? <Check className="w-2 h-2 text-[#10F088]" strokeWidth={4} />
+                    : <X className="w-2 h-2 text-[#FF3B5C]" strokeWidth={4} />}
+                </span>
+                <span className={ok ? 'text-[var(--text-dim)]' : 'text-[var(--text-faint)]'}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

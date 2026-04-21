@@ -62,12 +62,23 @@ export class MarketDataError extends Error {
   }
 }
 
+// ---- Cache --------------------------------------------------------------
+
+const _cache = new Map<string, { data: MarketData; ts: number }>();
+const CACHE_TTL_MS = 60_000; // 60 seconds
+
 // ---- Main fetch ---------------------------------------------------------
 
 export async function getMarketData(symbol: string): Promise<MarketData> {
   const ticker = symbol.trim().toUpperCase();
   if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) {
     throw new MarketDataError(`Invalid ticker symbol: "${symbol}"`, 'invalid_ticker');
+  }
+
+  const cached = _cache.get(ticker);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    console.log(`[TICKER-API] cache hit for ${ticker}`);
+    return cached.data;
   }
 
   // 2 years gives us enough warm-up for EMA 200 plus 80-day lookback
@@ -158,7 +169,7 @@ export async function getMarketData(symbol: string): Promise<MarketData> {
   const high52w = Math.max(...window.map((c) => c.high));
   const low52w  = Math.min(...window.map((c) => c.low));
 
-  return {
+  const result: MarketData = {
     ticker,
     fetchedAt: new Date().toISOString(),
     latestDate: candles[0].date,
@@ -179,6 +190,9 @@ export async function getMarketData(symbol: string): Promise<MarketData> {
     distanceFrom52wHigh: ((price - high52w) / high52w) * 100,
     distanceFrom52wLow:  ((price - low52w)  / low52w)  * 100,
   };
+
+  _cache.set(ticker, { data: result, ts: Date.now() });
+  return result;
 }
 
 // ---- EMA math -----------------------------------------------------------

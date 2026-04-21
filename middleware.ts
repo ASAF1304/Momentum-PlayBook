@@ -15,11 +15,11 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createMiddlewareClient(request, response);
 
-  // getUser() refreshes the session cookie on every request — required.
-  // DIAGNOSTIC: timer appears in Vercel/server edge logs, not browser console.
-  const _t0 = Date.now();
-  const { data: { user } } = await supabase.auth.getUser();
-  console.log(`[MIDDLEWARE] getUser() ${Date.now() - _t0}ms — path: ${request.nextUrl.pathname}`);
+  // getSession() reads the JWT from the cookie — no network round-trip (~0ms).
+  // getUser() was a ~779ms network call to Supabase Auth on every navigation.
+  // Auth is already enforced server-side via JWT validation on every API call.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const path = request.nextUrl.pathname;
 
