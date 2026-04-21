@@ -9,7 +9,67 @@ interface TradingViewChartProps {
   height?: number;
 }
 
-function ChartWidget({ ticker, height, theme }: { ticker: string; height: number; theme: 'dark' | 'light' }) {
+// Study definitions — tested IDs for the TradingView Advanced Chart embed widget
+const STUDIES = [
+  {
+    id: 'MAExp@tv-basicstudies',
+    inputs: { length: 20, source: 'close' },
+    overrides: { 'Plot.color': '#3B82F6', 'Plot.linewidth': 2 },
+  },
+  {
+    id: 'MAExp@tv-basicstudies',
+    inputs: { length: 50, source: 'close' },
+    overrides: { 'Plot.color': '#22C55E', 'Plot.linewidth': 2 },
+  },
+  {
+    id: 'MASimple@tv-basicstudies',
+    inputs: { length: 200, source: 'close' },
+    overrides: { 'Plot.color': '#EF4444', 'Plot.linewidth': 2 },
+  },
+  // Standard VWAP (daily anchor — AVWAP needs a manual date anchor in the UI)
+  {
+    id: 'VWAP@tv-basicstudies',
+    overrides: { 'VWAP.color': '#F59E0B', 'VWAP.linewidth': 2 },
+  },
+  // Volume MA overlaid on the volume pane
+  {
+    id: 'Volume MA@tv-basicstudies',
+    inputs: { length: 20 },
+    overrides: { 'Plot.color': '#EF4444', 'Plot.linewidth': 2 },
+  },
+];
+
+const LEGEND = [
+  { label: 'EMA 20',   color: '#3B82F6' },
+  { label: 'EMA 50',   color: '#22C55E' },
+  { label: 'SMA 200',  color: '#EF4444' },
+  { label: 'VWAP',     color: '#F59E0B' },
+  { label: 'Vol MA',   color: '#EF4444' },
+];
+
+function ChartLegend() {
+  return (
+    <div className="flex items-center gap-4 px-3 py-1.5 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      {LEGEND.map(({ label, color }) => (
+        <div key={label} className="flex items-center gap-1.5">
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
+          <span className="font-mono text-[10px] text-[var(--text-faint)]">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChartWidget({
+  ticker, height, theme,
+}: {
+  ticker: string;
+  height: number;
+  theme: 'dark' | 'light';
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,10 +103,7 @@ function ChartWidget({ ticker, height, theme }: { ticker: string; height: number
       save_image: false,
       calendar: false,
       hide_volume: false,
-      studies: [
-        { id: 'STD;MA', inputs: { length: 50, source: 'close' } },
-        { id: 'STD;MA', inputs: { length: 200, source: 'close' } },
-      ],
+      studies: STUDIES,
       support_host: 'https://www.tradingview.com',
     });
 
@@ -90,8 +147,9 @@ export function TradingViewChart({ ticker, height = 500 }: TradingViewChartProps
               <X className="w-4 h-4" />
             </button>
           </div>
+          <ChartLegend />
           <div className="flex-1 overflow-hidden">
-            <ChartWidget ticker={ticker} height={window.innerHeight - 48} theme={theme} />
+            <ChartWidget ticker={ticker} height={window.innerHeight - 80} theme={theme} />
           </div>
         </div>,
         document.body,
@@ -99,17 +157,20 @@ export function TradingViewChart({ ticker, height = 500 }: TradingViewChartProps
     : null;
 
   return (
-    <div className="relative w-full rounded-[8px] overflow-hidden" style={{ height }}>
-      <ChartWidget ticker={ticker} height={height} theme={theme} />
-      {mounted && (
-        <button
-          onClick={() => setFullscreen(true)}
-          title="Expand chart"
-          className="absolute top-2 right-2 z-10 w-7 h-7 flex items-center justify-center rounded-md bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors backdrop-blur-sm"
-        >
-          <Maximize2 className="w-3.5 h-3.5" />
-        </button>
-      )}
+    <div className="w-full flex flex-col">
+      <ChartLegend />
+      <div className="relative w-full" style={{ height }}>
+        <ChartWidget ticker={ticker} height={height} theme={theme} />
+        {mounted && (
+          <button
+            onClick={() => setFullscreen(true)}
+            title="Expand chart"
+            className="absolute top-2 right-2 z-10 w-7 h-7 flex items-center justify-center rounded-md bg-[var(--bg-surface)]/80 border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors backdrop-blur-sm"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
       {modal}
     </div>
   );
