@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, Loader2, TrendingUp } from 'lucide-react';
@@ -10,7 +10,8 @@ import { supabase } from '@/lib/supabase-client';
 import { clearAuthStorage } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
-export default function LoginPage() {
+// useSearchParams() must live inside a Suspense boundary for static export.
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason');
@@ -41,7 +42,6 @@ export default function LoginPage() {
   const handleClearSession = async () => {
     setClearing(true);
     await clearAuthStorage();
-    // Reload so the middleware re-evaluates the now-empty session
     window.location.replace('/login?reason=cleared');
   };
 
@@ -68,7 +68,9 @@ export default function LoginPage() {
           <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-[12px] text-amber-300 font-semibold">Session timed out</p>
-            <p className="text-[11px] text-amber-400/70 mt-0.5">Your session took too long to load and was cleared. Please sign in again.</p>
+            <p className="text-[11px] text-amber-400/70 mt-0.5">
+              Your session took too long to load and was cleared. Please sign in again.
+            </p>
           </div>
         </div>
       )}
@@ -158,5 +160,13 @@ export default function LoginPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
