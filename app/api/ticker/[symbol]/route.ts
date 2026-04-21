@@ -68,10 +68,12 @@ export async function GET(
   { params }: { params: Promise<{ symbol: string }> },
 ) {
   const { symbol } = await params;
+  const _t0 = Date.now();
 
   try {
     const data = await getMarketData(symbol);
     const stops = analyzeStops({ entry: data.price, data, pivotDayLow: data.candles[0]?.low });
+    console.log(`[TICKER-API] total GET /api/ticker/${symbol} ${Date.now() - _t0}ms`);
     return NextResponse.json(buildResponse(data, stops));
   } catch (err) {
     if (err instanceof MarketDataError) {

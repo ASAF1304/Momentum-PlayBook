@@ -16,7 +16,10 @@ export async function middleware(request: NextRequest) {
   const supabase = createMiddlewareClient(request, response);
 
   // getUser() refreshes the session cookie on every request — required.
+  // DIAGNOSTIC: timer appears in Vercel/server edge logs, not browser console.
+  const _t0 = Date.now();
   const { data: { user } } = await supabase.auth.getUser();
+  console.log(`[MIDDLEWARE] getUser() ${Date.now() - _t0}ms — path: ${request.nextUrl.pathname}`);
 
   const path = request.nextUrl.pathname;
 

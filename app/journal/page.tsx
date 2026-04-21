@@ -90,13 +90,16 @@ export default function JournalPage() {
     const tid = setTimeout(() => controller.abort(), 15_000);
     let ok = false;
     try {
+      console.time(`[JOURNAL] fetchTrades (attempt ${attempt})`);
       const { data, error } = await supabase
         .from('trades').select('*').order('phase1_date', { ascending: false })
         .abortSignal(controller.signal);
+      console.timeEnd(`[JOURNAL] fetchTrades (attempt ${attempt})`);
       if (error) throw new Error(error.message);
       setTrades((data as Trade[]) ?? []);
       ok = true;
     } catch (err) {
+      console.timeEnd(`[JOURNAL] fetchTrades (attempt ${attempt})`);
       if (attempt === 0) { setTimeout(() => void fetchTrades(1), 2_000); return; }
       const isTimeout = (err as Error).name === 'AbortError';
       setFetchError(isTimeout ? 'Request timed out — check your connection.' : ((err as Error).message || 'Failed to load trades.'));

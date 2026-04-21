@@ -77,11 +77,13 @@ export async function getMarketData(symbol: string): Promise<MarketData> {
 
   let chartData;
   try {
+    const _t0 = Date.now();
     chartData = await yahooFinance.chart(ticker, {
       period1,
       period2,
       interval: '1d',
     });
+    console.log(`[TICKER-API] yahoo-finance2.chart(${ticker}) ${Date.now() - _t0}ms — ${chartData?.quotes?.length ?? 0} candles`);
   } catch (err) {
     const msg = (err as Error).message ?? '';
     if (msg.includes('Not Found') || msg.includes('404') || msg.toLowerCase().includes('no data')) {

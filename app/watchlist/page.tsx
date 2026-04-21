@@ -39,10 +39,12 @@ export default function WatchlistPage() {
       return;
     }
     setLoadingList(true);
+    console.time('[WATCHLIST] fetchItems (watchlist_items select)');
     const { data, error } = await supabase
       .from('watchlist_items')
       .select('*')
       .order('added_at', { ascending: false });
+    console.timeEnd('[WATCHLIST] fetchItems (watchlist_items select)');
     if (!error) setItems((data as WatchlistItem[]) ?? []);
     setLoadingList(false);
   }, [user]);

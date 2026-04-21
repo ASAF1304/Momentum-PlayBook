@@ -34,17 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
+    console.time('[AUTH] fetchProfile (user_profiles select)');
     const { data } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
       .single();
+    console.timeEnd('[AUTH] fetchProfile (user_profiles select)');
     setProfile((data as UserProfile) ?? null);
   }, []);
 
   useEffect(() => {
     // Initial session check
+    console.time('[AUTH] getUser() initial');
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
+      console.timeEnd('[AUTH] getUser() initial');
       setUser(u);
       if (u) {
         await fetchProfile(u.id);
