@@ -51,7 +51,6 @@ interface ManualGate {
 }
 
 const MANUAL_GATES: ManualGate[] = [
-  { key: 'stage2',        label: 'Price > 50 SMA & 200 SMA',              sublabel: '50 SMA above 200 SMA; price in Stage 2 uptrend — not basing, not topping', icon: TrendingUp  },
   { key: 'vcp_confirmed', label: 'VCP Characteristics (Volume dry-up)',    sublabel: 'Volatility contracts left→right, volume dries up at pivot — no wide-and-loose bars', icon: ShieldCheck },
   { key: 'clear_pivot',   label: 'Clear Breakout Pivot',                   sublabel: 'Well-defined pivot point with tight price action; handle or base shelf is clean', icon: Target },
   { key: 'earnings_safe', label: 'Earnings Date is Safe (Not Imminent)',   sublabel: 'No earnings report within the next 3–4 weeks — never buy before earnings', icon: Calendar },
@@ -127,7 +126,8 @@ export function ValidatorProvider({
   const [stop,           setStop]           = useState('');
   const [amountInvested, setAmountInvested] = useState('');
   const [gates, setGates] = useState<Record<AllGateKey, boolean>>({
-    stage2: false, above_emas: false, rs_above_80: false, vcp_confirmed: false,
+    stage2: true,  // auto-satisfied — covered by Trend Template's 50-EMA > 200-SMA check
+    above_emas: false, rs_above_80: false, vcp_confirmed: false,
     market_uptrend: false, clear_pivot: false, earnings_safe: false,
     time_of_day: true, stop_under_10pct: true, volume_spike: false,
   });

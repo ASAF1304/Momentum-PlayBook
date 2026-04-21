@@ -547,7 +547,7 @@ function EditModal({
 
       const newPartials      = [...partials, newPartial];
       const newCurrentShares = Math.max(0, currentShares - sellCalc.sh);
-      const isNowClosed      = newCurrentShares === 0;
+      const isNowClosed      = newCurrentShares <= 0;
 
       const newRealizedPnL = sells.reduce((s, p) => s + p.pnl_dollars, 0) + sellCalc.pnl;
 
@@ -557,11 +557,12 @@ function EditModal({
         current_shares: newCurrentShares,
       };
 
+      let autoOut: TradeOutcome = 'breakeven';
       if (isNowClosed) {
         const totalPnl = newRealizedPnL;
         const totalPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
         const totalR   = trade.risk_dollars > 0 ? totalPnl / trade.risk_dollars : 0;
-        const autoOut: TradeOutcome = totalPnl > 0.005 ? 'winner' : totalPnl < -0.005 ? 'loser' : 'breakeven';
+        autoOut = totalPnl > 0.005 ? 'winner' : totalPnl < -0.005 ? 'loser' : 'breakeven';
         patch.status      = 'closed';
         patch.exit_date   = new Date().toISOString();
         patch.exit_price  = sellCalc.pr;
@@ -571,8 +572,20 @@ function EditModal({
         patch.outcome     = autoOut;
       }
 
-      const { error } = await supabase.from('trades').update(patch).eq('id', trade.id);
+      console.log(`[TRIM] trade.id=${trade.id} currentShares=${currentShares} selling=${sellCalc.sh} newCurrentShares=${newCurrentShares} isNowClosed=${isNowClosed}`, isNowClosed ? `outcome=${autoOut}` : '');
+
+      const { data: updateRows, error } = await supabase
+        .from('trades')
+        .update(patch)
+        .eq('id', trade.id)
+        .select('id, status, outcome');
+
       if (error) throw new Error(error.message);
+      console.log(`[TRIM] DB update result:`, updateRows);
+
+      if (isNowClosed && (!updateRows || updateRows.length === 0)) {
+        throw new Error('Update matched 0 rows — trade ID mismatch or RLS blocked it.');
+      }
 
       const updatedTrade: Trade = { ...trade, ...patch };
 
@@ -588,9 +601,9 @@ function EditModal({
       setSellPrice('');
 
       if (isNowClosed) {
-        const autoOut: TradeOutcome = (patch as Record<string, TradeOutcome>).outcome ?? 'breakeven';
-        setAutoClosed({ outcome: autoOut, pnl: (patch as Record<string, number>).pnl_dollars, pct: (patch as Record<string, number>).pnl_pct, r: (patch as Record<string, number>).r_multiple });
+        setAutoClosed({ outcome: autoOut, pnl: patch.pnl_dollars, pct: patch.pnl_pct, r: patch.r_multiple });
         setStatus('closed');
+        setOutcome(autoOut);
         onPartialLogged(updatedTrade);
       } else {
         onPartialLogged(updatedTrade);
@@ -659,10 +672,26 @@ function EditModal({
     setSaving(true);
 
     try {
+      // When there are no remaining shares (auto-closed by trims) the pnl/outcome
+      // are already written to DB by handleSell — do NOT overwrite them with null.
+      // Derive outcome from existing realizedPnL as a fallback if outcome state is ''.
+      const alreadyAutoClosedByTrims = currentShares <= 0 && trade.status === 'closed';
+      const fallbackOutcome: TradeOutcome | null = (() => {
+        if ((outcome as string) !== '') return outcome as TradeOutcome;
+        if (alreadyAutoClosedByTrims && trade.outcome) return trade.outcome;
+        if ((status === 'closed' || status === 'stopped_out') && !closeCalc) {
+          // No exit price entered — derive from realized partials PnL
+          if (realizedPnL > 0.01) return 'winner';
+          if (realizedPnL < -0.01) return 'loser';
+          return 'breakeven';
+        }
+        return effectiveOutcome;
+      })();
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const patch: Record<string, any> = {
         status,
-        outcome:        effectiveOutcome ?? null,
+        outcome:        fallbackOutcome,
         notes:          notes.trim()         || null,
         lesson_learned: lessonLearned.trim() || null,
       };
@@ -687,7 +716,7 @@ function EditModal({
         patch.pnl_dollars    = closeCalc.totalPnl;
         patch.pnl_pct        = closeCalc.totalPct;
         patch.r_multiple     = closeCalc.totalR;
-        patch.outcome        = effectiveOutcome ?? closeCalc.autoOutcome;
+        patch.outcome        = fallbackOutcome ?? closeCalc.autoOutcome;
       }
 
       const isClosingNow = (status === 'closed' || status === 'stopped_out') && !trade.exit_date;
