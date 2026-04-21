@@ -295,10 +295,17 @@ export async function GET(request: Request) {
 
     // ── Write to Supabase ──────────────────────────────────────────────────────
     log('Creating Supabase client (anon key)…');
-    const supabaseAdmin = createClient(supabaseUrl, supabaseAnon);
+    // ── Write to Supabase ──────────────────────────────────────────────────────
+    log('Creating Supabase client (anon key)…');
+    const supabase = createClient(supabaseUrl, supabaseAnon);
 
     log('Deleting old rows from stage2_leaders…');
-    const { error: deleteError } = await supabaseAdmin
+    const { error: deleteError } = await supabase
+      .from('stage2_leaders')
+      .delete()
+      .neq('id', 0);
+    log('Deleting old rows from stage2_leaders…');
+    const { error: deleteError } = await supabase
       .from('stage2_leaders')
       .delete()
       .neq('id', 0);
@@ -318,7 +325,7 @@ export async function GET(request: Request) {
     log('Delete OK');
 
     log(`Inserting ${leaders.length} rows…`);
-    const { error: insertError } = await supabaseAdmin
+    const { error: insertError } = await supabase
       .from('stage2_leaders')
       .insert(leaders);
 
