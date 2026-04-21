@@ -78,39 +78,50 @@ export function AddPositionModal({
 
     setSaving(true);
 
-    const { data, error: dbError } = await supabase
-      .from('trades')
-      .insert({
-        user_id: userId,
-        ticker: ticker.toUpperCase().trim(),
-        setup_type: setupType || null,
-        phase1_date: new Date(entryDate).toISOString(),
-        phase1_price: ep,
-        phase1_shares: sh,
-        initial_stop: sp,
-        current_stop: sp,
-        stop_distance_pct: computed!.stopDistPct,
-        risk_dollars: computed!.riskDollars,
-        trend_template_passed: false,
-        status: 'open',
-      })
-      .select()
-      .single();
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 10_000);
 
-    if (dbError) {
-      setError(dbError.message);
+    try {
+      const { data, error: dbError } = await supabase
+        .from('trades')
+        .insert({
+          user_id: userId,
+          ticker: ticker.toUpperCase().trim(),
+          setup_type: setupType || null,
+          phase1_date: new Date(entryDate).toISOString(),
+          phase1_price: ep,
+          phase1_shares: sh,
+          initial_stop: sp,
+          current_stop: sp,
+          stop_distance_pct: computed!.stopDistPct,
+          risk_dollars: computed!.riskDollars,
+          trend_template_passed: false,
+          status: 'open',
+        })
+        .abortSignal(controller.signal)
+        .select()
+        .single();
+
+      if (dbError) {
+        setError(dbError.message);
+        return;
+      }
+
+      toast({
+        title: `${ticker.toUpperCase()} logged`,
+        body: `${sh} sh @ $${ep.toFixed(2)} · stop $${sp.toFixed(2)} · risk $${computed!.riskDollars.toFixed(0)}`,
+        variant: 'success',
+        durationMs: 4000,
+      });
+
+      onSaved(data as Trade);
+    } catch (err) {
+      const isTimeout = (err as Error).name === 'AbortError';
+      setError(isTimeout ? 'Request timed out — check your connection and try again.' : (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      clearTimeout(tid);
       setSaving(false);
-      return;
     }
-
-    toast({
-      title: `${ticker.toUpperCase()} logged`,
-      body: `${sh} sh @ $${ep.toFixed(2)} · stop $${sp.toFixed(2)} · risk $${computed!.riskDollars.toFixed(0)}`,
-      variant: 'success',
-      durationMs: 4000,
-    });
-
-    onSaved(data as Trade);
   };
 
   if (!mounted) return null;
