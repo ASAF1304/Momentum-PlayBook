@@ -26,10 +26,17 @@ const STUDIES = [
     inputs: { length: 200, source: 'close' },
     overrides: { 'Plot.color': '#EF4444', 'Plot.linewidth': 2 },
   },
-  // Standard VWAP (daily anchor — AVWAP needs a manual date anchor in the UI)
+  // Daily-reset VWAP (amber). True Anchored VWAP requires clicking an anchor
+  // point in the drawing toolbar — use the "Anchored VWAP" tool on the left bar.
   {
     id: 'VWAP@tv-basicstudies',
     overrides: { 'VWAP.color': '#F59E0B', 'VWAP.linewidth': 2 },
+  },
+  // Anchored VWAP as a study — widget may or may not honor the anchor;
+  // if it renders it will anchor to the start of the visible range.
+  {
+    id: 'AnchoredVWAP@tv-basicstudies',
+    overrides: { 'Plot.color': '#F59E0B', 'Plot.linewidth': 2 },
   },
   // Volume MA overlaid on the volume pane
   {
@@ -39,11 +46,30 @@ const STUDIES = [
   },
 ];
 
+// Drawing tools to whitelist — the side toolbar (hide_side_toolbar:false) already
+// shows all drawing tools by default in the free widget. This `drawings_access`
+// config is a Charting Library option; the embed widget may ignore it silently.
+const DRAWINGS_ACCESS = {
+  type: 'white' as const,
+  tools: [
+    { name: 'Trend Line' },
+    { name: 'Rectangle' },
+    { name: 'Horizontal Line' },
+    { name: 'Horizontal Ray' },
+    { name: 'Arrow' },
+    { name: 'Text' },
+    { name: 'Anchored VWAP' },
+    { name: 'VWAP' },
+    { name: 'Fib Retracement' },
+  ],
+};
+
 const LEGEND = [
   { label: 'EMA 20',   color: '#3B82F6' },
   { label: 'EMA 50',   color: '#22C55E' },
   { label: 'SMA 200',  color: '#EF4444' },
   { label: 'VWAP',     color: '#F59E0B' },
+  { label: 'AVWAP',    color: '#F59E0B' },
   { label: 'Vol MA',   color: '#EF4444' },
 ];
 
@@ -104,6 +130,19 @@ function ChartWidget({
       calendar: false,
       hide_volume: false,
       studies: STUDIES,
+      drawings_access: DRAWINGS_ACCESS,
+      // enabled_features / disabled_features are Charting Library options;
+      // the free embed widget may ignore them — listed here for completeness.
+      enabled_features: [
+        'use_localstorage_for_settings',
+        'side_toolbar_in_fullscreen_mode',
+        'header_fullscreen_button',
+        'study_templates',
+        'drawing_templates',
+      ],
+      disabled_features: [
+        'header_compare',
+      ],
       support_host: 'https://www.tradingview.com',
     });
 
