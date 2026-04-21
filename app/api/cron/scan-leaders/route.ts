@@ -12,9 +12,11 @@
 // intermittently, so the fallback fires often.
 //
 // Required Vercel env vars (Settings → Environment Variables):
-//   SUPABASE_SERVICE_ROLE_KEY  — Supabase project service_role key
 //   CRON_SECRET                — any random secret; Vercel injects it as
 //                                "Authorization: Bearer <secret>" on cron calls
+//
+// Uses NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY (already set).
+// RLS policies on stage2_leaders must allow anon INSERT + DELETE.
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -219,15 +221,15 @@ export async function GET(request: Request) {
     log('Auth OK');
 
     // ── Env-var check ─────────────────────────────────────────────────────────
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl) {
       log('MISSING: NEXT_PUBLIC_SUPABASE_URL');
       return NextResponse.json({ ok: false, step: 'env', error: 'NEXT_PUBLIC_SUPABASE_URL not set', logs }, { status: 500 });
     }
-    if (!serviceKey) {
-      log('MISSING: SUPABASE_SERVICE_ROLE_KEY — cannot write to DB');
-      return NextResponse.json({ ok: false, step: 'env', error: 'SUPABASE_SERVICE_ROLE_KEY not set. Add it in Vercel Settings → Environment Variables.', logs }, { status: 500 });
+    if (!supabaseAnon) {
+      log('MISSING: NEXT_PUBLIC_SUPABASE_ANON_KEY');
+      return NextResponse.json({ ok: false, step: 'env', error: 'NEXT_PUBLIC_SUPABASE_ANON_KEY not set', logs }, { status: 500 });
     }
     log('Env vars OK');
 
@@ -292,8 +294,8 @@ export async function GET(request: Request) {
     log(`${leaders.length} leaders ready (source: ${source})`);
 
     // ── Write to Supabase ──────────────────────────────────────────────────────
-    log('Creating Supabase admin client…');
-    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+    log('Creating Supabase client (anon key)…');
+    const supabaseAdmin = createClient(supabaseUrl, supabaseAnon);
 
     log('Deleting old rows from stage2_leaders…');
     const { error: deleteError } = await supabaseAdmin
