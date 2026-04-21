@@ -1,17 +1,19 @@
 // app/page.tsx — Momentum Playbook Dashboard
-// 3-column layout: [Checklist | Sizer | Positions + Playbook]
+// 3-column layout: [Checklist | Sizer | Positions + Playbook + Stage2Leaders]
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Loader2, Plus } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { AppNav }                                          from '@/components/nav/app-nav';
 import { GridOverlay }                                     from '@/components/ui/grid-overlay';
 import { ValidatorProvider, ChecklistCard, SizerCard }    from '@/components/validator/pre-trade-validator';
 import { AddPositionModal }                                from '@/components/dashboard/add-position-modal';
+import { Stage2Leaders }                                   from '@/components/dashboard/stage2-leaders';
 import { supabase, type Trade }                            from '@/lib/supabase-client';
 import { useAuth }                                         from '@/lib/auth-context';
+import { useLivePrices, type LivePrice }                   from '@/lib/use-live-prices';
 import { toast }                                           from '@/lib/toast';
 import { cn }                                              from '@/lib/utils';
 import type { PositionSizerResult }                        from '@/lib/position-sizer';
@@ -20,10 +22,12 @@ import type { TickerResponse }                             from '@/app/api/ticke
 export default function Dashboard() {
   const { user, profile, loading: authLoading } = useAuth();
 
-  const [trades,        setTrades]        = useState<Trade[]>([]);
-  const [tradesLoading, setTradesLoading] = useState(true);
-  const [tradesError,   setTradesError]   = useState<string | null>(null);
-  const [showAddModal,  setShowAddModal]  = useState(false);
+  const [trades,           setTrades]           = useState<Trade[]>([]);
+  const [tradesLoading,    setTradesLoading]     = useState(true);
+  const [tradesError,      setTradesError]       = useState<string | null>(null);
+  const [showAddModal,     setShowAddModal]      = useState(false);
+  const [prefilledTicker,  setPrefilledTicker]   = useState<string | undefined>(undefined);
+  const validatorRef = useRef<HTMLDivElement>(null);
 
   const fetchTrades = useCallback(async (attempt = 0) => {
     if (!user) return;
@@ -54,6 +58,10 @@ export default function Dashboard() {
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
 
   const openTrades = useMemo(() => trades.filter(t => t.status === 'open' && !t.is_what_if), [trades]);
+
+  // Live prices for all open positions — polls every 60s, pauses when tab hidden
+  const openTickers = useMemo(() => openTrades.map(t => t.ticker), [openTrades]);
+  const { prices: livePrices, lastUpdated: pricesUpdatedAt, refreshing: pricesRefreshing, refresh: refreshPrices } = useLivePrices(openTickers);
 
   const stats = useMemo(() => {
     const system    = trades.filter(t => !t.is_what_if);
@@ -113,6 +121,15 @@ export default function Dashboard() {
     void fetchTrades();
   };
 
+  // When user clicks a ticker in Stage2Leaders — pre-fill validator and scroll to it
+  const handleSelectTicker = useCallback((ticker: string) => {
+    setPrefilledTicker(ticker);
+    setTimeout(() => {
+      validatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+    toast({ title: `${ticker} loaded in validator`, body: 'Check the checklist below.', variant: 'success', durationMs: 2500 });
+  }, []);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
@@ -144,20 +161,19 @@ export default function Dashboard() {
         </div>
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
-        {/* lg: [checklist | sizer] stacked left + positions right
-            xl: true 3-column — each card in its own column             */}
         <ValidatorProvider
           accountSize={profile?.account_size ?? 10_000}
           maxStopDistancePct={profile?.max_stop_distance_pct ?? 10}
           maxPortfolioRiskPct={profile?.max_risk_per_trade_pct ?? 2.5}
+          initialTicker={prefilledTicker}
           onSubmit={handleLogPhase1}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[420px_1fr_380px] gap-5 items-start">
+          <div ref={validatorRef} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[420px_1fr_380px] gap-5 items-start">
 
             {/* Col 1 (lg: left top, xl: col 1) — Checklist */}
             <ChecklistCard className="lg:col-start-1 lg:row-start-1 xl:col-start-1" />
 
-            {/* Col 3 (lg: right col spanning 2 rows, xl: col 3) — Positions + Playbook */}
+            {/* Col 3 (lg: right col spanning 2 rows, xl: col 3) — Positions + Playbook + Leaders */}
             <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 xl:col-start-3 xl:row-start-1 xl:row-span-1">
 
               {/* Active Positions */}
@@ -193,7 +209,11 @@ export default function Dashboard() {
                     <PositionsEmptyState />
                   )}
                   {!tradesLoading && !tradesError && openTrades.slice(0, 6).map(trade => (
-                    <PositionCard key={trade.id} trade={trade} />
+                    <PositionCard
+                      key={trade.id}
+                      trade={trade}
+                      livePrice={livePrices[trade.ticker]}
+                    />
                   ))}
                 </div>
 
@@ -205,6 +225,31 @@ export default function Dashboard() {
                   <Plus className="w-3.5 h-3.5" />
                   Add position manually
                 </button>
+
+                {/* Live price footer */}
+                {openTrades.length > 0 && (
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-[9px] text-[var(--text-faint)]">
+                      Market data delayed by 15 minutes
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {pricesUpdatedAt && (
+                        <span className="text-[9px] text-[var(--text-faint)] font-mono">
+                          Updated {pricesUpdatedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={refreshPrices}
+                        disabled={pricesRefreshing}
+                        className="flex items-center gap-1 text-[9px] text-[var(--text-faint)] hover:text-[#22D3EE] transition-colors"
+                      >
+                        <RefreshCw className={cn('w-2.5 h-2.5', pricesRefreshing && 'animate-spin')} />
+                        {pricesRefreshing ? 'Refreshing…' : 'Refresh'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Playbook summary */}
@@ -223,6 +268,10 @@ export default function Dashboard() {
                 </div>
                 <PlaybookStrip counts={playbookCounts} />
               </div>
+
+              {/* Stage 2 Leaders */}
+              <Stage2Leaders onSelectTicker={handleSelectTicker} />
+
             </div>
 
             {/* Col 2 (lg: left bottom, xl: col 2) — Sizer */}
@@ -272,8 +321,27 @@ function StatCard({ label, value, positive, negative }: {
   );
 }
 
-function PositionCard({ trade }: { trade: Trade }) {
+function PositionCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePrice }) {
   const daysIn = Math.floor((Date.now() - new Date(trade.phase1_date).getTime()) / 86_400_000);
+  const currentShares = trade.current_shares || trade.phase1_shares;
+
+  // Live P&L
+  const currentPrice = livePrice?.price ?? null;
+  const unrealizedPnL = currentPrice != null
+    ? (currentPrice - trade.phase1_price) * currentShares
+    : null;
+
+  // Stop proximity alert
+  const stop = trade.current_stop ?? trade.initial_stop;
+  const distanceToStop = currentPrice != null
+    ? ((currentPrice - stop) / currentPrice) * 100
+    : null;
+
+  const isApproachingStop = distanceToStop !== null && distanceToStop <= 1;
+  const isNearStop        = distanceToStop !== null && distanceToStop <= 3 && !isApproachingStop;
+  const isWinning         = unrealizedPnL !== null && unrealizedPnL > 0 && !isNearStop && !isApproachingStop;
+  const isLosing          = unrealizedPnL !== null && unrealizedPnL < 0 && !isNearStop && !isApproachingStop;
+
   return (
     <Link
       href="/journal"
@@ -292,19 +360,55 @@ function PositionCard({ trade }: { trade: Trade }) {
             </span>
           )}
         </div>
-        {/* Live status dot */}
-        <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-500 flex-shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          Live
-        </span>
+
+        {/* Status badge */}
+        {isApproachingStop ? (
+          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-red-400 flex-shrink-0">
+            <AlertTriangle className="w-3 h-3" /> Approaching Stop
+          </span>
+        ) : isNearStop ? (
+          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-400 flex-shrink-0">
+            <AlertTriangle className="w-3 h-3" /> Near Stop
+          </span>
+        ) : isWinning ? (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-[#10F088] flex-shrink-0">
+            Winning +${unrealizedPnL!.toFixed(0)}
+          </span>
+        ) : isLosing ? (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-red-400 flex-shrink-0">
+            Losing −${Math.abs(unrealizedPnL!).toFixed(0)}
+          </span>
+        ) : (
+          <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-500 flex-shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            Live
+          </span>
+        )}
       </div>
+
+      {/* Live price row */}
+      {currentPrice != null && (
+        <div className="flex items-baseline gap-2 mb-2">
+          <span className="font-mono text-[15px] font-extrabold text-[var(--text-primary)]">
+            ${currentPrice.toFixed(2)}
+          </span>
+          {livePrice && (
+            <span className={cn(
+              'font-mono text-[11px] font-semibold',
+              livePrice.changePct >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]',
+            )}>
+              {livePrice.changePct >= 0 ? '+' : ''}{livePrice.changePct.toFixed(2)}%
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Mini stat strip */}
       <div className="grid grid-cols-4 gap-x-2 text-[10px] font-mono mb-2">
         {[
           { k: 'Entry',  v: `$${trade.phase1_price.toFixed(2)}` },
-          { k: 'Stop',   v: `$${trade.initial_stop.toFixed(2)}`  },
-          { k: 'Shares', v: String(trade.phase1_shares)          },
+          { k: 'Stop',   v: `$${stop.toFixed(2)}`               },
+          { k: 'Shares', v: String(currentShares)                },
           { k: 'Days',   v: String(daysIn)                       },
         ].map(({ k, v }) => (
           <div key={k}>
@@ -319,6 +423,14 @@ function PositionCard({ trade }: { trade: Trade }) {
         <span>Risk ${trade.risk_dollars.toFixed(0)}</span>
         <span className="text-[var(--border-hover)]">·</span>
         <span className="text-red-500/70">−{trade.stop_distance_pct.toFixed(2)}% stop</span>
+        {unrealizedPnL !== null && (
+          <>
+            <span className="text-[var(--border-hover)]">·</span>
+            <span className={unrealizedPnL >= 0 ? 'text-[#10F088]/70' : 'text-red-500/70'}>
+              P&amp;L {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(0)}
+            </span>
+          </>
+        )}
       </div>
     </Link>
   );

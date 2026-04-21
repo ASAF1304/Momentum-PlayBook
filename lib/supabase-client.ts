@@ -81,6 +81,21 @@ export interface Trade {
   what_if_reason: string | null;
 }
 
+// ── Stage 2 Leaders ────────────────────────────────────────────────────────────
+
+export interface Stage2Leader {
+  id: number;
+  ticker: string;
+  company: string | null;
+  price: number | null;
+  change_pct: number | null;
+  volume: number | null;
+  market_cap: string | null;
+  rs_rating: number | null;
+  scanned_at: string;
+  rank: number | null;
+}
+
 // ── Watchlist ──────────────────────────────────────────────────────────────────
 
 export interface WatchlistItem {

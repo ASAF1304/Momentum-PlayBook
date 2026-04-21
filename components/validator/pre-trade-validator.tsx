@@ -106,6 +106,7 @@ interface ValidatorProviderProps {
   accountSize: number;
   maxStopDistancePct?: number;
   maxPortfolioRiskPct?: number;
+  initialTicker?: string;
   getNow?: () => Date;
   onSubmit?: (payload: {
     ticker: string; entry: number; stop: number;
@@ -119,9 +120,18 @@ interface ValidatorProviderProps {
 
 export function ValidatorProvider({
   children, accountSize, maxStopDistancePct, maxPortfolioRiskPct,
-  getNow = () => new Date(), onSubmit,
+  initialTicker, getNow = () => new Date(), onSubmit,
 }: ValidatorProviderProps) {
-  const [ticker,         setTicker]         = useState('NVDA');
+  const [ticker,         setTicker]         = useState(initialTicker ?? 'NVDA');
+
+  // Sync when parent updates the prefilled ticker (e.g. from Stage 2 Leaders)
+  const prevInitialTicker = useRef(initialTicker);
+  useEffect(() => {
+    if (initialTicker && initialTicker !== prevInitialTicker.current) {
+      setTicker(initialTicker);
+      prevInitialTicker.current = initialTicker;
+    }
+  }, [initialTicker]);
   const [entry,          setEntry]          = useState('');
   const [stop,           setStop]           = useState('');
   const [amountInvested, setAmountInvested] = useState('');
