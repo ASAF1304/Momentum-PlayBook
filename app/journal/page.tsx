@@ -11,6 +11,7 @@ import {
 import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
 import { AddTradeModal } from '@/components/journal/add-trade-modal';
+import { ImportExcelModal } from '@/components/journal/import-excel-modal';
 import { useAuth } from '@/lib/auth-context';
 import {
   supabase,
@@ -73,8 +74,9 @@ export default function JournalPage() {
   const [fetchError,    setFetchError]    = useState<string | null>(null);
   const [slowLoad,      setSlowLoad]      = useState(false);
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all');
-  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
-  const [showAddModal,  setShowAddModal]  = useState(false);
+  const [selectedTrade,  setSelectedTrade]  = useState<Trade | null>(null);
+  const [showAddModal,   setShowAddModal]   = useState(false);
+  const [showImport,     setShowImport]     = useState(false);
 
   useEffect(() => {
     if (!loading) { setSlowLoad(false); return; }
@@ -181,15 +183,26 @@ export default function JournalPage() {
             <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Trade Journal</h1>
             <p className="text-[12px] text-[var(--text-muted)]">Every trade logged. Every lesson earned.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-[var(--text-primary)] text-[var(--bg-primary)] text-[12px] font-extrabold uppercase tracking-wider hover:opacity-90 hover:-translate-y-px transition-all"
-          style={{ boxShadow: 'var(--shadow-card)' }}
-          >
-            <Plus className="w-3.5 h-3.5" strokeWidth={3} />
-            New Trade
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] border border-[#10F088]/40 bg-[#10F088]/[0.08] text-[#10F088] text-[12px] font-extrabold uppercase tracking-wider hover:bg-[#10F088]/[0.14] hover:-translate-y-px transition-all"
+              style={{ boxShadow: 'var(--shadow-card)' }}
+            >
+              <UploadCloud className="w-3.5 h-3.5" strokeWidth={2.5} />
+              Import from Broker
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-[var(--text-primary)] text-[var(--bg-primary)] text-[12px] font-extrabold uppercase tracking-wider hover:opacity-90 hover:-translate-y-px transition-all"
+              style={{ boxShadow: 'var(--shadow-card)' }}
+            >
+              <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+              New Trade
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -268,6 +281,14 @@ export default function JournalPage() {
           portfolioSize={profile?.account_size ?? 100_000}
           onClose={() => setShowAddModal(false)}
           onSaved={handleTradeAdded}
+        />
+      )}
+
+      {showImport && user && (
+        <ImportExcelModal
+          userId={user.id}
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); void fetchTrades(); }}
         />
       )}
     </div>

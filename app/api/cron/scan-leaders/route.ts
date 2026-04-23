@@ -295,15 +295,8 @@ export async function GET(request: Request) {
 
     // ── Write to Supabase ──────────────────────────────────────────────────────
     log('Creating Supabase client (anon key)…');
-    // ── Write to Supabase ──────────────────────────────────────────────────────
-    log('Creating Supabase client (anon key)…');
     const supabase = createClient(supabaseUrl, supabaseAnon);
 
-    log('Deleting old rows from stage2_leaders…');
-    const { error: deleteError } = await supabase
-      .from('stage2_leaders')
-      .delete()
-      .neq('id', 0);
     log('Deleting old rows from stage2_leaders…');
     const { error: deleteError } = await supabase
       .from('stage2_leaders')
