@@ -2,6 +2,8 @@
 //
 // Parses Excel/CSV broker exports into normalised trade rows, then groups
 // individual buy/sell transactions into complete trades (open or closed).
+// Merges with existing open positions already in the database so that
+// uploading multiple month-files produces correct single trades per ticker.
 
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
@@ -62,16 +64,46 @@ export interface ImportedTrade {
   isOrphan:           boolean;
 }
 
+/** An existing open trade in Supabase that a new file should merge into. */
+export interface ExistingPosition {
+  existingId:   string;
+  ticker:       string;
+  phase1Date:   string;   // ISO string — used for display in preview
+  shares:       number;   // current_shares from DB
+  avgCost:      number;   // computed from partials
+  initial_stop: number;
+}
+
+/** Pending update to an existing DB trade — new partials to attach. */
+export interface TradeUpdate {
+  _updateId:          string;   // client-only ID for selection
+  existingId:         string;
+  ticker:             string;
+  existingPhase1Date: string;
+  currentShares:      number;   // shares BEFORE this update (for display)
+  newPartials:        PartialRecord[];
+  newShares:          number;   // shares AFTER update
+  willClose:          boolean;
+  closeDate:          string | null;
+  closePrice:         number | null;
+}
+
 export interface ParseResult {
   format:       BrokerFormat;
   transactions: RawTransaction[];
-  trades:       ImportedTrade[];
-  skippedRows:  number;
+  newTrades:    ImportedTrade[];  // brand-new trades to INSERT
+  updates:      TradeUpdate[];    // existing DB trades to UPDATE
+  skippedRows:  number;           // rows that failed to parse (bad format/data)
+  dupSkipped:   number;           // rows skipped because already in DB
 }
 
 // ── File → raw rows ────────────────────────────────────────────────────────────
 
-export async function parseFile(file: File): Promise<ParseResult> {
+export async function parseFile(
+  file:               File,
+  existingPositions:  Map<string, ExistingPosition> = new Map(),
+  existingSignatures: Set<string>                  = new Set(),
+): Promise<ParseResult> {
   const name = file.name.toLowerCase();
   let rawRows: Record<string, string>[];
 
@@ -84,9 +116,14 @@ export async function parseFile(file: File): Promise<ParseResult> {
   const headers = Object.keys(rawRows[0] ?? {});
   const format  = detectBrokerFormat(headers);
   const { transactions, skippedRows } = mapToTransactions(rawRows, format);
-  const trades = groupToTrades(transactions, format);
+  const { newTrades, updates, skippedCount: dupSkipped } = groupToTrades(
+    transactions,
+    format,
+    existingPositions,
+    existingSignatures,
+  );
 
-  return { format, transactions, trades, skippedRows };
+  return { format, transactions, newTrades, updates, skippedRows, dupSkipped };
 }
 
 // ── CSV parser ────────────────────────────────────────────────────────────────

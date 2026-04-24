@@ -6,7 +6,7 @@
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { groupToTrades } from './broker-parser-internal';
-import type { ImportedTrade } from './broker-parser';
+import type { ExistingPosition, ImportedTrade, TradeUpdate } from './broker-parser';
 
 interface ManualMapping {
   ticker:   string;
@@ -17,9 +17,11 @@ interface ManualMapping {
 }
 
 export async function manualMapToTransactions(
-  file:    File,
-  mapping: ManualMapping,
-): Promise<{ trades: ImportedTrade[]; skippedRows: number }> {
+  file:               File,
+  mapping:            ManualMapping,
+  existingPositions:  Map<string, ExistingPosition> = new Map(),
+  existingSignatures: Set<string>                  = new Set(),
+): Promise<{ newTrades: ImportedTrade[]; updates: TradeUpdate[]; skippedRows: number; dupSkipped: number }> {
   const rows = await readFile(file);
   let skippedRows = 0;
 
@@ -52,8 +54,13 @@ export async function manualMapToTransactions(
     }
   }
 
-  const trades = groupToTrades(transactions, 'generic');
-  return { trades, skippedRows };
+  const { newTrades, updates, skippedCount: dupSkipped } = groupToTrades(
+    transactions,
+    'generic',
+    existingPositions,
+    existingSignatures,
+  );
+  return { newTrades, updates, skippedRows, dupSkipped };
 }
 
 async function readFile(file: File): Promise<Record<string, unknown>[]> {
