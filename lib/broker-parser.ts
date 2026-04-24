@@ -59,6 +59,7 @@ export interface ImportedTrade {
   isDuplicate:        boolean;
   hasWarning:         boolean;
   warningMsg:         string;
+  isOrphan:           boolean;
 }
 
 export interface ParseResult {

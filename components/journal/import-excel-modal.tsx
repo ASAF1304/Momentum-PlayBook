@@ -455,7 +455,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
             <div className="flex flex-col">
               {/* Summary bar */}
               <div className="px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)] flex items-center justify-between gap-3 flex-shrink-0">
-                <div className="flex items-center gap-3 text-[12px]">
+                <div className="flex items-center gap-3 text-[12px] flex-wrap">
                   <span className="font-semibold text-[var(--text-secondary)]">
                     Detected: <span className="text-[#10F088] font-bold">{BROKER_LABELS[detectedFormat ?? 'generic']}</span>
                   </span>
@@ -470,10 +470,18 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                       </span>
                     </>
                   )}
+                  {trades.some(t => t.isOrphan) && (
+                    <>
+                      <span className="text-[var(--text-faint)]">·</span>
+                      <span className="text-amber-400 text-[11px] font-semibold">
+                        ⚠ {trades.filter(t => t.isOrphan).length} inherited position{trades.filter(t => t.isOrphan).length !== 1 ? 's' : ''} ({trades.filter(t => t.isOrphan).map(t => t.ticker).join(', ')}) — review entry price
+                      </span>
+                    </>
+                  )}
                 </div>
                 <button
                   onClick={toggleAll}
-                  className="text-[11px] font-semibold text-[#22D3EE] hover:underline whitespace-nowrap"
+                  className="text-[11px] font-semibold text-[#22D3EE] hover:underline whitespace-nowrap flex-shrink-0"
                 >
                   {selectedIds.size === nonDupCount ? 'Deselect all' : 'Select all'}
                 </button>
@@ -576,6 +584,41 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
   return createPortal(modal, document.body);
 }
 
+// ── Preview helpers ───────────────────────────────────────────────────────────
+
+function computePreviewValues(trade: ImportedTrade) {
+  // Walk phase1 + partials in chronological order to compute current ACB state.
+  let shares  = trade.phase1_shares;
+  let avgCost = trade.phase1_price;
+  let invested = shares * avgCost;
+  let realizedPnL  = 0;
+  let hasBuyPartials = false;
+
+  for (const p of trade.partials) {
+    if (p.action === 'buy') {
+      invested   += p.shares * p.price;
+      shares     += p.shares;
+      avgCost     = invested / shares;
+      hasBuyPartials = true;
+    } else {
+      realizedPnL += p.pnl_dollars;
+      shares      -= p.shares;
+      invested     = shares * avgCost;
+    }
+  }
+
+  const buyCnt  = trade.partials.filter(p => p.action === 'buy').length;
+  const sellCnt = trade.partials.filter(p => p.action === 'sell').length;
+
+  // Partial summary label e.g. "1 add, 2 exits" or "3 exits"
+  const parts: string[] = [];
+  if (buyCnt  > 0) parts.push(`${buyCnt} add${buyCnt  !== 1 ? 's' : ''}`);
+  if (sellCnt > 0) parts.push(`${sellCnt} exit${sellCnt !== 1 ? 's' : ''}`);
+  const partialLabel = parts.join(', ');
+
+  return { avgEntry: avgCost, realizedPnL, hasBuyPartials, partialLabel, buyCnt, sellCnt };
+}
+
 // ── PreviewRow ────────────────────────────────────────────────────────────────
 
 function PreviewRow({
@@ -587,15 +630,32 @@ function PreviewRow({
   onToggle: () => void;
   onExpand: () => void;
 }) {
-  const pnlPositive  = (trade.pnl_dollars ?? 0) >= 0;
-  const sells        = trade.partials.filter(p => p.action === 'sell');
+  const { avgEntry, realizedPnL, hasBuyPartials, partialLabel } = computePreviewValues(trade);
+
+  // Determine what to display for PnL column
+  const displayPnL = trade.isOrphan
+    ? null   // unknown entry — can't show PnL
+    : trade.status === 'closed'
+      ? trade.pnl_dollars
+      : realizedPnL !== 0 ? realizedPnL : null;   // realized from trims on open trade
+
+  const pnlPositive = (displayPnL ?? 0) >= 0;
+
+  // Shares to display: for open trades show remaining; for orphan show total sold; for closed show phase1 size
+  const sharesDisplay = trade.isOrphan
+    ? `${trade.phase1_shares} sh`
+    : trade.status === 'open'
+      ? `${trade.current_shares} sh`
+      : `${trade.phase1_shares} sh`;
+
+  const hasPartials = trade.partials.length > 0;
 
   return (
     <div className={cn(
       'transition-colors',
       trade.isDuplicate ? 'opacity-50' : 'hover:bg-[var(--bg-elevated)]',
     )}>
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2.5 px-4 py-3">
         {/* Checkbox */}
         <button
           type="button"
@@ -615,54 +675,79 @@ function PreviewRow({
         </button>
 
         {/* Ticker */}
-        <span className="font-mono text-[14px] font-extrabold tracking-tight w-16 flex-shrink-0">
+        <span className="font-mono text-[13px] font-extrabold tracking-tight w-14 flex-shrink-0">
           {trade.ticker}
         </span>
 
         {/* Entry date */}
-        <span className="text-[11px] font-mono text-[var(--text-muted)] w-20 flex-shrink-0">
+        <span className="text-[10px] font-mono text-[var(--text-muted)] w-16 flex-shrink-0">
           {fmtDate(trade.phase1_date)}
         </span>
 
-        {/* Entry price */}
-        <span className="text-[11px] font-mono text-[var(--text-dim)] w-16 flex-shrink-0">
-          ${trade.phase1_price.toFixed(2)}
-        </span>
+        {/* Avg entry price */}
+        <div className="w-20 flex-shrink-0">
+          {trade.isOrphan ? (
+            <span className="text-[10px] font-mono text-amber-400">? (review)</span>
+          ) : (
+            <div>
+              <span className="text-[11px] font-mono text-[var(--text-dim)]">
+                ${avgEntry.toFixed(2)}
+              </span>
+              {hasBuyPartials && (
+                <span className="text-[8px] text-[#22D3EE] ml-0.5">avg</span>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Shares */}
-        <span className="text-[11px] font-mono text-[var(--text-faint)] w-14 flex-shrink-0">
-          {trade.phase1_shares} sh
-        </span>
+        <div className="w-16 flex-shrink-0">
+          <span className="text-[10px] font-mono text-[var(--text-faint)]">{sharesDisplay}</span>
+          {trade.status === 'open' && realizedPnL !== 0 && (
+            <div className={cn(
+              'text-[8px] font-mono font-bold',
+              realizedPnL >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]',
+            )}>
+              {realizedPnL >= 0 ? '+' : ''}${realizedPnL.toFixed(0)} realized
+            </div>
+          )}
+        </div>
 
-        {/* Exit / status */}
-        <span className="text-[11px] font-mono text-[var(--text-muted)] w-20 flex-shrink-0">
+        {/* Exit date */}
+        <span className="text-[10px] font-mono text-[var(--text-muted)] w-16 flex-shrink-0">
           {trade.exit_date ? fmtDate(trade.exit_date) : '—'}
         </span>
 
-        {/* P&L */}
+        {/* PnL */}
         <span className={cn(
-          'font-mono text-[12px] font-bold w-20 flex-shrink-0',
-          trade.pnl_dollars === null ? 'text-[var(--text-faint)]' :
-          pnlPositive ? 'text-[#10F088]' : 'text-[#FF3B5C]',
+          'font-mono text-[11px] font-bold w-16 flex-shrink-0',
+          displayPnL === null
+            ? 'text-[var(--text-faint)]'
+            : pnlPositive ? 'text-[#10F088]' : 'text-[#FF3B5C]',
         )}>
-          {trade.pnl_dollars === null ? 'Open' :
-           `${pnlPositive ? '+' : ''}$${Math.abs(trade.pnl_dollars).toFixed(0)}`}
+          {displayPnL === null
+            ? (trade.status === 'open' ? 'Open' : trade.isOrphan ? '?' : '—')
+            : `${pnlPositive ? '+' : ''}$${Math.abs(displayPnL).toFixed(0)}`}
         </span>
 
-        {/* Status badges */}
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          {trade.isDuplicate ? (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
+        {/* Badges */}
+        <div className="flex items-center gap-1 flex-1 min-w-0 flex-wrap">
+          {trade.isOrphan ? (
+            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20 whitespace-nowrap">
+              ⚠ Inherited
+            </span>
+          ) : trade.isDuplicate ? (
+            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20">
               Duplicate
             </span>
           ) : (
-            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-faint)] border border-[var(--border-subtle)]">
+            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-faint)] border border-[var(--border-subtle)]">
               Non-System
             </span>
           )}
           {trade.outcome && (
             <span className={cn(
-              'text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
+              'text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap',
               trade.outcome === 'winner'    ? 'bg-[#10F088]/10 text-[#10F088] border border-[#10F088]/20' :
               trade.outcome === 'loser'     ? 'bg-[#FF3B5C]/10 text-[#FF3B5C] border border-[#FF3B5C]/20' :
               'bg-amber-400/10 text-amber-400 border border-amber-400/20',
@@ -670,10 +755,15 @@ function PreviewRow({
               {trade.outcome}
             </span>
           )}
+          {partialLabel && (
+            <span className="text-[8px] text-[var(--text-faint)] font-mono whitespace-nowrap">
+              {partialLabel}
+            </span>
+          )}
         </div>
 
-        {/* Expand toggle (if has partials) */}
-        {sells.length > 0 && (
+        {/* Expand toggle */}
+        {hasPartials && (
           <button
             type="button"
             onClick={onExpand}
@@ -684,19 +774,39 @@ function PreviewRow({
         )}
       </div>
 
-      {/* Expanded partials */}
-      {expanded && sells.length > 0 && (
+      {/* Expanded partials (all: buys and sells) */}
+      {expanded && hasPartials && (
         <div className="px-10 pb-3 flex flex-col gap-1">
-          {sells.map(p => (
-            <div key={p.id} className="flex items-center gap-3 px-3 py-1.5 rounded-[6px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[10px]">
-              <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A78BFA]/15 text-[#A78BFA]">Trim</span>
-              <span className="font-mono text-[var(--text-faint)]">{fmtDate(p.date)}</span>
-              <span className="font-mono text-[var(--text-muted)]">{p.shares} sh @ ${p.price.toFixed(2)}</span>
-              <span className={cn('ml-auto font-mono font-bold', p.pnl_dollars >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]')}>
-                {p.pnl_dollars >= 0 ? '+' : ''}${p.pnl_dollars.toFixed(0)}
-              </span>
-            </div>
-          ))}
+          {trade.partials.map(p => {
+            const isBuy = p.action === 'buy';
+            return (
+              <div key={p.id} className={cn(
+                'flex items-center gap-3 px-3 py-1.5 rounded-[6px] border text-[10px]',
+                isBuy ? 'bg-[#22D3EE]/[0.03] border-[#22D3EE]/15' : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]',
+              )}>
+                <span className={cn(
+                  'text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
+                  isBuy ? 'bg-[#22D3EE]/15 text-[#22D3EE]' : 'bg-[#A78BFA]/15 text-[#A78BFA]',
+                )}>
+                  {isBuy ? 'Add' : 'Trim'}
+                </span>
+                <span className="font-mono text-[var(--text-faint)]">{fmtDate(p.date)}</span>
+                <span className="font-mono text-[var(--text-muted)]">
+                  {isBuy ? '+' : '−'}{p.shares} sh @ ${p.price.toFixed(2)}
+                </span>
+                {!isBuy && (
+                  <span className={cn(
+                    'ml-auto font-mono font-bold',
+                    p.pnl_dollars !== 0
+                      ? p.pnl_dollars >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]'
+                      : 'text-[var(--text-faint)]',
+                  )}>
+                    {p.pnl_dollars === 0 ? '? (edit entry)' : `${p.pnl_dollars >= 0 ? '+' : ''}$${p.pnl_dollars.toFixed(0)}`}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
