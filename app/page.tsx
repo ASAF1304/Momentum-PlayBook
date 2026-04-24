@@ -151,7 +151,7 @@ export default function Dashboard() {
 
         {/* ── Stats strip ───────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-7">
-          <StatCard label="Account"       value={stats.accountSize > 0 ? `$${stats.accountSize.toLocaleString()}` : '—'} />
+          <StatCard label="Account"       value={stats.accountSize > 0 ? fmtAccountSize(stats.accountSize) : '—'} />
           <StatCard label="Open"          value={tradesLoading ? '…' : String(stats.openCount)} />
           <StatCard label="Win Rate"      value={stats.winRate !== null ? `${stats.winRate.toFixed(1)}%` : '—'} />
           <StatCard label="Avg R"         value={stats.avgR !== null ? `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R` : '—'}
@@ -292,6 +292,19 @@ export default function Dashboard() {
       )}
     </div>
   );
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function fmtAccountSize(n: number): string {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `$${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M`;
+  }
+  if (n >= 1_000) {
+    return `$${(n / 1_000).toFixed(0)}K`;
+  }
+  return `$${n.toLocaleString()}`;
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────

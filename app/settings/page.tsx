@@ -140,6 +140,7 @@ export default function SettingsPage() {
                   value={accountSize}
                   onChange={e => setAccountSize(e.target.value)}
                   min="100"
+                  max="50000000"
                   step="100"
                   className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
                 />
