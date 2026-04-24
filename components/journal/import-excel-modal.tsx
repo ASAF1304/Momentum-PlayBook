@@ -102,7 +102,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
     async function loadExisting() {
       const { data } = await supabase
         .from('trades')
-        .select('id, ticker, phase1_date, phase1_price, phase1_shares, current_shares, partials, initial_stop, status')
+        .select('id, ticker, phase1_date, phase1_price, phase1_shares, current_shares, partials, initial_stop, status, failed_gates')
         .eq('user_id', userId)
         .eq('is_what_if', true);
 
@@ -127,6 +127,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
           const totalShares = Number(t.phase1_shares)
             + buys.reduce((s, p) => s + p.shares, 0)
             - sells.reduce((s, p) => s + p.shares, 0);
+          const isShort = ((t.failed_gates ?? []) as string[]).includes('short_position');
           positions.set(t.ticker as string, {
             existingId:   t.id as string,
             ticker:       t.ticker as string,
@@ -134,6 +135,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
             shares:       Number(t.current_shares),
             avgCost:      totalShares > 0 ? totalInvested / totalShares : Number(t.phase1_price),
             initial_stop: Number(t.initial_stop),
+            isShort,
           });
         }
       }
@@ -293,7 +295,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
     // Insert new trades
     for (const t of toImport) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { _importId, isDuplicate, hasWarning, warningMsg, ...rest } = t;
+      const { _importId, isDuplicate, hasWarning, warningMsg, is_short, isOrphan, ...rest } = t;
       const row: Omit<Trade, 'id' | 'created_at'> & { user_id: string } = {
         user_id:               userId,
         ticker:                rest.ticker,
@@ -323,8 +325,8 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
         partials:              rest.partials,
         current_shares:        rest.current_shares,
         is_what_if:            true,
-        failed_gates:          ['imported_from_broker'],
-        what_if_reason:        `Imported from ${brokerLabel}`,
+        failed_gates:          is_short ? ['imported_from_broker', 'short_position'] : ['imported_from_broker'],
+        what_if_reason:        `Imported from ${brokerLabel}${is_short ? ' (Short)' : ''}`,
       };
       const { error } = await supabase.from('trades').insert(row);
       if (!error) succeeded++;
@@ -879,6 +881,9 @@ function PreviewRow({
         </span>
 
         <div className="flex items-center gap-1 flex-1 min-w-0 flex-wrap">
+          {trade.is_short && (
+            <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 whitespace-nowrap">🔻 Short</span>
+          )}
           {trade.isOrphan ? (
             <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20 whitespace-nowrap">⚠ Inherited</span>
           ) : (

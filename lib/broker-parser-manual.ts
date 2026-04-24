@@ -48,7 +48,7 @@ export async function manualMapToTransactions(
       const date = normaliseDate(rawDate);
       if (!date) { skippedRows++; continue; }
 
-      transactions.push({ ticker: rawTicker, action: action as 'buy' | 'sell', quantity, price, date, fees: 0, currency: 'USD' as const });
+      transactions.push({ ticker: rawTicker, action: action as 'buy' | 'sell', quantity, price, date, fees: 0, currency: 'USD' as const, isShort: false });
     } catch {
       skippedRows++;
     }

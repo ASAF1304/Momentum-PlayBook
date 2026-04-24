@@ -21,6 +21,7 @@ export interface RawTransaction {
   date:     string;   // ISO date string YYYY-MM-DD
   fees:     number;
   currency: 'USD' | 'ILS';
+  isShort:  boolean;
 }
 
 export interface PartialRecord {
@@ -55,6 +56,7 @@ export interface ImportedTrade {
   current_shares:     number;
   trend_template_passed: false;
   is_what_if:         boolean;
+  is_short:           boolean;
   failed_gates:       string[];
   notes:              string;
   // computed display-only
@@ -72,6 +74,7 @@ export interface ExistingPosition {
   shares:       number;   // current_shares from DB
   avgCost:      number;   // computed from partials
   initial_stop: number;
+  isShort?:     boolean;
 }
 
 /** Pending update to an existing DB trade — new partials to attach. */
@@ -290,8 +293,9 @@ function mapToTransactions(
 
       if (!rawTicker || !/^[A-Z.]{1,10}$/.test(rawTicker)) { skippedRows++; continue; }
 
-      const action = normaliseAction(rawAction, format);
-      if (!action) { skippedRows++; continue; }
+      const actionResult = normaliseAction(rawAction, format);
+      if (!actionResult) { skippedRows++; continue; }
+      const { action, isShort } = actionResult;
 
       const quantity = Math.abs(parseFloat(rawQty));
       const price    = parseFloat(rawPrice);
@@ -303,7 +307,7 @@ function mapToTransactions(
       const date = normaliseDate(rawDate, format);
       if (!date) { skippedRows++; continue; }
 
-      transactions.push({ ticker: rawTicker, action, quantity, price, date, fees, currency: 'USD' });
+      transactions.push({ ticker: rawTicker, action, quantity, price, date, fees, currency: 'USD', isShort });
     } catch {
       skippedRows++;
     }
@@ -312,17 +316,31 @@ function mapToTransactions(
   return { transactions, skippedRows };
 }
 
-function normaliseAction(raw: string, format: BrokerFormat): 'buy' | 'sell' | null {
+function normaliseAction(raw: string, format: BrokerFormat): { action: 'buy' | 'sell'; isShort: boolean } | null {
+  const s = raw.toLowerCase().trim();
+
+  // ── Short / Cover — must come BEFORE generic buy/sell checks ──────────────
+  // "short", "sell short", "short sale" → opens a short (treated like a buy)
+  if ((s.includes('short') || s === 'ss') && !s.includes('cover')) {
+    return { action: 'buy', isShort: true };
+  }
+  // "buy to cover", "cover", "btc" → closes a short (treated like a sell)
+  if (s.includes('cover') || s === 'btc') {
+    return { action: 'sell', isShort: true };
+  }
+
+  // ── Meitav Hebrew ─────────────────────────────────────────────────────────
   if (format === 'meitav') {
-    if (raw.includes('קני') || raw.includes('buy'))  return 'buy';
-    if (raw.includes('מכיר') || raw.includes('sell')) return 'sell';
+    if (s.includes('קני') || s.includes('buy'))  return { action: 'buy',  isShort: false };
+    if (s.includes('מכיר') || s.includes('sell')) return { action: 'sell', isShort: false };
     return null;
   }
-  if (raw === 'buy'  || raw === 'b' || raw === 'bot') return 'buy';
-  if (raw === 'sell' || raw === 's' || raw === 'sld') return 'sell';
-  // Generic: if contains buy/sell keyword
-  if (raw.includes('buy')  || raw.includes('long'))  return 'buy';
-  if (raw.includes('sell') || raw.includes('short')) return 'sell';
+
+  // ── Standard long buy/sell keywords ──────────────────────────────────────
+  if (s === 'buy' || s === 'b' || s === 'bot' || s === 'long') return { action: 'buy',  isShort: false };
+  if (s === 'sell' || s === 's' || s === 'sld')                 return { action: 'sell', isShort: false };
+  if (s.includes('buy')  || s.includes('long'))                  return { action: 'buy',  isShort: false };
+  if (s.includes('sell'))                                        return { action: 'sell', isShort: false };
   return null;
 }
 
