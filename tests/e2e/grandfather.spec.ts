@@ -47,7 +47,7 @@ const PROFILE = {
 };
 
 async function setupSession(page: import('@playwright/test').Page) {
-  await page.addCookies([{
+  await page.context().addCookies([{
     name: COOKIE_NAME, value: makeSessionCookie(),
     domain: 'localhost', path: '/', httpOnly: false, secure: false, sameSite: 'Lax',
   }]);

@@ -11,6 +11,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/lib/auth/require-admin';
 import { getServiceClient } from '@/lib/supabase-service';
 
+// subscriptions is not in the generated Supabase schema types — cast to any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyDb = ReturnType<typeof import('@supabase/supabase-js').createClient<any>>;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
@@ -26,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   }
 
-  const db = getServiceClient();
+  const db = getServiceClient() as unknown as AnyDb;
 
   if (action === 'comp') {
     await db.from('subscriptions').upsert({

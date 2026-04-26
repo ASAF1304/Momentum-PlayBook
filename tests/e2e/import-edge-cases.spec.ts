@@ -95,7 +95,7 @@ async function setupMocks(
   page: import('@playwright/test').Page,
   trades: ReturnType<typeof makeTrade>[],
 ) {
-  await page.addCookies([{
+  await page.context().addCookies([{
     name: COOKIE_NAME, value: makeSessionCookie(),
     domain: 'localhost', path: '/', httpOnly: false, secure: false, sameSite: 'Lax',
   }]);

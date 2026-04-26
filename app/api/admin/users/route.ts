@@ -8,11 +8,15 @@ import { NextResponse } from 'next/server';
 import { guardAdmin } from '@/lib/auth/require-admin';
 import { getServiceClient } from '@/lib/supabase-service';
 
+// subscriptions is not in the generated schema types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyDb = ReturnType<typeof import('@supabase/supabase-js').createClient<any>>;
+
 export async function GET() {
   const denied = await guardAdmin();
   if (denied) return denied;
 
-  const db = getServiceClient();
+  const db = getServiceClient() as unknown as AnyDb;
 
   const [profilesResult, subsResult, authResult] = await Promise.all([
     db.from('user_profiles').select('id, display_name, created_at, is_admin'),
