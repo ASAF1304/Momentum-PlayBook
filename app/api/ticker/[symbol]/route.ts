@@ -4,6 +4,7 @@
 // All moving averages labeled as EMA (Asaf's methodology).
 
 import { type NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { getMarketData, MarketDataError, type MarketData } from '@/lib/market-data';
 import { analyzeStops, type StopAnalysis } from '@/lib/stop-calculator';
 import { checkLimit, getTickerLimiter } from '@/lib/rate-limit';
@@ -104,6 +105,7 @@ export async function GET(
         { status: err.code === 'rate_limit' ? 429 : err.code === 'invalid_ticker' ? 404 : 502 },
       );
     }
+    Sentry.captureException(err, { extra: { symbol } });
     console.error('[api/ticker] unexpected error:', err);
     return NextResponse.json<TickerErrorResponse>(
       { error: 'Unexpected server error.', code: 'unknown', retryable: true },

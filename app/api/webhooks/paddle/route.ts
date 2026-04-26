@@ -7,6 +7,7 @@
 // Paddle sends events as JSON with a Paddle-Signature header.
 
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { Paddle, Environment, EventName } from '@paddle/paddle-node-sdk';
 import { getServiceClient } from '@/lib/supabase-service';
 
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
         break;
     }
   } catch (err) {
+    Sentry.captureException(err, { extra: { eventType: event.eventType } });
     console.error('[PADDLE-WEBHOOK] DB upsert failed:', err);
     return NextResponse.json({ error: 'db error' }, { status: 500 });
   }
