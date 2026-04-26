@@ -18,7 +18,15 @@ export interface UserProfile {
   dismissed_onboarding_at: string | null;
 }
 
-export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'paused' | 'cancelled';
+export type SubscriptionStatus =
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'paused'
+  | 'cancelled'
+  | 'grace'          // beta users: 30 days free, no card required
+  | 'comp'           // permanent free access granted by admin
+  | 'expired_grace'; // grace period ended, no active sub
 
 export interface Subscription {
   id: string;

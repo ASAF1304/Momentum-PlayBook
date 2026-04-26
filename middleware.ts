@@ -77,10 +77,13 @@ export async function middleware(request: NextRequest) {
         .maybeSingle();
 
       const status = (sub as { status: string } | null)?.status;
-      const isValid = status === 'trialing' || status === 'active';
+      // grace + comp = free access; trialing + active + past_due + paused = paying
+      const isValid = ['trialing', 'active', 'past_due', 'paused', 'grace', 'comp'].includes(status ?? '');
 
       if (!isValid) {
-        return NextResponse.redirect(new URL('/onboarding/checkout', request.url));
+        // expired_grace / cancelled / no sub row → prompt to subscribe or add card
+        const dest = status === 'expired_grace' ? '/billing' : '/onboarding/checkout';
+        return NextResponse.redirect(new URL(dest, request.url));
       }
     } catch (err) {
       // DB error — allow through rather than locking users out

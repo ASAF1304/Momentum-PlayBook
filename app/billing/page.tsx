@@ -1,36 +1,49 @@
 // app/billing/page.tsx
 //
-// Shows the user's current subscription status and a link to manage billing
-// via the Paddle customer portal.
+// Shows the user's current subscription status and options to manage it.
+// grace / comp users see their free-access details.
+// Active subscribers can open the Paddle customer portal.
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, TrendingUp, CheckCircle2, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import {
+  Loader2, TrendingUp, CheckCircle2, XCircle,
+  AlertTriangle, Clock, Gift,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, type Subscription, type SubscriptionStatus } from '@/lib/supabase-client';
 
 const STATUS_LABEL: Record<SubscriptionStatus, string> = {
-  trialing:   'ניסיון חינמי',
-  active:     'פעיל',
-  past_due:   'תשלום נכשל',
-  paused:     'מושהה',
-  cancelled:  'מבוטל',
+  trialing:      'ניסיון חינמי',
+  active:        'פעיל',
+  past_due:      'תשלום נכשל',
+  paused:        'מושהה',
+  cancelled:     'מבוטל',
+  grace:         'גישת בטא בחינם',
+  comp:          'גישה חינמית קבועה',
+  expired_grace: 'גישת הבטא הסתיימה',
 };
 
 const STATUS_ICON: Record<SubscriptionStatus, React.ReactNode> = {
-  trialing:  <Clock className="w-5 h-5 text-[#22D3EE]" />,
-  active:    <CheckCircle2 className="w-5 h-5 text-[#10F088]" />,
-  past_due:  <AlertTriangle className="w-5 h-5 text-[#FF9F0A]" />,
-  paused:    <AlertTriangle className="w-5 h-5 text-[#FF9F0A]" />,
-  cancelled: <XCircle className="w-5 h-5 text-[#FF3B5C]" />,
+  trialing:      <Clock        className="w-5 h-5 text-[#22D3EE]" />,
+  active:        <CheckCircle2 className="w-5 h-5 text-[#10F088]" />,
+  past_due:      <AlertTriangle className="w-5 h-5 text-[#FF9F0A]" />,
+  paused:        <AlertTriangle className="w-5 h-5 text-[#FF9F0A]" />,
+  cancelled:     <XCircle      className="w-5 h-5 text-[#FF3B5C]" />,
+  grace:         <Gift         className="w-5 h-5 text-[#22D3EE]" />,
+  comp:          <Gift         className="w-5 h-5 text-[#10F088]" />,
+  expired_grace: <XCircle      className="w-5 h-5 text-[#FF3B5C]" />,
 };
+
+// Statuses that have a real Paddle subscription to manage
+const HAS_PADDLE_SUB: SubscriptionStatus[] = ['trialing', 'active', 'past_due', 'paused', 'cancelled'];
 
 export default function BillingPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [sub,     setSub]     = useState<Subscription | null>(null);
+  const [sub,      setSub]      = useState<Subscription | null>(null);
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
@@ -56,9 +69,17 @@ export default function BillingPage() {
     );
   }
 
-  const status = (sub?.status ?? 'cancelled') as SubscriptionStatus;
-  const trialEnd = sub?.trial_ends_at ? new Date(sub.trial_ends_at) : null;
-  const periodEnd = sub?.current_period_end ? new Date(sub.current_period_end) : null;
+  const status     = (sub?.status ?? 'cancelled') as SubscriptionStatus;
+  const trialEnd   = sub?.trial_ends_at      ? new Date(sub.trial_ends_at)      : null;
+  const periodEnd  = sub?.current_period_end ? new Date(sub.current_period_end) : null;
+  const hasPaddle  = HAS_PADDLE_SUB.includes(status);
+  const isGrace    = status === 'grace';
+  const isComp     = status === 'comp';
+  const needsCard  = !sub || status === 'cancelled' || status === 'expired_grace';
+
+  const graceDaysLeft = isGrace && trialEnd
+    ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86_400_000))
+    : null;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
@@ -86,7 +107,9 @@ export default function BillingPage() {
                 תוכנית נוכחית
               </p>
               <p className="text-base font-bold text-[var(--text-primary)]">
-                Momentum Playbook — 50 ₪ / חודש
+                {isComp
+                  ? 'Momentum Playbook — גישה חינמית'
+                  : 'Momentum Playbook — 50 ₪ / חודש'}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -97,7 +120,7 @@ export default function BillingPage() {
             </div>
           </div>
 
-          {/* Dates */}
+          {/* Dates / info */}
           {trialEnd && status === 'trialing' && (
             <p className="text-sm text-[var(--text-muted)]">
               תקופת הניסיון מסתיימת:{' '}
@@ -114,16 +137,39 @@ export default function BillingPage() {
               </span>
             </p>
           )}
+          {isGrace && (
+            <p className="text-sm text-[var(--text-muted)]">
+              {graceDaysLeft !== null && graceDaysLeft > 0
+                ? <>גישת הבטא בחינם מסתיימת בעוד{' '}
+                    <span className="font-semibold text-[#22D3EE]">
+                      {graceDaysLeft} {graceDaysLeft === 1 ? 'יום' : 'ימים'}
+                    </span>
+                  </>
+                : 'גישת הבטא בחינם הסתיימה — הוסף כרטיס כדי להמשיך'}
+            </p>
+          )}
+          {isComp && (
+            <p className="text-sm text-[var(--text-muted)]">
+              קיבלת גישה חינמית קבועה לאפליקציה. אין צורך בכרטיס אשראי.
+            </p>
+          )}
 
           {/* CTA */}
-          {!sub ? (
+          {needsCard ? (
             <button
               onClick={() => router.push('/onboarding/checkout')}
               className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
             >
-              התחל ניסיון חינמי
+              {status === 'expired_grace' ? 'הוסף כרטיס אשראי' : 'התחל ניסיון חינמי'}
             </button>
-          ) : (
+          ) : isGrace ? (
+            <button
+              onClick={() => router.push('/onboarding/checkout')}
+              className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
+            >
+              הוסף כרטיס אשראי לפני שהגישה מסתיימת
+            </button>
+          ) : isComp ? null : hasPaddle ? (
             <a
               href="https://customer.paddle.com/subscriptions"
               target="_blank"
@@ -132,7 +178,7 @@ export default function BillingPage() {
             >
               ניהול מנוי ב-Paddle ↗
             </a>
-          )}
+          ) : null}
 
           <button
             onClick={() => router.push('/')}
