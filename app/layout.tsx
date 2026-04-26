@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { ThemeProvider } from '@/lib/theme-context';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { TrialBanner } from '@/components/trial-banner';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ErrorBoundary>
           <ThemeProvider>
             <AuthProvider>
+              <TrialBanner />
               {children}
             </AuthProvider>
           </ThemeProvider>

@@ -67,7 +67,9 @@ export default function OnboardingPage() {
     }
 
     await refreshProfile();
-    router.push('/');
+    // Redirect to Paddle checkout if configured, otherwise go straight to dashboard
+    const dest = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID ? '/onboarding/checkout' : '/';
+    router.push(dest);
   };
 
   if (loading) {
