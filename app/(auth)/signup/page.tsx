@@ -11,17 +11,22 @@ import { cn } from '@/lib/utils';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [email,      setEmail]      = useState('');
-  const [password,   setPassword]   = useState('');
-  const [confirm,    setConfirm]    = useState('');
-  const [error,      setError]      = useState<string | null>(null);
-  const [message,    setMessage]    = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [email,         setEmail]         = useState('');
+  const [password,      setPassword]      = useState('');
+  const [confirm,       setConfirm]       = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [message,       setMessage]       = useState<string | null>(null);
+  const [submitting,    setSubmitting]    = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
 
+    if (!termsAccepted) {
+      setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך.');
+      return;
+    }
     if (password !== confirm) {
       setError('Passwords do not match.');
       return;
@@ -132,6 +137,23 @@ export default function SignupPage() {
             />
           </div>
 
+          {/* Legal consent */}
+          <label className="flex items-start gap-2.5 cursor-pointer select-none" dir="rtl">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={e => setTermsAccepted(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border border-white/20 bg-black/30 accent-[#22D3EE] cursor-pointer shrink-0"
+            />
+            <span className="text-xs text-zinc-400 leading-relaxed">
+              קראתי ואני מסכים/ה ל
+              <Link href="/legal/terms" target="_blank" className="text-[#22D3EE] hover:underline mx-1">תנאי השימוש</Link>
+              ול
+              <Link href="/legal/privacy" target="_blank" className="text-[#22D3EE] hover:underline mx-1">מדיניות הפרטיות</Link>
+              של Momentum Playbook.
+            </span>
+          </label>
+
           {error && (
             <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-xs text-[#FF3B5C]">
               {error}
@@ -140,10 +162,10 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !termsAccepted}
             className={cn(
               'mt-1 w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2',
-              submitting
+              submitting || !termsAccepted
                 ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
                 : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110',
             )}

@@ -58,6 +58,7 @@ export default function OnboardingPage() {
       account_size: size,
       max_risk_per_trade_pct: risk,
       max_stop_distance_pct: stop,
+      accepted_terms_at: new Date().toISOString(),
     });
 
     if (dbError) {

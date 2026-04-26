@@ -5,7 +5,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertTriangle, Loader2, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Loader2, TrendingUp, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import { clearAuthStorage } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -151,8 +151,29 @@ function LoginForm() {
         </Link>
       </p>
 
-      {/* Escape hatch for stuck/corrupted sessions */}
+      {/* Legal disclaimer */}
       <div className="mt-6 pt-5 border-t border-white/[0.05]">
+        <div className="flex items-start gap-2 text-[10px] text-zinc-700 leading-relaxed">
+          <Info className="w-3 h-3 text-zinc-700 mt-0.5 shrink-0" />
+          <span>
+            Momentum Playbook אינה מספקת ייעוץ השקעות.{' '}
+            <Link href="/legal/disclaimer" className="underline hover:text-zinc-500 transition-colors">
+              כתב ויתור
+            </Link>
+            {' · '}
+            <Link href="/legal/terms" className="underline hover:text-zinc-500 transition-colors">
+              תנאי שימוש
+            </Link>
+            {' · '}
+            <Link href="/legal/privacy" className="underline hover:text-zinc-500 transition-colors">
+              פרטיות
+            </Link>
+          </span>
+        </div>
+      </div>
+
+      {/* Escape hatch for stuck/corrupted sessions */}
+      <div className="mt-4 pt-4 border-t border-white/[0.05]">
         <p className="text-xs text-zinc-700 text-center mb-2.5">Having trouble loading the app?</p>
         <button
           type="button"
