@@ -57,7 +57,7 @@ export default function Dashboard() {
 
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
 
-  const openTrades = useMemo(() => trades.filter(t => t.status === 'open' && !t.is_what_if), [trades]);
+  const openTrades = useMemo(() => trades.filter(t => t.status === 'open'), [trades]);
 
   // Live prices for all open positions — polls every 60s, pauses when tab hidden
   const openTickers = useMemo(() => openTrades.map(t => t.ticker), [openTrades]);
