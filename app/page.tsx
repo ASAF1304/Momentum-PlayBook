@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { AlertTriangle, ArrowRight, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { AppNav }                                          from '@/components/nav/app-nav';
 import { GridOverlay }                                     from '@/components/ui/grid-overlay';
+import { OnboardingModal }                                 from '@/components/onboarding-modal';
 import { ValidatorProvider, ChecklistCard, SizerCard }    from '@/components/validator/pre-trade-validator';
 import { AddPositionModal }                                from '@/components/dashboard/add-position-modal';
 import { Stage2Leaders }                                   from '@/components/dashboard/stage2-leaders';
@@ -27,7 +28,10 @@ export default function Dashboard() {
   const [tradesError,      setTradesError]       = useState<string | null>(null);
   const [showAddModal,     setShowAddModal]      = useState(false);
   const [prefilledTicker,  setPrefilledTicker]   = useState<string | undefined>(undefined);
+  const [onboardingDone,   setOnboardingDone]    = useState(false);
   const validatorRef = useRef<HTMLDivElement>(null);
+
+  const showOnboarding = !authLoading && !!profile && !profile.dismissed_onboarding_at && !onboardingDone;
 
   const fetchTrades = useCallback(async (attempt = 0) => {
     if (!user) return;
@@ -144,6 +148,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      {showOnboarding && <OnboardingModal onDismiss={() => setOnboardingDone(true)} />}
       <GridOverlay />
       <AppNav />
 
