@@ -52,14 +52,14 @@ export default function OnboardingPage() {
     setError(null);
     setSubmitting(true);
 
-    const { error: dbError } = await supabase.from('user_profiles').insert({
+    const { error: dbError } = await supabase.from('user_profiles').upsert({
       id: user.id,
       display_name: displayName.trim() || null,
       account_size: size,
       max_risk_per_trade_pct: risk,
       max_stop_distance_pct: stop,
       accepted_terms_at: new Date().toISOString(),
-    });
+    }, { onConflict: 'id' });
 
     if (dbError) {
       setError(dbError.message);
