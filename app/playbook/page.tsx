@@ -242,6 +242,9 @@ function PlaybookInner() {
                 <StatTile label="Win Rate"  sublabel="no closed trades yet" value="—" />
                 <StatTile label="Avg R"     sublabel="no closed trades yet" value="—" />
                 <StatTile label="Total PnL" sublabel="close a position to see stats" value="—" />
+                <p className="col-span-3 text-[11px] text-center text-[var(--text-faint)] -mt-1">
+                  No closed trades yet — stats appear once you record one.
+                </p>
               </>
             )}
           </div>
@@ -343,7 +346,8 @@ function StatTile({
       <div className="flex items-center gap-2.5 mb-1">
         <span className={cn(
           'font-mono text-3xl font-extrabold tracking-tight tabular-nums',
-          !hasData || positive === undefined ? 'text-[var(--text-primary)]'
+          !hasData ? 'text-[var(--text-faint)]'
+            : positive === undefined ? 'text-[var(--text-primary)]'
             : positive ? 'text-emerald-400' : 'text-red-400',
         )}>
           {value}

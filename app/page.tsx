@@ -155,7 +155,8 @@ export default function Dashboard() {
           <StatCard label="Open"          value={tradesLoading ? '…' : String(stats.openCount)} />
           <StatCard label="Win Rate"      value={stats.winRate !== null ? `${stats.winRate.toFixed(1)}%` : '—'} />
           <StatCard label="Avg R"         value={stats.avgR !== null ? `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R` : '—'}
-                                          positive={stats.avgR !== null && stats.avgR >= 0} />
+                                          positive={stats.avgR !== null && stats.avgR > 0}
+                                          negative={stats.avgR !== null && stats.avgR < 0} />
           <StatCard label="YTD P&L"       value={stats.ytdPnL !== 0 ? `${stats.ytdPnL >= 0 ? '+' : ''}$${Math.abs(stats.ytdPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}
                                           positive={stats.ytdPnL > 0} negative={stats.ytdPnL < 0} />
         </div>
