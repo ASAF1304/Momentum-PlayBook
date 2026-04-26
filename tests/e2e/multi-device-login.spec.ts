@@ -86,8 +86,8 @@ test('Multi-device: both contexts stay authenticated independently', async () =>
   const authCookieB = cookiesB.find(c => c.name === COOKIE_NAME);
   expect(authCookieB, 'Device B session cookie must still exist after Device A signs out').toBeTruthy();
 
-  // Navigate Device B — should NOT be redirected to login
-  await mockStubs(pageB);
+  // Navigate Device B — should NOT be redirected to login.
+  // Route stubs from earlier mockStubs() call are still active; don't re-register.
   await pageB.goto('http://localhost:3000/');
   await expect(pageB).not.toHaveURL(/\/login/, { timeout: 10_000 });
 
