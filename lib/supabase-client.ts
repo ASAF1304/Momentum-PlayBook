@@ -14,6 +14,22 @@ export interface UserProfile {
   max_risk_per_trade_pct: number;
   max_stop_distance_pct: number;
   created_at: string;
+  accepted_terms_at: string | null;
+  dismissed_onboarding_at: string | null;
+}
+
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'paused' | 'cancelled';
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  paddle_customer_id: string;
+  paddle_sub_id: string | null;
+  status: SubscriptionStatus;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ── Trades ─────────────────────────────────────────────────────────────────────
