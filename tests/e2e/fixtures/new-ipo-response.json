@@ -1,0 +1,38 @@
+{
+  "ticker": "NEWIPO",
+  "fetchedAt": "2025-01-02T12:00:00.000Z",
+  "latestDate": "2025-01-02",
+  "price": { "last": 25.00, "previousClose": 24.50, "dayChangePct": 2.04 },
+  "movingAverages": { "ema20": 23, "ema50": 22, "ema150": 21, "ema200": 20, "sma200": 20.5 },
+  "volume": { "latest": 2000000, "avg50": 1000000, "ratio": 2.0 },
+  "range52w": { "high": 28, "low": 18, "distanceFromHigh": -10.7, "distanceFromLow": 38.9 },
+  "trendTemplate": {
+    "passed": true,
+    "checks": {
+      "priceAboveEMA20":   { "passed": true, "detail": "$25 vs 20-EMA $23" },
+      "priceAboveEMA50":   { "passed": true, "detail": "$25 vs 50-EMA $22" },
+      "priceAboveEMA150":  { "passed": true, "detail": "$25 vs 150-EMA $21" },
+      "priceAboveEMA200":  { "passed": true, "detail": "$25 vs 200-EMA $20" },
+      "ema50AboveEma150":  { "passed": true, "detail": "50-EMA $22 vs 150-EMA $21" },
+      "ema150AboveEma200": { "passed": true, "detail": "150-EMA $21 vs 200-EMA $20" },
+      "ema50AboveSma200":  { "passed": true, "detail": "50-EMA $22 vs 200-SMA $20.5" },
+      "ema200Uptrending":  { "passed": true, "detail": "200-EMA up over last 4 months" },
+      "closeTo52wHigh":    { "passed": true, "detail": "10.7% below 52w high" },
+      "farFrom52wLow":     { "passed": true, "detail": "38.9% above 52w low" }
+    }
+  },
+  "volumeCheck": { "spikeOnBreakout": true, "ratio": 2.0, "detail": "2.0x avg — institutional buying" },
+  "stops": {
+    "recommended": { "type": "below_ema20", "price": 22.80, "distancePct": -8.8, "label": "Below 20-EMA", "notes": null, "valid": true },
+    "candidates": []
+  },
+  "ath_avwap": null,
+  "ath_date": null,
+  "above_ath_avwap": null,
+  "ath_avwap_low_confidence": false,
+  "high52w_strict": null,
+  "low52w_strict": null,
+  "distance_from_52wh_pct": null,
+  "distance_from_52wl_pct": null,
+  "data_quality": "insufficient"
+}

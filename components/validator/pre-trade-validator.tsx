@@ -31,7 +31,12 @@ import { cn } from '@/lib/utils';
 
 const MAX_STOP_PCT = 8;
 
-type AllGateKey = GateKey | 'clear_pivot' | 'earnings_safe';
+type AutoGateKey = 'above_ath_avwap' | 'near_52wh' | 'above_52wl';
+type AllGateKey  = Exclude<GateKey, AutoGateKey> | 'clear_pivot' | 'earnings_safe';
+
+const RESET_AUTO_GATES: Record<AutoGateKey, null> = {
+  above_ath_avwap: null, near_52wh: null, above_52wl: null,
+};
 
 const STOP_LABEL: Partial<Record<StopType, string>> = {
   below_ema50:            'Violation of 50-Day EMA',
@@ -70,6 +75,8 @@ interface ValidatorState {
   toggleGate: (k: AllGateKey) => void;
   onToggleTime: () => void;
   onToggleVolume: () => void;
+  autoGates: Record<AutoGateKey, boolean | null>;
+  dataQuality: 'ok' | 'insufficient' | null;
   data: TickerResponse | null;
   loading: boolean;
   error: string | null;
@@ -141,6 +148,8 @@ export function ValidatorProvider({
     market_uptrend: false, clear_pivot: false, earnings_safe: false,
     time_of_day: true, stop_under_10pct: true, volume_spike: false,
   });
+  const [autoGates,   setAutoGates]   = useState<Record<AutoGateKey, boolean | null>>(RESET_AUTO_GATES);
+  const [dataQuality, setDataQuality] = useState<'ok' | 'insufficient' | null>(null);
   const [data,    setData]    = useState<TickerResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -155,6 +164,7 @@ export function ValidatorProvider({
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true); setError(null);
+    setAutoGates(RESET_AUTO_GATES); setDataQuality(null);
     try {
       const res  = await fetch(`/api/ticker/${sym}`, { signal: controller.signal });
       const body = await res.json();
@@ -168,6 +178,12 @@ export function ValidatorProvider({
         td.trendTemplate.checks.priceAboveEMA50.passed &&
         td.trendTemplate.checks.priceAboveEMA200.passed;
       setGates(g => ({ ...g, above_emas: emasOk, volume_spike: td.volumeCheck.spikeOnBreakout }));
+      setAutoGates({
+        above_ath_avwap: td.above_ath_avwap,
+        near_52wh:  td.distance_from_52wh_pct !== null ? td.distance_from_52wh_pct >= -25 : null,
+        above_52wl: td.distance_from_52wl_pct !== null ? td.distance_from_52wl_pct >= 30  : null,
+      });
+      setDataQuality(td.data_quality);
     } catch (err) {
       if ((err as { name?: string }).name === 'AbortError') return;
       setError('Network error. Try again in a moment.'); setData(null);
@@ -181,7 +197,11 @@ export function ValidatorProvider({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [ticker, fetchTicker]);
 
-  useEffect(() => { amountManualRef.current = false; }, [ticker]);
+  useEffect(() => {
+    amountManualRef.current = false;
+    setAutoGates(RESET_AUTO_GATES);
+    setDataQuality(null);
+  }, [ticker]);
 
   const sizing = useMemo<PositionSizerResult>(() =>
     calculatePosition({ accountSize, entryPrice: parseFloat(entry), stopPrice: parseFloat(stop), maxStopDistancePct, maxPortfolioRiskPct }),
@@ -263,6 +283,7 @@ export function ValidatorProvider({
     <ValidatorCtx.Provider value={{
       ticker, setTicker, entry, setEntry, stop, setStop,
       amountInvested, onAmountChange, gates, toggleGate, onToggleTime, onToggleVolume,
+      autoGates, dataQuality,
       data, loading, error, sizing, effectiveSizing,
       stopDistPct, stopExceedsMax, exceedsBudget, maxPortfolioRisk,
       failedGates, trendTemplatePassed, allGreen, canSubmit,
@@ -280,8 +301,10 @@ export function ChecklistCard({ className }: { className?: string }) {
   const {
     data, gates, toggleGate, trendTemplatePassed, allGreen,
     afterClose, nowDisplay, mindsetQuote, greenLight,
-    onToggleTime, onToggleVolume,
+    onToggleTime, onToggleVolume, autoGates, dataQuality,
   } = useValidator();
+
+  const [insufficientDismissed, setInsufficientDismissed] = useState(false);
 
   const allOptionalGreen = MANUAL_GATES.every(g => gates[g.key]);
 
@@ -349,6 +372,51 @@ export function ChecklistCard({ className }: { className?: string }) {
                 Trend Template clear. Review the optional quality gates below for higher conviction.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-computed Minervini gates */}
+      {data && (
+        <div>
+          <SectionLabel text="Auto-Computed Checks" aside="from live market data" />
+          {dataQuality === 'insufficient' && !insufficientDismissed && (
+            <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-[8px] bg-amber-500/[0.07] border border-amber-500/25 text-[11px] text-amber-600">
+              <Info className="w-3.5 h-3.5 flex-shrink-0 mt-px text-amber-500" />
+              <span className="flex-1">Insufficient price history for precise 52W / AVWAP calculations — needs 1+ year of data.</span>
+              <button type="button" onClick={() => setInsufficientDismissed(true)} className="ml-1 flex-shrink-0 opacity-60 hover:opacity-100">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5 mt-2">
+            <AutoComputedGateRow
+              gateKey="above_ath_avwap"
+              value={autoGates.above_ath_avwap}
+              label="Price above ATH-anchored AVWAP"
+              helperLine={(() => {
+                if (!data.ath_avwap) return undefined;
+                const diff = ((data.price.last - data.ath_avwap) / data.ath_avwap) * 100;
+                return `Price $${data.price.last.toFixed(2)} vs ATH AVWAP $${data.ath_avwap.toFixed(2)} (${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%)`;
+              })()}
+              lowConfidence={data.ath_avwap_low_confidence}
+            />
+            <AutoComputedGateRow
+              gateKey="near_52wh"
+              value={autoGates.near_52wh}
+              label="Within 25% of 52-week high"
+              helperLine={data.distance_from_52wh_pct !== null
+                ? `Distance from 52W high: ${data.distance_from_52wh_pct.toFixed(1)}%`
+                : undefined}
+            />
+            <AutoComputedGateRow
+              gateKey="above_52wl"
+              value={autoGates.above_52wl}
+              label="At least 30% above 52-week low"
+              helperLine={data.distance_from_52wl_pct !== null
+                ? `Distance from 52W low: +${data.distance_from_52wl_pct.toFixed(1)}%`
+                : undefined}
+            />
           </div>
         </div>
       )}
@@ -586,6 +654,61 @@ export function SizerCard({ className }: { className?: string }) {
 // Private sub-components
 // ══════════════════════════════════════════════════════════════════════════════
 
+function AutoComputedGateRow({
+  gateKey, value, label, helperLine, lowConfidence,
+}: {
+  gateKey: AutoGateKey;
+  value: boolean | null;
+  label: string;
+  helperLine?: string;
+  lowConfidence?: boolean;
+}) {
+  const state = value === null ? 'insufficient' : value ? 'pass' : 'fail';
+  return (
+    <div
+      data-testid={`gate-${gateKey}`}
+      data-state={state}
+      className={cn(
+        'flex items-start gap-3 px-3 py-2.5 border rounded-[9px]',
+        state === 'pass' ? 'bg-[#10F088]/[0.04] border-[#10F088]/20'
+          : state === 'fail' ? 'bg-red-500/[0.04] border-red-500/20'
+          : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]',
+      )}
+    >
+      <span className={cn(
+        'w-[17px] h-[17px] rounded-[4px] border flex items-center justify-center flex-shrink-0 mt-px',
+        state === 'pass' ? 'bg-[#10F088] border-[#10F088]'
+          : state === 'fail' ? 'bg-red-500/20 border-red-500/40'
+          : 'border-[var(--border-hover)]',
+      )}>
+        {state === 'pass' && <Check className="w-2.5 h-2.5 text-black" strokeWidth={3.5} />}
+        {state === 'fail' && <X className="w-2.5 h-2.5 text-red-500" strokeWidth={3.5} />}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className={cn(
+          'text-[12px] font-semibold leading-tight flex items-center gap-1.5',
+          state === 'pass' ? 'text-[var(--text-dim)]'
+            : state === 'fail' ? 'text-[var(--text-secondary)]'
+            : 'text-[var(--text-faint)]',
+        )}>
+          {label}
+          {lowConfidence && (
+            <span title="Low confidence — fewer than 20 bars since ATH">
+              <Info className="w-3 h-3 text-amber-400 flex-shrink-0" />
+            </span>
+          )}
+        </div>
+        {helperLine && (
+          <div className="text-[10px] text-[var(--text-faint)] leading-snug mt-0.5">{helperLine}</div>
+        )}
+        {state === 'insufficient' && !helperLine && (
+          <div className="text-[10px] text-[var(--text-faint)] leading-snug mt-0.5">Needs 1+ year of price history</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SectionLabel({ text, aside }: { text: string; aside?: string }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -697,7 +820,7 @@ function BlockersPanel({ gates, failedGates, stopExceedsMax, stopDistPct }: {
   stopExceedsMax: boolean;
   stopDistPct: number | null;
 }) {
-  const isGateKey = (k: AllGateKey): k is GateKey => k in GATE_FAILURES;
+  const isGateKey = (k: AllGateKey): k is Exclude<GateKey, AutoGateKey> => k in GATE_FAILURES;
   const manualFailed = MANUAL_GATES.filter(g => !gates[g.key]);
   const autoReasons: string[] = [
     ...(!gates.time_of_day      ? ['Entry timing: before 20:00 — professionals act in the final hour.'] : []),

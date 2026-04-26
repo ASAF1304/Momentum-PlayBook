@@ -13,7 +13,10 @@ export type GateKey =
   | 'market_uptrend'
   | 'time_of_day'      // After 20:00 local
   | 'stop_under_10pct'
-  | 'volume_spike';
+  | 'volume_spike'
+  | 'above_ath_avwap'  // Price above ATH-anchored AVWAP
+  | 'near_52wh'        // Within 25% of 52-week high (Minervini #7)
+  | 'above_52wl';      // At least 30% above 52-week low (Minervini #6)
 
 export interface GateFailureExplanation {
   /** One-line why this kills the trade. */
@@ -71,6 +74,24 @@ export const GATE_FAILURES: Record<GateKey, GateFailureExplanation> = {
     why: 'A breakout without volume is noise. Without at least 1.5× average volume, the move is not backed by institutional money — and these are the breakouts that fail and shake you out.',
     quote: 'The breakout must be confirmed by volume significantly higher than the average. No volume, no trade.',
     source: 'Mark Minervini',
+  },
+
+  above_ath_avwap: {
+    why: 'Price below the ATH-anchored AVWAP means that on average, every share bought since the all-time high is underwater. Institutions are not yet back in profit — and they will sell into any bounce.',
+    quote: 'The VWAP anchored to the high tells you whether the smart money is winning or losing. Buy only when you are on the winning side of that line.',
+    source: "Asaf's Winning System",
+  },
+
+  near_52wh: {
+    why: 'A stock more than 25% below its 52-week high is in no position to break out. Minervini requires price to be close to new highs — that is where the energy and momentum are.',
+    quote: 'Buy high, sell higher. The stocks making new highs are the ones with the wind at their back.',
+    source: 'Mark Minervini, Trade Like a Stock Market Wizard',
+  },
+
+  above_52wl: {
+    why: 'Being less than 30% above the 52-week low means the stock has not recovered enough to confirm a new uptrend. It may still be base-building — or worse, a failed rally.',
+    quote: 'I want to see the stock has built a substantial base and recovered convincingly from its lows before I commit capital.',
+    source: 'Mark Minervini, Trade Like a Stock Market Wizard',
   },
 };
 

@@ -8,7 +8,12 @@ import { createMiddlewareClient } from '@/lib/supabase-server';
 
 const PUBLIC_PATHS = ['/login', '/signup'];
 
+// Allow Playwright e2e tests to bypass auth. Set PLAYWRIGHT_AUTH_BYPASS=true
+// on the test dev-server process only — never set in production.
+const E2E_BYPASS = process.env.PLAYWRIGHT_AUTH_BYPASS === 'true';
+
 export async function middleware(request: NextRequest) {
+  if (E2E_BYPASS) return NextResponse.next({ request: { headers: request.headers } });
   const response = NextResponse.next({
     request: { headers: request.headers },
   });

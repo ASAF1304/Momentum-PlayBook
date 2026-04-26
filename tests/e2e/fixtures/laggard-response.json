@@ -1,0 +1,38 @@
+{
+  "ticker": "LAGGARD",
+  "fetchedAt": "2025-01-02T12:00:00.000Z",
+  "latestDate": "2025-01-02",
+  "price": { "last": 50.00, "previousClose": 52.00, "dayChangePct": -3.85 },
+  "movingAverages": { "ema20": 55, "ema50": 60, "ema150": 70, "ema200": 80, "sma200": 81 },
+  "volume": { "latest": 500000, "avg50": 1000000, "ratio": 0.5 },
+  "range52w": { "high": 120, "low": 40, "distanceFromHigh": -58.3, "distanceFromLow": 25 },
+  "trendTemplate": {
+    "passed": false,
+    "checks": {
+      "priceAboveEMA20":   { "passed": false, "detail": "$50 vs 20-EMA $55" },
+      "priceAboveEMA50":   { "passed": false, "detail": "$50 vs 50-EMA $60" },
+      "priceAboveEMA150":  { "passed": false, "detail": "$50 vs 150-EMA $70" },
+      "priceAboveEMA200":  { "passed": false, "detail": "$50 vs 200-EMA $80" },
+      "ema50AboveEma150":  { "passed": false, "detail": "50-EMA $60 vs 150-EMA $70" },
+      "ema150AboveEma200": { "passed": false, "detail": "150-EMA $70 vs 200-EMA $80" },
+      "ema50AboveSma200":  { "passed": false, "detail": "50-EMA $60 vs 200-SMA $81" },
+      "ema200Uptrending":  { "passed": false, "detail": "200-EMA down over last 4 months" },
+      "closeTo52wHigh":    { "passed": false, "detail": "58.3% below 52w high" },
+      "farFrom52wLow":     { "passed": false, "detail": "25.0% above 52w low" }
+    }
+  },
+  "volumeCheck": { "spikeOnBreakout": false, "ratio": 0.5, "detail": "0.5x avg — no volume spike today" },
+  "stops": {
+    "recommended": null,
+    "candidates": []
+  },
+  "ath_avwap": 95.50,
+  "ath_date": "2024-03-15",
+  "above_ath_avwap": false,
+  "ath_avwap_low_confidence": false,
+  "high52w_strict": 120,
+  "low52w_strict": 40,
+  "distance_from_52wh_pct": -58.33,
+  "distance_from_52wl_pct": 25.0,
+  "data_quality": "ok"
+}

@@ -55,6 +55,17 @@ export interface TickerResponse {
     detail: string;
   };
   stops: StopAnalysis;
+
+  // ── New fields: ATH-anchored AVWAP + Minervini 52W criteria ──────────────
+  ath_avwap:                number | null;
+  ath_date:                 string | null;
+  above_ath_avwap:          boolean | null;
+  ath_avwap_low_confidence: boolean;
+  high52w_strict:           number | null;   // null when < 252 bars
+  low52w_strict:            number | null;   // null when < 252 bars
+  distance_from_52wh_pct:   number | null;   // null when < 252 bars
+  distance_from_52wl_pct:   number | null;   // null when < 252 bars
+  data_quality:             'ok' | 'insufficient';
 }
 
 export interface TickerErrorResponse {
@@ -95,18 +106,20 @@ function buildResponse(data: MarketData, stops: StopAnalysis): TickerResponse {
     price, ema20, ema50, ema150, ema200, sma200, ema200_80daysAgo,
     volumeAvg50, latestVolume,
     high52w, low52w, distanceFrom52wHigh, distanceFrom52wLow,
+    distance_from_52wh_pct, distance_from_52wl_pct,
+    ath_avwap, ath_date, above_ath_avwap, ath_avwap_low_confidence,
   } = data;
 
-  const priceAboveEMA20  = price > ema20;
-  const priceAboveEMA50  = price > ema50;
-  const priceAboveEMA150 = price > ema150;
-  const priceAboveEMA200 = price > ema200;
-  const ema50AboveEma150 = ema50 > ema150;
+  const priceAboveEMA20   = price > ema20;
+  const priceAboveEMA50   = price > ema50;
+  const priceAboveEMA150  = price > ema150;
+  const priceAboveEMA200  = price > ema200;
+  const ema50AboveEma150  = ema50 > ema150;
   const ema150AboveEma200 = ema150 > ema200;
-  const ema50AboveSma200 = ema50 > sma200;
-  const ema200Uptrending = ema200 > ema200_80daysAgo;
-  const closeTo52wHigh = distanceFrom52wHigh >= -25;
-  const farFrom52wLow  = distanceFrom52wLow  >=  30;
+  const ema50AboveSma200  = ema50 > sma200;
+  const ema200Uptrending  = ema200 > ema200_80daysAgo;
+  const closeTo52wHigh    = distanceFrom52wHigh >= -25;
+  const farFrom52wLow     = distanceFrom52wLow  >= 30;
 
   const checks = {
     priceAboveEMA20: {
@@ -153,11 +166,15 @@ function buildResponse(data: MarketData, stops: StopAnalysis): TickerResponse {
 
   const passed = Object.values(checks).every((c) => c.passed);
 
-  const volumeRatio = volumeAvg50 > 0 ? latestVolume / volumeAvg50 : 0;
+  const volumeRatio     = volumeAvg50 > 0 ? latestVolume / volumeAvg50 : 0;
   const spikeOnBreakout = volumeRatio >= 1.5;
-  const volumeDetail = spikeOnBreakout
+  const volumeDetail    = spikeOnBreakout
     ? `${volumeRatio.toFixed(1)}× avg — institutional buying`
     : `${volumeRatio.toFixed(1)}× avg — no volume spike today`;
+
+  // data_quality is 'insufficient' when any of the new nullable fields are null
+  const data_quality: 'ok' | 'insufficient' =
+    distance_from_52wh_pct === null || ath_avwap === null ? 'insufficient' : 'ok';
 
   return {
     ticker: data.ticker,
@@ -178,14 +195,20 @@ function buildResponse(data: MarketData, stops: StopAnalysis): TickerResponse {
       high: high52w,
       low: low52w,
       distanceFromHigh: distanceFrom52wHigh,
-      distanceFromLow: distanceFrom52wLow,
+      distanceFromLow:  distanceFrom52wLow,
     },
     trendTemplate: { passed, checks },
-    volumeCheck: {
-      spikeOnBreakout,
-      ratio: volumeRatio,
-      detail: volumeDetail,
-    },
+    volumeCheck: { spikeOnBreakout, ratio: volumeRatio, detail: volumeDetail },
     stops,
+    // New fields
+    ath_avwap,
+    ath_date,
+    above_ath_avwap,
+    ath_avwap_low_confidence,
+    high52w_strict:         distance_from_52wh_pct !== null ? high52w  : null,
+    low52w_strict:          distance_from_52wl_pct !== null ? low52w   : null,
+    distance_from_52wh_pct,
+    distance_from_52wl_pct,
+    data_quality,
   };
 }
