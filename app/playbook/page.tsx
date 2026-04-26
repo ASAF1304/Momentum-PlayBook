@@ -15,6 +15,7 @@ import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
 import { AddWhatIfModal } from '@/components/playbook/add-what-if-modal';
 import { supabase, type Trade, type TradeOutcome, type PartialExit } from '@/lib/supabase-client';
+import { computeWinRate } from '@/lib/stats/win-rate';
 import { useAuth } from '@/lib/auth-context';
 import { useLivePrices, type LivePrice } from '@/lib/use-live-prices';
 import { cn } from '@/lib/utils';
@@ -130,23 +131,19 @@ function PlaybookInner() {
   const { prices: livePrices } = useLivePrices(openTickers);
 
   const stats = useMemo(() => {
-    const allEvents = trades.flatMap(getExitEvents);
-    const wins      = allEvents.filter(e => e.isWin).length;
-    const closed    = trades.filter(t => t.status !== 'open');
-    const withR     = closed.filter(t => t.r_multiple !== null);
-    const totalPnL  = closed.reduce((s, t) => s + (t.pnl_dollars ?? 0), 0);
+    const wr = computeWinRate(trades);
     const openPartialPnL = trades
       .filter(t => t.status === 'open')
       .flatMap(getSells)
       .reduce((s, p) => s + p.pnl_dollars, 0);
     return {
-      winRate:     allEvents.length > 0 ? (wins / allEvents.length) * 100 : null,
-      totalEvents: allEvents.length,
-      winCount:    wins,
-      avgR:        withR.length > 0 ? withR.reduce((s, t) => s + (t.r_multiple ?? 0), 0) / withR.length : null,
-      totalPnL,
+      winRate:      wr.winRate,
+      totalEvents:  wr.closedCount,
+      winCount:     wr.wins,
+      avgR:         wr.avgR,
+      totalPnL:     wr.totalPnL,
       openPartialPnL,
-      closedCount: closed.length,
+      closedCount:  wr.closedCount,
     };
   }, [trades]);
 

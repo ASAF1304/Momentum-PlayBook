@@ -350,18 +350,28 @@ function normaliseDate(raw: string, format: BrokerFormat): string | null {
     if (format === 'ibkr' && /^\d{8}$/.test(raw)) {
       return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
     }
-    // ISO already
+    // ISO already: YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-    // US format MM/DD/YYYY or M/D/YY
-    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(raw)) {
-      const [m, d, y] = raw.split('/');
-      const year = y.length === 2 ? `20${y}` : y;
-      return `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-    }
-    // DD.MM.YYYY (European / Israeli)
+    // DD.MM.YYYY (European / Israeli — dots are unambiguous)
     if (/^\d{1,2}\.\d{1,2}\.\d{4}/.test(raw)) {
       const [d, m, y] = raw.split('.');
       return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    // Slash-delimited: DD/MM/YYYY or MM/DD/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(raw)) {
+      const parts = raw.split('/');
+      const [a, b, c] = parts;
+      const year = c.length === 2 ? `20${c}` : c;
+      // Israeli brokers (meitav, ibi) use DD/MM/YYYY.
+      // If first part > 12 it MUST be DD (no month 13+).
+      // If broker is a known Israeli format, always treat as DD/MM.
+      const isIsraeliBroker = format === 'meitav' || format === 'ibi';
+      if (isIsraeliBroker || parseInt(a, 10) > 12) {
+        // DD/MM/YYYY
+        return `${year}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`;
+      }
+      // US: MM/DD/YYYY (IBKR, eToro, generic)
+      return `${year}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`;
     }
     // Date object serialised as number (Excel serial)
     const ts = Date.parse(raw);

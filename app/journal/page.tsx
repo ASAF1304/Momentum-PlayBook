@@ -20,6 +20,7 @@ import {
   type TradeOutcome,
   type TradeStatus,
 } from '@/lib/supabase-client';
+import { computeWinRate } from '@/lib/stats/win-rate';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -127,16 +128,13 @@ export default function JournalPage() {
   [trades, statusFilter]);
 
   const stats = useMemo(() => {
-    const completed = trades.filter(t => t.status !== 'open');
-    const winners   = completed.filter(t => t.outcome === 'winner');
-    const withR     = completed.filter(t => t.r_multiple !== null);
-    const totalPnL  = completed.reduce((s, t) => s + (t.pnl_dollars ?? 0), 0);
+    const wr = computeWinRate(trades);
     return {
       total:   trades.length,
-      winRate: completed.length > 0 ? (winners.length / completed.length) * 100 : null,
-      avgR:    withR.length > 0 ? withR.reduce((s, t) => s + (t.r_multiple ?? 0), 0) / withR.length : null,
+      winRate: wr.winRate,
+      avgR:    wr.avgR,
       open:    counts.open,
-      totalPnL,
+      totalPnL: wr.totalPnL,
     };
   }, [trades, counts.open]);
 
