@@ -17,6 +17,7 @@ const PUBLIC_PATHS = [
   '/legal/privacy',
   '/legal/refund',
   '/pricing',
+  '/blocked',
 ];
 
 // Authenticated but subscription-exempt paths (won't redirect to /onboarding/checkout)
@@ -79,12 +80,18 @@ export async function middleware(request: NextRequest) {
         .maybeSingle();
 
       const status = (sub as { status: string } | null)?.status;
-      // grace + comp = free access; trialing + active + past_due + paused = paying
-      const isValid = ['trialing', 'active', 'past_due', 'paused', 'grace', 'comp'].includes(status ?? '');
 
-      if (!isValid) {
-        // expired_grace / cancelled / no sub row → prompt to subscribe or add card
-        const dest = status === 'expired_grace' ? '/billing' : '/onboarding/checkout';
+      // Blocked users → /blocked immediately (don't expose billing)
+      if (status === 'blocked') {
+        return NextResponse.redirect(new URL('/blocked', request.url));
+      }
+
+      // grace + comp = free access; trialing + active + past_due + paused = paying
+      const ACTIVE_STATUSES = ['trialing', 'active', 'past_due', 'paused', 'grace', 'comp'];
+      const BILLING_REDIRECT_STATUSES = ['expired_grace', 'cancelled'];
+
+      if (!ACTIVE_STATUSES.includes(status ?? '')) {
+        const dest = BILLING_REDIRECT_STATUSES.includes(status ?? '') ? '/billing' : '/onboarding/checkout';
         return NextResponse.redirect(new URL(dest, request.url));
       }
     } catch (err) {

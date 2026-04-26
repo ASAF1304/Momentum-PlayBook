@@ -34,7 +34,16 @@ export default function PrivacyPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">3. ספקי שירות</h2>
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">3. גישת מנהלי המערכת</h2>
+        <p>
+          מנהלי המערכת של Momentum Playbook רשאים לצפות בנתוני המסחר שלך (טריידים, יומן, תכניות) לצרכי תמיכה
+          טכנית, פתרון בעיות, ובקרת איכות השירות. גישה זו מתועדת ומופעלת רק במידת הצורך.
+          נתוני המסחר שלך לא משותפים עם צדדים שלישיים.
+        </p>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">4. ספקי שירות</h2>
         <p>אנו משתמשים בספקים הבאים:</p>
         <ul className="list-disc list-inside space-y-1 mr-4">
           <li><strong className="text-[var(--text-primary)]">Supabase</strong> — אחסון נתונים ואימות זהות (EU)</li>
@@ -45,7 +54,7 @@ export default function PrivacyPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">4. זכויותיכם</h2>
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">5. זכויותיכם</h2>
         <p>
           בהתאם לחוק הגנת הפרטיות, התשמ&quot;א–1981, יש לכם זכות לעיין במידע האצור אודותיכם, לתקנו, ולבקש את מחיקתו. לבקשות פנו לכתובת הדוא&quot;ל ביצירת קשר.
         </p>
@@ -55,21 +64,21 @@ export default function PrivacyPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">5. אבטחה</h2>
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">6. אבטחה</h2>
         <p>
           הנתונים מוצפנים בעת מנוחה ובעת העברה. אנו משתמשים ב-Row Level Security של Supabase כדי לוודא שכל משתמש רואה רק את הנתונים שלו.
         </p>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">6. עוגיות (Cookies)</h2>
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">7. עוגיות (Cookies)</h2>
         <p>
           אנו משתמשים בעוגיות הכרחיות בלבד — לניהול הסשן המאובטח. אין שימוש בעוגיות פרסום או מעקב של צד שלישי.
         </p>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">7. יצירת קשר</h2>
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">8. יצירת קשר</h2>
         <p>
           לכל שאלה הקשורה לפרטיות, ניתן לפנות אלינו דרך עמוד ההגדרות באפליקציה.
         </p>
