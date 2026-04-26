@@ -19,7 +19,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 // Nukes all Supabase auth data from localStorage. Call when the session is
 // corrupt or timed out so the user gets a clean slate on next login.
 export async function clearAuthStorage() {
-  try { await supabase.auth.signOut(); } catch {}
+  // scope: 'local' invalidates only the current device's session, leaving
+  // other active sessions (other devices/browsers) untouched.
+  try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
   try {
     Object.keys(localStorage).forEach(k => {
       if (k.startsWith('sb-')) localStorage.removeItem(k);
@@ -142,7 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     profileCache.clear();
-    try { await supabase.auth.signOut(); } catch {}
+    // scope: 'local' — sign out only this device, keep other devices' sessions active.
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
     setUser(null);
     setProfile(null);
   };
