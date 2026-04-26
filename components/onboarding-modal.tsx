@@ -1,31 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-import { X, TrendingUp, BookOpen, ShieldCheck, ChevronLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, TrendingUp, BookOpen, ShieldCheck, Gift, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
-const SLIDES = [
+const BASE_SLIDES = [
   {
     icon: TrendingUp,
     iconColor: '#22D3EE',
     title: 'ברוכים הבאים ל-Momentum Playbook',
-    body: 'כלי לניהול יומן מסחר שנבנה סביב מתודולוגיית Stage 2 של Minervini. כאן תתעדו עסקאות, תנתחו ביצועים, ותשפרו את המשמעת המסחרית שלכם.',
+    body: 'כלי לניהול יומן מסחר שנבנה סביב מתודולוגיית Stage 2 של Minervini. תעדו עסקאות, נתחו ביצועים, ושפרו את המשמעת המסחרית שלכם — כל הנתונים שלכם, פרטיים ומאובטחים.',
   },
   {
     icon: BookOpen,
     iconColor: '#10F088',
-    title: 'תבנית המגמה + סלקטור הפוזיציה',
-    body: 'בדקו כל מניה מול 7 תנאי תבנית המגמה של Minervini לפני הכניסה לעסקה. מחשבון הפוזיציה מחשב את גודל הפוזיציה המדויק על בסיס הסיכון המרבי שהגדרתם.',
+    title: 'מה תמצאו כאן',
+    body: 'יומן מסחר מלא עם ייבוא מ-IBI, Meitav, IBKR ו-eToro. Playbook למסחר וירטואלי. Stage 2 Leaders לסריקת מניות יומית. Validator — מסנן Stage 2 לפי Minervini.',
   },
   {
     icon: ShieldCheck,
     iconColor: '#FF9F0A',
-    title: 'כתב ויתור',
-    body: 'Momentum Playbook אינה מספקת ייעוץ השקעות. כל הנתונים למטרות תיעוד אישי בלבד. מסחר בניירות ערך כרוך בסיכון גבוה לאובדן הון. אתם אחראים לכל ההחלטות הפיננסיות שלכם.',
+    title: 'כתב ויתור חשוב',
+    body: 'Momentum Playbook אינה מספקת ייעוץ השקעות. כל הנתונים המוצגים — לרבות מחירים, RS ותבנית מגמה — הם למטרות תיעוד אישי בלבד. מסחר בניירות ערך כרוך בסיכון גבוה לאובדן הון. אתם אחראים לכל ההחלטות הפיננסיות שלכם.',
   },
 ];
+
+const GRACE_SLIDE = {
+  icon: Gift,
+  iconColor: '#10F088',
+  title: 'שמחים שהצטרפת לבטא הסגור 🎉',
+  body: 'קיבלת 30 יום גישה מלאה לאפליקציה בחינם, ללא צורך בכרטיס אשראי. כשהגישה תסתיים, תוכלו להמשיך ב-50 ₪ לחודש. עד אז — בנה את היומן שלך ותתחיל לעקוב!',
+};
 
 interface OnboardingModalProps {
   onDismiss: () => void;
@@ -33,12 +40,26 @@ interface OnboardingModalProps {
 
 export function OnboardingModal({ onDismiss }: OnboardingModalProps) {
   const { user, refreshProfile } = useAuth();
+  const [isGrace, setIsGrace] = useState(false);
   const [slide,   setSlide]   = useState(0);
   const [saving,  setSaving]  = useState(false);
 
-  const isLast = slide === SLIDES.length - 1;
-  const current = SLIDES[slide];
-  const Icon = current.icon;
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsGrace((data as { status?: string } | null)?.status === 'grace');
+      });
+  }, [user]);
+
+  const slides = isGrace ? [...BASE_SLIDES, GRACE_SLIDE] : BASE_SLIDES;
+  const isLast  = slide === slides.length - 1;
+  const current = slides[slide];
+  const Icon    = current.icon;
 
   const handleDismiss = async () => {
     if (!user || saving) return;
@@ -67,7 +88,7 @@ export function OnboardingModal({ onDismiss }: OnboardingModalProps) {
 
         {/* Slide dots */}
         <div className="flex justify-center gap-1.5 mb-8">
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <div
               key={i}
               className={cn(
