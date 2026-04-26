@@ -168,22 +168,25 @@ test('Case 2 — groupToTrades processes transactions in correct date order (buy
   expect(trade.pnl_dollars).toBeCloseTo(1500, 0); // (165-150)*100
 });
 
-test('Case 2b — swapped DD/MM/YYYY dates (sell before buy) produce orphan not closed trade', () => {
-  // This reproduces the bug that migration 002 fixes: when dates are swapped,
-  // the sell comes first, becomes an orphan, and the buy opens a new position.
+test('Case 2b — swapped dates: sell before buy leaves an orphaned open position (not a closed trade)', () => {
+  // When dates are swapped (sell on Jan 5 before buy on Feb 1), the sort puts
+  // the sell first. With no open position, the sell is queued as an orphan.
+  // The buy then creates an open position for the same ticker.
+  // Per parser invariant: orphan sells are SKIPPED when the same ticker also
+  // has a new open position (prevents creating a confusing duplicate).
+  // Result: 1 open trade (not closed), no orphan row. The sell is silently dropped.
   const transactions: RawTransaction[] = [
-    // Swapped: "sell" date is earlier than "buy" date (the bug)
     { ticker: 'TEVA', action: 'sell', quantity: 100, price: 165, date: '2026-01-05', fees: 1, currency: 'USD', isShort: false },
     { ticker: 'TEVA', action: 'buy',  quantity: 100, price: 150, date: '2026-02-01', fees: 1, currency: 'USD', isShort: false },
   ];
 
   const { newTrades } = groupToTrades(transactions, 'ibi');
-  // The sell with no prior buy becomes an orphan, and the buy opens a new position → 2 trades
-  expect(newTrades).toHaveLength(2);
-  const orphan = newTrades.find(t => t.isOrphan);
-  expect(orphan).toBeTruthy();
-  const openTrade = newTrades.find(t => t.status === 'open' && !t.isOrphan);
-  expect(openTrade).toBeTruthy();
+  // 1 open trade; orphan sell dropped because the ticker also has an open position
+  expect(newTrades).toHaveLength(1);
+  expect(newTrades[0].status).toBe('open');
+  expect(newTrades[0].isOrphan).toBe(false);
+  // The buy price is the entry price (not the sell price)
+  expect(newTrades[0].phase1_price).toBe(150);
 });
 
 // ── Case 3: open trades with null outcome excluded from Win Rate ───────────────

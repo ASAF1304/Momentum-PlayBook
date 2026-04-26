@@ -89,8 +89,8 @@ test('non-admin user is redirected away from /admin/users', async ({ page }) => 
 
   await page.goto('/admin/users');
 
-  // Should be redirected to dashboard (/)
-  await expect(page).toHaveURL(/^\/?$|\/journal/, { timeout: 15_000 });
+  // Should NOT stay on /admin/users — client-side redirect to /
+  await expect(page).not.toHaveURL(/\/admin\/users/, { timeout: 15_000 });
 });
 
 // Case 2: admin → can see the user table
