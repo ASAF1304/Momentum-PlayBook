@@ -15,6 +15,8 @@ const PUBLIC_PATHS = [
   '/legal/disclaimer',
   '/legal/terms',
   '/legal/privacy',
+  '/legal/refund',
+  '/pricing',
 ];
 
 // Authenticated but subscription-exempt paths (won't redirect to /onboarding/checkout)

@@ -28,6 +28,8 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
           <Link href="/legal/disclaimer" className="hover:text-[var(--text-secondary)] transition-colors">כתב ויתור</Link>
           <Link href="/legal/terms"      className="hover:text-[var(--text-secondary)] transition-colors">תנאי שימוש</Link>
           <Link href="/legal/privacy"    className="hover:text-[var(--text-secondary)] transition-colors">מדיניות פרטיות</Link>
+          <Link href="/legal/refund"     className="hover:text-[var(--text-secondary)] transition-colors">מדיניות החזרים</Link>
+          <Link href="/pricing"          className="hover:text-[var(--text-secondary)] transition-colors">תמחור</Link>
         </nav>
       </footer>
     </div>

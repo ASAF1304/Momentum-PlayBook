@@ -13,6 +13,12 @@ export function LegalFooter() {
         <Link href="/legal/privacy" className="hover:text-[var(--text-secondary)] transition-colors">
           מדיניות פרטיות
         </Link>
+        <Link href="/legal/refund" className="hover:text-[var(--text-secondary)] transition-colors">
+          מדיניות החזרים
+        </Link>
+        <Link href="/pricing" className="hover:text-[var(--text-secondary)] transition-colors">
+          תמחור
+        </Link>
         <Link href="/billing" className="hover:text-[var(--text-secondary)] transition-colors">
           מנוי
         </Link>
