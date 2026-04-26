@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BookOpen, Layers, LineChart, List, LogOut, Moon, Settings, Sun, TrendingUp,
+  BookOpen, Layers, LineChart, List, LogOut, Moon, Settings, ShieldAlert, Sun, TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
@@ -81,6 +81,21 @@ export function AppNav() {
               </Link>
             );
           })}
+
+          {profile?.is_admin && (
+            <Link
+              href="/admin/users"
+              className={cn(
+                'p-1.5 rounded-md transition-colors ml-1',
+                pathname.startsWith('/admin')
+                  ? 'text-[#FF9F0A] bg-[#FF9F0A]/10'
+                  : 'text-[var(--text-muted)] hover:text-[#FF9F0A] hover:bg-[#FF9F0A]/10',
+              )}
+              aria-label="Admin"
+            >
+              <ShieldAlert className="w-4 h-4" />
+            </Link>
+          )}
 
           <Link
             href="/settings"

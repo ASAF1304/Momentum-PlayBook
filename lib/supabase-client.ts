@@ -16,6 +16,7 @@ export interface UserProfile {
   created_at: string;
   accepted_terms_at: string | null;
   dismissed_onboarding_at: string | null;
+  is_admin: boolean;
 }
 
 export type SubscriptionStatus =
