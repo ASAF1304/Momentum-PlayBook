@@ -104,9 +104,14 @@ function LoginForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
-            Password
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
+              Password
+            </label>
+            <Link href="/auth/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+              שכחתי סיסמה
+            </Link>
+          </div>
           <input
             type="password"
             value={password}

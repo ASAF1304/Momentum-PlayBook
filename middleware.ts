@@ -6,7 +6,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@/lib/supabase-server';
 
-const PUBLIC_PATHS = ['/login', '/signup'];
+// Unauthenticated access is allowed on these paths.
+// /auth/reset-password is included because users arrive via email link before
+// the recovery session is established client-side.
+const PUBLIC_PATHS = ['/login', '/signup', '/auth/forgot-password', '/auth/reset-password'];
 
 // Allow Playwright e2e tests to bypass auth. Set PLAYWRIGHT_AUTH_BYPASS=true
 // on the test dev-server process only — never set in production.
