@@ -59,7 +59,7 @@ test('Multi-device: both contexts stay authenticated independently', async () =>
     domain: 'localhost', path: '/', httpOnly: false, secure: false, sameSite: 'Lax',
   }]);
   await mockStubs(pageA);
-  await pageA.goto('http://localhost:3000/');
+  await pageA.goto('http://localhost:3001/');
   // Dashboard should load (not redirect to /login)
   await expect(pageA).not.toHaveURL(/\/login/, { timeout: 10_000 });
 
@@ -72,7 +72,7 @@ test('Multi-device: both contexts stay authenticated independently', async () =>
     domain: 'localhost', path: '/', httpOnly: false, secure: false, sameSite: 'Lax',
   }]);
   await mockStubs(pageB);
-  await pageB.goto('http://localhost:3000/');
+  await pageB.goto('http://localhost:3001/');
   await expect(pageB).not.toHaveURL(/\/login/, { timeout: 10_000 });
 
   // ── Simulate sign-out on Device A (scope: 'local') ─────────────────────────
@@ -88,7 +88,7 @@ test('Multi-device: both contexts stay authenticated independently', async () =>
 
   // Navigate Device B — should NOT be redirected to login.
   // Route stubs from earlier mockStubs() call are still active; don't re-register.
-  await pageB.goto('http://localhost:3000/');
+  await pageB.goto('http://localhost:3001/');
   await expect(pageB).not.toHaveURL(/\/login/, { timeout: 10_000 });
 
   await pageA.screenshot({ path: 'tests/e2e/screenshots/multi-device-ctxA-signout.png' });

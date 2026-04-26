@@ -3,8 +3,6 @@
 // Handles Paddle Billing webhook events. Paddle calls this endpoint whenever a
 // subscription changes state. We verify the webhook signature then upsert into
 // the subscriptions table using the service role key (bypasses RLS).
-//
-// Paddle sends events as JSON with a Paddle-Signature header.
 
 import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
@@ -20,6 +18,10 @@ function getPaddle(): Paddle | null {
   return new Paddle(key, { environment: env });
 }
 
+// Supabase generic client typed as any to handle tables not in generated schema
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyDb = ReturnType<typeof import('@supabase/supabase-js').createClient<any>>;
+
 export async function POST(request: NextRequest) {
   const paddle = getPaddle();
   if (!paddle) {
@@ -33,34 +35,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'misconfigured' }, { status: 500 });
   }
 
-  const rawBody  = await request.text();
+  const rawBody   = await request.text();
   const sigHeader = request.headers.get('Paddle-Signature') ?? '';
 
   let event;
   try {
-    event = paddle.webhooks.unmarshal(rawBody, secret, sigHeader);
+    event = await paddle.webhooks.unmarshal(rawBody, secret, sigHeader);
   } catch (err) {
     console.error('[PADDLE-WEBHOOK] Signature verification failed:', err);
     return NextResponse.json({ error: 'invalid signature' }, { status: 400 });
   }
 
-  const db = getServiceClient();
+  const db = getServiceClient() as unknown as AnyDb;
 
   try {
     switch (event.eventType) {
       case EventName.SubscriptionCreated:
       case EventName.SubscriptionActivated:
       case EventName.SubscriptionUpdated: {
-        const sub = event.data as {
+        // Paddle SDK uses camelCase; cast via unknown to avoid type mismatch
+        const sub = event.data as unknown as {
           id: string;
-          customer_id: string;
+          customerId: string;
           status: string;
-          custom_data?: { user_id?: string };
-          trial_dates?: { ends_at?: string };
-          current_billing_period?: { ends_at?: string };
+          customData?: { user_id?: string };
+          trialDates?: { endsAt?: string };
+          currentBillingPeriod?: { endsAt?: string };
         };
 
-        const userId = sub.custom_data?.user_id;
+        const userId = sub.customData?.user_id;
         if (!userId) {
           console.error('[PADDLE-WEBHOOK] No user_id in custom_data', sub.id);
           break;
@@ -68,18 +71,18 @@ export async function POST(request: NextRequest) {
 
         await db.from('subscriptions').upsert({
           user_id:            userId,
-          paddle_customer_id: sub.customer_id,
+          paddle_customer_id: sub.customerId,
           paddle_sub_id:      sub.id,
           status:             sub.status,
-          trial_ends_at:      sub.trial_dates?.ends_at ?? null,
-          current_period_end: sub.current_billing_period?.ends_at ?? null,
+          trial_ends_at:      sub.trialDates?.endsAt ?? null,
+          current_period_end: sub.currentBillingPeriod?.endsAt ?? null,
           updated_at:         new Date().toISOString(),
         }, { onConflict: 'paddle_sub_id' });
         break;
       }
 
       case EventName.SubscriptionCanceled: {
-        const sub = event.data as { id: string };
+        const sub = event.data as unknown as { id: string };
         await db.from('subscriptions')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() })
           .eq('paddle_sub_id', sub.id);
@@ -87,7 +90,7 @@ export async function POST(request: NextRequest) {
       }
 
       case EventName.SubscriptionPaused: {
-        const sub = event.data as { id: string };
+        const sub = event.data as unknown as { id: string };
         await db.from('subscriptions')
           .update({ status: 'paused', updated_at: new Date().toISOString() })
           .eq('paddle_sub_id', sub.id);
@@ -95,7 +98,7 @@ export async function POST(request: NextRequest) {
       }
 
       case EventName.SubscriptionResumed: {
-        const sub = event.data as { id: string; status: string };
+        const sub = event.data as unknown as { id: string; status: string };
         await db.from('subscriptions')
           .update({ status: sub.status, updated_at: new Date().toISOString() })
           .eq('paddle_sub_id', sub.id);
@@ -103,7 +106,6 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        // Unhandled event types are fine — Paddle sends many notification types
         break;
     }
   } catch (err) {
