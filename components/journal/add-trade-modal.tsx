@@ -205,7 +205,7 @@ export function AddTradeModal({
               </div>
               <span className="text-[15px] font-extrabold tracking-tight">New Trade</span>
             </div>
-            <p className="text-[11px] text-zinc-500 mt-0.5">
+            <p className="text-xs text-zinc-500 mt-0.5">
               Enter your position size — shares &amp; risk are auto-calculated.
             </p>
           </div>
@@ -254,7 +254,7 @@ export function AddTradeModal({
 
             {/* ── Chart Screenshot ─────────────────────────────── */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
                 Chart Screenshot
                 <span className="ml-1 normal-case tracking-normal font-normal text-zinc-600">· optional</span>
               </label>
@@ -309,11 +309,11 @@ export function AddTradeModal({
                 >
                   <UploadCloud className={cn('w-5 h-5 transition-colors', isDragging ? 'text-[#22D3EE]' : 'text-zinc-600')} />
                   <div className="text-center">
-                    <p className="text-[11px] text-zinc-500">
+                    <p className="text-xs text-zinc-500">
                       Drop chart or{' '}
                       <span className="text-[#22D3EE] font-semibold">click to upload</span>
                     </p>
-                    <p className="text-[10px] text-zinc-700 mt-0.5">PNG · JPG · WebP</p>
+                    <p className="text-xs text-zinc-700 mt-0.5">PNG · JPG · WebP</p>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -356,7 +356,7 @@ export function AddTradeModal({
                     Shares — auto-calculated
                   </p>
                   {calc && (
-                    <p className="text-[10px] font-mono text-zinc-600">
+                    <p className="text-xs font-mono text-zinc-600">
                       ${calc.actualInvested.toLocaleString('en-US', { maximumFractionDigits: 2 })} actual
                       {calc.unused > 0.005 && (
                         <span className="text-zinc-700"> · ${calc.unused.toFixed(2)} unused</span>
@@ -405,7 +405,7 @@ export function AddTradeModal({
                   />
                 </div>
               ) : (
-                <p className="text-[11px] text-zinc-600 px-1">
+                <p className="text-xs text-zinc-600 px-1">
                   Enter a stop price below entry price to see risk metrics.
                 </p>
               )}
@@ -413,7 +413,7 @@ export function AddTradeModal({
 
             {/* Error */}
             {error && (
-              <div className="px-3 py-2.5 rounded-[9px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-[12px] text-[#FF3B5C] flex items-center gap-2">
+              <div className="px-3 py-2.5 rounded-[9px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-xs text-[#FF3B5C] flex items-center gap-2">
                 <X className="w-3.5 h-3.5 flex-shrink-0" />
                 {error}
               </div>
@@ -424,7 +424,7 @@ export function AddTradeModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-[10px] border border-white/[0.08] text-[12px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-all"
+                className="flex-1 py-3 rounded-[10px] border border-white/[0.08] text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-all"
               >
                 Cancel
               </button>
@@ -432,7 +432,7 @@ export function AddTradeModal({
                 type="submit"
                 disabled={saving || uploading}
                 className={cn(
-                  'flex-[2] py-3 rounded-[10px] text-[12px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
+                  'flex-[2] py-3 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
                   saving || uploading
                     ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
                     : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_24px_rgba(34,211,238,0.3)] hover:brightness-110 hover:-translate-y-px',
@@ -465,7 +465,7 @@ function SectionLabel({ color, label }: { color: 'cyan' | 'red'; label: string }
         color === 'cyan' ? 'bg-[#22D3EE]' : 'bg-[#FF3B5C]',
       )} />
       <span className={cn(
-        'text-[10px] uppercase tracking-[0.16em] font-bold',
+        'text-xs uppercase tracking-[0.16em] font-bold',
         color === 'cyan' ? 'text-[#22D3EE]' : 'text-[#FF3B5C]',
       )}>
         {label}
@@ -480,7 +480,7 @@ function FormField({
   return (
     <div className="flex flex-col gap-1.5">
       <label className={cn(
-        'text-[10px] uppercase tracking-[0.14em] font-semibold',
+        'text-xs uppercase tracking-[0.14em] font-semibold',
         accent === 'cyan' ? 'text-[#22D3EE]' :
         accent === 'red'  ? 'text-[#FF3B5C]' : 'text-zinc-400',
       )}>

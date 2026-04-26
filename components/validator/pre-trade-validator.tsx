@@ -322,7 +322,7 @@ export function ChecklistCard({ className }: { className?: string }) {
         <h2 className="text-[15px] font-bold tracking-tight text-[var(--text-primary)] mb-0.5">
           Pre-Trade Checklist
         </h2>
-        <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">
+        <p className="text-xs text-[var(--text-muted)] leading-[1.55]">
           Trend Template is the only hard gate. Optional checks below are quality enhancers.
         </p>
       </div>
@@ -335,10 +335,10 @@ export function ChecklistCard({ className }: { className?: string }) {
         <div className="flex items-start gap-3 px-4 py-3 rounded-[10px] bg-red-500/10 border border-red-500/30">
           <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-[12px] font-bold text-red-500 uppercase tracking-wider leading-tight">
+            <p className="text-xs font-bold text-red-500 uppercase tracking-wider leading-tight">
               BLOCKED — Fails Trend Template
             </p>
-            <p className="text-[11px] text-red-500/70 mt-0.5 leading-snug">
+            <p className="text-xs text-red-500/70 mt-0.5 leading-snug">
               One or more structural conditions not met — will be logged as a non-system trade.
             </p>
           </div>
@@ -354,7 +354,7 @@ export function ChecklistCard({ className }: { className?: string }) {
               <h3 className="text-[13px] font-bold text-[#10F088] mb-0.5 uppercase tracking-wider">
                 PASS — High Conviction Setup · {greenLight.headline}
               </h3>
-              <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">{greenLight.body}</p>
+              <p className="text-xs text-[var(--text-muted)] leading-[1.55]">{greenLight.body}</p>
             </div>
           </div>
         </div>
@@ -369,7 +369,7 @@ export function ChecklistCard({ className }: { className?: string }) {
               <h3 className="text-[13px] font-bold text-amber-500 mb-0.5 uppercase tracking-wider">
                 PASS — Consider Optional Checks
               </h3>
-              <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">
+              <p className="text-xs text-[var(--text-muted)] leading-[1.55]">
                 Trend Template clear. Review the optional quality gates below for higher conviction.
               </p>
             </div>
@@ -382,7 +382,7 @@ export function ChecklistCard({ className }: { className?: string }) {
         <div className="animate-[fade-in_300ms_ease_both]">
           <SectionLabel text="Auto-Computed Checks" aside="from live market data" />
           {dataQuality === 'insufficient' && !insufficientDismissed && (
-            <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-[8px] bg-amber-500/[0.07] border border-amber-500/25 text-[11px] text-amber-600">
+            <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-[8px] bg-amber-500/[0.07] border border-amber-500/25 text-xs text-amber-600">
               <Info className="w-3.5 h-3.5 flex-shrink-0 mt-px text-amber-500" />
               <span className="flex-1">Insufficient price history for precise 52W / AVWAP calculations — needs 1+ year of data.</span>
               <button type="button" onClick={() => setInsufficientDismissed(true)} className="ml-1 flex-shrink-0 opacity-60 hover:opacity-100">
@@ -462,12 +462,12 @@ export function ChecklistCard({ className }: { className?: string }) {
                   checked ? 'text-[#10F088]' : 'text-[var(--text-faint)]',
                 )} />
                 <div className="flex-1 min-w-0">
-                  <div className={cn('text-[12px] font-semibold leading-tight',
+                  <div className={cn('text-xs font-semibold leading-tight',
                     checked ? 'text-[var(--text-dim)]' : 'text-[var(--text-secondary)]',
                   )}>
                     {gate.label}
                   </div>
-                  <div className="text-[10px] text-[var(--text-faint)] leading-snug mt-0.5">{gate.sublabel}</div>
+                  <div className="text-xs text-[var(--text-faint)] leading-snug mt-0.5">{gate.sublabel}</div>
                 </div>
               </button>
             );
@@ -505,7 +505,7 @@ export function ChecklistCard({ className }: { className?: string }) {
           <div className="flex items-start gap-2">
             <BookOpen className="w-3 h-3 text-violet-400 flex-shrink-0 mt-[3px]" />
             <div>
-              <p className="text-[11px] text-[var(--text-muted)] italic leading-relaxed">"{mindsetQuote.text}"</p>
+              <p className="text-xs text-[var(--text-muted)] italic leading-relaxed">"{mindsetQuote.text}"</p>
               <p className="text-[9px] text-violet-400 font-semibold tracking-wider uppercase mt-0.5">— {mindsetQuote.source}</p>
             </div>
           </div>
@@ -544,7 +544,7 @@ export function SizerCard({ className }: { className?: string }) {
         <h2 className="text-[15px] font-bold tracking-tight text-[var(--text-primary)] mb-0.5">
           Position Sizer
         </h2>
-        <p className="text-[12px] text-[var(--text-muted)] leading-[1.55]">
+        <p className="text-xs text-[var(--text-muted)] leading-[1.55]">
           Stop loss capped at {MAX_STOP_PCT}%. Enter account size in Settings.
         </p>
       </div>
@@ -564,7 +564,7 @@ export function SizerCard({ className }: { className?: string }) {
       </div>
 
       {error && (
-        <div className="px-3 py-2 rounded-[8px] bg-red-500/[0.06] border border-red-500/25 flex items-center gap-2 text-[12px] text-red-500">
+        <div className="px-3 py-2 rounded-[8px] bg-red-500/[0.06] border border-red-500/25 flex items-center gap-2 text-xs text-red-500">
           <X className="w-3.5 h-3.5 flex-shrink-0" /><span>{error}</span>
         </div>
       )}
@@ -575,7 +575,7 @@ export function SizerCard({ className }: { className?: string }) {
       <div className="rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]/40 p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <SectionLabel text="Entry & Stop" />
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">
+          <span className="font-mono text-xs text-[var(--text-faint)]">
             acc ${accountSize.toLocaleString()}
           </span>
         </div>
@@ -588,7 +588,7 @@ export function SizerCard({ className }: { className?: string }) {
         {stopExceedsMax && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-[8px] bg-red-500/10 border border-red-500/35 text-red-500">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            <span className="text-[11px] font-bold uppercase tracking-wider">
+            <span className="text-xs font-bold uppercase tracking-wider">
               Stop exceeds {MAX_STOP_PCT}% cap ({stopDistPct?.toFixed(2)}%)
             </span>
           </div>
@@ -605,7 +605,7 @@ export function SizerCard({ className }: { className?: string }) {
         <SizerOutput sizing={effectiveSizing} />
 
         {exceedsBudget && effectiveSizing.status === 'ok' && sizing.status === 'ok' && (
-          <div className="flex items-start gap-2 px-3 py-2 rounded-[8px] bg-amber-500/[0.07] border border-amber-500/25 text-[11px] text-amber-600">
+          <div className="flex items-start gap-2 px-3 py-2 rounded-[8px] bg-amber-500/[0.07] border border-amber-500/25 text-xs text-amber-600">
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
             <span>
               ${effectiveSizing.totalNotional.toLocaleString()} exceeds your {maxPortfolioRisk}% budget
@@ -620,7 +620,7 @@ export function SizerCard({ className }: { className?: string }) {
         <div className="flex items-center justify-between">
           <SectionLabel text="Amount Invested" />
           {isCustomAmount && (
-            <button type="button" onClick={handleResetAmount} className="text-[10px] font-mono text-[#22D3EE] hover:underline">
+            <button type="button" onClick={handleResetAmount} className="text-xs font-mono text-[#22D3EE] hover:underline">
               Reset to auto (${autoAmount!.toLocaleString()})
             </button>
           )}
@@ -683,7 +683,7 @@ function InfoTooltip({ text }: { text: string }) {
       </span>
       <span
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[200px] px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-200 leading-snug opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 z-50 whitespace-normal"
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[200px] px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 leading-snug opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 z-50 whitespace-normal"
       >
         {text}
       </span>
@@ -723,7 +723,7 @@ function AutoComputedGateRow({
       </span>
       <div className="flex-1 min-w-0">
         <div className={cn(
-          'text-[12px] font-semibold leading-tight flex items-center gap-1.5',
+          'text-xs font-semibold leading-tight flex items-center gap-1.5',
           state === 'pass' ? 'text-[var(--text-dim)]'
             : state === 'fail' ? 'text-[var(--text-secondary)]'
             : 'text-[var(--text-faint)]',
@@ -734,12 +734,12 @@ function AutoComputedGateRow({
           )}
         </div>
         {helperLine && (
-          <div className="text-[12px] font-semibold text-zinc-200 leading-snug mt-1">
+          <div className="text-xs font-semibold text-zinc-200 leading-snug mt-1">
             {helperLine}
           </div>
         )}
         {state === 'insufficient' && !helperLine && (
-          <div className="text-[11px] text-[var(--text-faint)] leading-snug mt-0.5">Needs 1+ year of price history</div>
+          <div className="text-xs text-[var(--text-faint)] leading-snug mt-0.5">Needs 1+ year of price history</div>
         )}
       </div>
     </div>
@@ -749,7 +749,7 @@ function AutoComputedGateRow({
 function SectionLabel({ text, aside }: { text: string; aside?: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-[var(--text-muted)] opacity-70">
+      <span className="text-xs uppercase tracking-[0.18em] font-semibold text-[var(--text-muted)] opacity-70">
         {text}
       </span>
       {aside && (
@@ -770,7 +770,7 @@ function AutoGateRow({
 }) {
   return (
     <button type="button" onClick={onClick} className={cn(
-      'flex items-center gap-3 px-3 py-2 rounded-[9px] border text-[11px] w-full text-left transition-all',
+      'flex items-center gap-3 px-3 py-2 rounded-[9px] border text-xs w-full text-left transition-all',
       checked
         ? 'bg-[#10F088]/[0.04] border-[#10F088]/20 text-[#10F088]'
         : 'bg-amber-500/[0.05] border-amber-500/20 text-amber-500',
@@ -785,7 +785,7 @@ function AutoGateRow({
       <div className="flex-1">
         <span className="font-semibold">{label}</span>
         {overridden && <span className="ml-1.5 opacity-50 text-[9px]">(manual)</span>}
-        {sublabel && <span className="block text-[10px] opacity-70 italic">{sublabel}</span>}
+        {sublabel && <span className="block text-xs opacity-70 italic">{sublabel}</span>}
       </div>
     </button>
   );
@@ -817,7 +817,7 @@ function EMAPanel({ data }: { data: TickerResponse }) {
           <p className="text-[9px] uppercase tracking-[0.18em] font-semibold text-[var(--text-muted)] opacity-70 mb-px">
             Trend Template — Minervini
           </p>
-          <p className="text-[12px] font-semibold text-[var(--text-secondary)]">
+          <p className="text-xs font-semibold text-[var(--text-secondary)]">
             {passed ? 'All structural conditions met' : 'One or more conditions failed'}
           </p>
         </div>
@@ -835,7 +835,7 @@ function EMAPanel({ data }: { data: TickerResponse }) {
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 px-4 py-3">
         {items.map(({ k, c }) => (
-          <div key={k} className="flex items-center gap-1.5 text-[10px]">
+          <div key={k} className="flex items-center gap-1.5 text-xs">
             <span className={cn('w-2.5 h-2.5 rounded-sm flex items-center justify-center flex-shrink-0',
               c.passed ? 'bg-[#10F088]/20' : 'bg-red-500/15',
             )}>
@@ -870,7 +870,7 @@ function BlockersPanel({ gates, failedGates, stopExceedsMax, stopDistPct }: {
     <div className="p-4 rounded-[10px] border border-red-500/25 bg-red-500/[0.04]">
       <div className="flex items-center gap-2 mb-3">
         <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
-        <span className="text-[11px] font-bold text-red-500 uppercase tracking-wider">
+        <span className="text-xs font-bold text-red-500 uppercase tracking-wider">
           {total} blocker{total !== 1 ? 's' : ''} to resolve
         </span>
       </div>
@@ -895,7 +895,7 @@ function BlockerItem({ label, detail, critical }: { label: string; detail: strin
   return (
     <div className="flex items-start gap-2">
       <span className={cn('w-1 h-1 rounded-full mt-[6px] flex-shrink-0', critical ? 'bg-red-500' : 'bg-red-500/40')} />
-      <div className="min-w-0 text-[11px] leading-snug text-[var(--text-dim)]">
+      <div className="min-w-0 text-xs leading-snug text-[var(--text-dim)]">
         {label && <span className={cn('font-semibold mr-1', critical ? 'text-red-500' : 'text-[var(--text-muted)]')}>{label} —</span>}
         {detail}
       </div>
@@ -911,14 +911,14 @@ function LiveSnapshot({ data }: { data: TickerResponse }) {
         <span className="font-mono text-[20px] font-bold tracking-tight text-[var(--text-primary)]">
           ${data.price.last.toFixed(2)}
         </span>
-        <span className={cn('font-mono text-[12px] font-semibold flex items-center gap-1',
+        <span className={cn('font-mono text-xs font-semibold flex items-center gap-1',
           isUp ? 'text-[#10F088]' : 'text-red-500',
         )}>
           {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
           {isUp ? '+' : ''}{data.price.dayChangePct.toFixed(2)}%
         </span>
       </div>
-      <div className="grid grid-cols-4 gap-x-3 text-[10px] font-mono text-[var(--text-muted)]">
+      <div className="grid grid-cols-4 gap-x-3 text-xs font-mono text-[var(--text-muted)]">
         <div><span className="text-[var(--text-faint)]">52W hi</span> <span className="text-[var(--text-dim)]">${data.range52w.high.toFixed(0)}</span></div>
         <div><span className="text-[var(--text-faint)]">52W lo</span> <span className="text-[var(--text-dim)]">${data.range52w.low.toFixed(0)}</span></div>
         <div><span className="text-[var(--text-faint)]">-hi</span> <span className="text-[var(--text-dim)]">{data.range52w.distanceFromHigh.toFixed(1)}%</span></div>
@@ -955,14 +955,14 @@ function StopCandidatesPanel({ stops, selected, onSelect }: {
               )}
             >
               <div className="flex flex-col gap-px">
-                <span className={cn('text-[11px] font-semibold',
+                <span className={cn('text-xs font-semibold',
                   isSelected ? 'text-[#22D3EE]' : isGrayed ? 'text-[var(--text-muted)]' : 'text-[var(--text-dim)]',
                 )}>{label}</span>
                 {exceeds8Pct && <span className="text-[9px] text-red-500">exceeds max — click to override</span>}
                 {!exceeds8Pct && c.notes && <span className="text-[9px] text-[var(--text-faint)]">{c.notes}</span>}
               </div>
               <div className="flex flex-col items-end gap-px">
-                <span className={cn('font-mono text-[12px] font-bold', isGrayed ? 'text-red-500' : 'text-[var(--text-primary)]')}>
+                <span className={cn('font-mono text-xs font-bold', isGrayed ? 'text-red-500' : 'text-[var(--text-primary)]')}>
                   ${c.price.toFixed(2)}
                 </span>
                 <span className={cn('font-mono text-[9px]', isGrayed ? 'text-red-500/70' : 'text-[var(--text-faint)]')}>
@@ -985,7 +985,7 @@ function PriceField({ label, accent, value, onChange }: {
     : { label: 'text-[var(--text-muted)]', ring: 'focus:border-red-500/60 focus:ring-red-500/10',   text: 'text-red-500' };
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)] opacity-70">{label}</label>
+      <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)] opacity-70">{label}</label>
       <input inputMode="decimal" value={value} onChange={e => onChange(e.target.value)}
         className={cn(
           'bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 font-mono text-[14px] font-semibold transition focus:outline-none focus:ring-[2px]',
@@ -999,7 +999,7 @@ function PriceField({ label, accent, value, onChange }: {
 function SizerOutput({ sizing }: { sizing: PositionSizerResult }) {
   if (sizing.status === 'rejected') {
     return (
-      <div className="bg-red-500/[0.05] border border-red-500/25 text-red-500 px-3 py-2.5 rounded-[8px] text-[12px] font-medium flex items-center gap-2">
+      <div className="bg-red-500/[0.05] border border-red-500/25 text-red-500 px-3 py-2.5 rounded-[8px] text-xs font-medium flex items-center gap-2">
         <X className="w-3.5 h-3.5 flex-shrink-0" /><span>{sizing.message}</span>
       </div>
     );
@@ -1010,7 +1010,7 @@ function SizerOutput({ sizing }: { sizing: PositionSizerResult }) {
       <SizerRow k={`Risk · ${sizing.portfolioRiskPct.toFixed(2)}% of acc`} v={`$${sizing.dollarRisk.toFixed(0)}`} />
       <SizerRow k="Risk per share"    v={`$${sizing.riskPerShare.toFixed(2)}`} />
       <div className="pt-2.5 border-t border-dashed border-[var(--border-strong)] flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">Full position</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Full position</span>
         <span className="font-mono text-[28px] font-extrabold tracking-tight text-[#22D3EE] tabular-nums">
           {sizing.totalShares}
         </span>
@@ -1028,7 +1028,7 @@ function SizerOutput({ sizing }: { sizing: PositionSizerResult }) {
 function SizerRow({ k, v, vClass }: { k: string; v: string; vClass?: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-faint)]">{k}</span>
+      <span className="text-xs uppercase tracking-wider font-semibold text-[var(--text-faint)]">{k}</span>
       <span className={cn('font-mono text-[13px] font-semibold tabular-nums text-[var(--text-primary)]', vClass)}>{v}</span>
     </div>
   );

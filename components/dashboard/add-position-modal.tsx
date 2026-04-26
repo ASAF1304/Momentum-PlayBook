@@ -148,7 +148,7 @@ export function AddPositionModal({
               <TrendingUp className="w-4 h-4 text-[#22D3EE]" />
               <span className="text-[14px] font-extrabold tracking-tight text-[var(--text-primary)]">Add Position Manually</span>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)]">Backfill a trade without running the validator.</p>
+            <p className="text-xs text-[var(--text-muted)]">Backfill a trade without running the validator.</p>
           </div>
           <button
             onClick={onClose}
@@ -163,7 +163,7 @@ export function AddPositionModal({
           {/* Ticker + setup type */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
                 Ticker
               </label>
               <input
@@ -174,7 +174,7 @@ export function AddPositionModal({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                 Setup Type
               </label>
               <select
@@ -192,7 +192,7 @@ export function AddPositionModal({
 
           {/* Entry date */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
               Entry Date
             </label>
             <input
@@ -206,7 +206,7 @@ export function AddPositionModal({
           {/* Entry price + shares + stop */}
           <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
                 Entry $
               </label>
               <input
@@ -218,7 +218,7 @@ export function AddPositionModal({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                 Shares
               </label>
               <input
@@ -230,7 +230,7 @@ export function AddPositionModal({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#EF4444]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#EF4444]">
                 Stop $
               </label>
               <input
@@ -274,7 +274,7 @@ export function AddPositionModal({
           )}
 
           {error && (
-            <div className="px-3 py-2.5 rounded-[8px] bg-[#EF4444]/[0.06] border border-[#EF4444]/30 text-[12px] text-[#EF4444]">
+            <div className="px-3 py-2.5 rounded-[8px] bg-[#EF4444]/[0.06] border border-[#EF4444]/30 text-xs text-[#EF4444]">
               {error}
             </div>
           )}
@@ -283,7 +283,7 @@ export function AddPositionModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-[10px] border border-[var(--border-strong)] text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
+              className="flex-1 py-3 rounded-[10px] border border-[var(--border-strong)] text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
             >
               Cancel
             </button>
@@ -291,7 +291,7 @@ export function AddPositionModal({
               type="submit"
               disabled={saving || stopTooWide}
               className={cn(
-                'flex-[2] py-3 rounded-[10px] text-[12px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
+                'flex-[2] py-3 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
                 saving || stopTooWide
                   ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                   : 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-90 hover:-translate-y-px shadow-[var(--shadow-card)]',

@@ -160,7 +160,7 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
               <Zap className="w-4 h-4 text-amber-500" />
               <span className="text-[14px] font-extrabold tracking-tight text-[var(--text-primary)]">Log Off-System Trade</span>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)]">Logged as What-If — not counted in system stats.</p>
+            <p className="text-xs text-[var(--text-muted)]">Logged as What-If — not counted in system stats.</p>
           </div>
           <button
             onClick={onClose}
@@ -175,7 +175,7 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
           {/* Ticker + Setup */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-amber-500">Ticker</label>
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-amber-500">Ticker</label>
               <input
                 value={ticker}
                 onChange={e => setTicker(e.target.value.toUpperCase().slice(0, 10))}
@@ -184,7 +184,7 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Setup Type</label>
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Setup Type</label>
               <select
                 value={setupType}
                 onChange={e => setSetupType(e.target.value as SetupType | '')}
@@ -198,22 +198,22 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
 
           {/* Entry Date */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Entry Date</label>
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Entry Date</label>
             <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className={inputCls} />
           </div>
 
           {/* Entry / Shares / Stop */}
           <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">Entry $</label>
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">Entry $</label>
               <input inputMode="decimal" value={entryPrice} onChange={e => setEntryPrice(e.target.value)} placeholder="0.00" className={cn(inputCls, 'font-mono')} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Shares</label>
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Shares</label>
               <input inputMode="numeric" value={shares} onChange={e => setShares(e.target.value)} placeholder="0" className={cn(inputCls, 'font-mono')} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#EF4444]">Stop $</label>
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#EF4444]">Stop $</label>
               <input inputMode="decimal" value={stopPrice} onChange={e => setStopPrice(e.target.value)} placeholder="0.00" className={cn(inputCls, 'font-mono text-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]/15')} />
             </div>
           </div>
@@ -238,16 +238,16 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
 
           {/* Optional exit */}
           <div>
-            <div className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)] mb-2">
+            <div className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)] mb-2">
               Exit (optional — fill to log as closed)
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Exit Price $</label>
+                <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Exit Price $</label>
                 <input inputMode="decimal" value={exitPrice} onChange={e => setExitPrice(e.target.value)} placeholder="0.00" className={cn(inputCls, 'font-mono')} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Exit Date</label>
+                <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">Exit Date</label>
                 <input type="date" value={exitDate} onChange={e => setExitDate(e.target.value)} className={inputCls} />
               </div>
             </div>
@@ -289,7 +289,7 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
 
           {/* Notes */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
               Why / Notes (optional)
             </label>
             <textarea
@@ -302,7 +302,7 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
           </div>
 
           {error && (
-            <div className="px-3 py-2.5 rounded-[8px] bg-[#EF4444]/[0.06] border border-[#EF4444]/30 text-[12px] text-[#EF4444]">
+            <div className="px-3 py-2.5 rounded-[8px] bg-[#EF4444]/[0.06] border border-[#EF4444]/30 text-xs text-[#EF4444]">
               {error}
             </div>
           )}
@@ -311,7 +311,7 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-[10px] border border-[var(--border-strong)] text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
+              className="flex-1 py-3 rounded-[10px] border border-[var(--border-strong)] text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
             >
               Cancel
             </button>
@@ -319,7 +319,7 @@ export function AddWhatIfModal({ userId, onClose, onSaved }: AddWhatIfModalProps
               type="submit"
               disabled={saving}
               className={cn(
-                'flex-[2] py-3 rounded-[10px] text-[12px] font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
+                'flex-[2] py-3 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
                 saving
                   ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                   : 'bg-amber-500 text-black hover:bg-amber-400 hover:-translate-y-px',

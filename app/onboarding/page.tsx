@@ -97,7 +97,7 @@ export default function OnboardingPage() {
           <h1 className="text-[20px] font-extrabold tracking-tight text-[var(--text-primary)] mb-1 mt-6">
             Set up your account
           </h1>
-          <p className="text-[12px] text-[var(--text-muted)] mb-6 leading-relaxed">
+          <p className="text-xs text-[var(--text-muted)] mb-6 leading-relaxed">
             These parameters drive the position sizer and risk engine. You can change them later in Settings.
           </p>
 
@@ -105,7 +105,7 @@ export default function OnboardingPage() {
 
             {/* Display name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                 Display Name <span className="text-[var(--text-faint)] normal-case tracking-normal">(optional)</span>
               </label>
               <input
@@ -119,7 +119,7 @@ export default function OnboardingPage() {
 
             {/* Account size */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
                 Account Size ($) <span className="text-[#FF3B5C]">*</span>
               </label>
               <div className="relative">
@@ -141,7 +141,7 @@ export default function OnboardingPage() {
             {/* Risk params side by side */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+                <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Risk / Trade
                 </label>
                 <div className="relative">
@@ -160,7 +160,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+                <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Stop Distance
                 </label>
                 <div className="relative">
@@ -180,7 +180,7 @@ export default function OnboardingPage() {
             </div>
 
             {error && (
-              <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-[12px] text-[#FF3B5C]">
+              <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-xs text-[#FF3B5C]">
                 {error}
               </div>
             )}

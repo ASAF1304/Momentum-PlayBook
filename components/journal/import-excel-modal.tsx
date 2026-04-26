@@ -422,7 +422,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
               <FileSpreadsheet className="w-4 h-4 text-[#10F088]" />
               <h2 className="text-[17px] font-extrabold tracking-tight">Import from Broker</h2>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)]">
+            <p className="text-xs text-[var(--text-muted)]">
               Upload your Excel or CSV export — trades merge across files automatically.
             </p>
           </div>
@@ -468,11 +468,11 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                     </div>
                     <div className="text-center">
                       <p className="text-[14px] font-semibold text-[var(--text-secondary)]">Drop your broker export here</p>
-                      <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
                         or <span className="text-[#10F088] font-semibold">click to browse</span> — .xlsx, .xls, .csv
                       </p>
                     </div>
-                    <p className="text-[10px] text-[var(--text-faint)]">Max 5 MB · Multiple files supported (upload one at a time)</p>
+                    <p className="text-xs text-[var(--text-faint)]">Max 5 MB · Multiple files supported (upload one at a time)</p>
                   </>
                 )}
               </div>
@@ -480,7 +480,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
               {!parsing && existingPositionsRef.current.size > 0 && (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-[8px] bg-[#22D3EE]/[0.06] border border-[#22D3EE]/20">
                   <RefreshCw className="w-3.5 h-3.5 text-[#22D3EE] flex-shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-[#22D3EE]/90">
+                  <p className="text-xs text-[#22D3EE]/90">
                     <strong>{existingPositionsRef.current.size} open position{existingPositionsRef.current.size !== 1 ? 's' : ''}</strong> loaded from your journal ({[...existingPositionsRef.current.keys()].join(', ')}) — new transactions will merge into them automatically.
                   </p>
                 </div>
@@ -489,13 +489,13 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
               {parseError && (
                 <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-[10px] bg-[#FF3B5C]/[0.07] border border-[#FF3B5C]/25">
                   <AlertTriangle className="w-3.5 h-3.5 text-[#FF3B5C] flex-shrink-0 mt-0.5" />
-                  <p className="text-[12px] text-[#FF3B5C]">{parseError}</p>
+                  <p className="text-xs text-[#FF3B5C]">{parseError}</p>
                 </div>
               )}
 
               <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-[10px] bg-amber-400/[0.07] border border-amber-400/20">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-400/90 leading-relaxed">
+                <p className="text-xs text-amber-400/90 leading-relaxed">
                   Imported trades can&apos;t be validated retroactively against Minervini&apos;s Trend Template.
                   They&apos;ll be marked <strong>Non-System</strong> in your Playbook.
                 </p>
@@ -511,14 +511,14 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
             <div className="p-6 flex flex-col gap-5">
               <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-[10px] bg-[#22D3EE]/[0.07] border border-[#22D3EE]/20">
                 <AlertTriangle className="w-3.5 h-3.5 text-[#22D3EE] flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-[#22D3EE]/90 leading-relaxed">
+                <p className="text-xs text-[#22D3EE]/90 leading-relaxed">
                   Could not auto-detect your broker format. Select which column maps to each field below.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {(['ticker', 'action', 'quantity', 'price', 'date'] as const).map(field => (
                   <div key={field} className="flex flex-col gap-1.5">
-                    <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)] capitalize">{field} column</label>
+                    <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)] capitalize">{field} column</label>
                     <select value={manualMapping[field]} onChange={e => setManualMapping(prev => ({ ...prev, [field]: e.target.value }))}
                       className="bg-[var(--bg-input)] border border-[var(--border-dim)] rounded-[8px] px-3 py-2.5 text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[#10F088] focus:ring-[3px] focus:ring-[#10F088]/15 transition appearance-none">
                       <option value="">— select column —</option>
@@ -528,9 +528,9 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                 ))}
               </div>
               <div className="flex gap-2.5 pt-1">
-                <button onClick={() => setStep('upload')} className="flex-1 py-2.5 rounded-[10px] border border-[var(--border-strong)] text-[12px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all">Back</button>
+                <button onClick={() => setStep('upload')} className="flex-1 py-2.5 rounded-[10px] border border-[var(--border-strong)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all">Back</button>
                 <button onClick={() => void handleManualMapping()} disabled={Object.values(manualMapping).some(v => !v)}
-                  className={cn('flex-[2] py-2.5 rounded-[10px] text-[12px] font-extrabold uppercase tracking-wider transition-all',
+                  className={cn('flex-[2] py-2.5 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all',
                     Object.values(manualMapping).some(v => !v) ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed' : 'bg-gradient-to-br from-[#10F088] to-[#22D3EE] text-black hover:brightness-110')}>
                   Confirm Mapping
                 </button>
@@ -543,7 +543,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
             <div className="flex flex-col">
               {/* ── Layer 5: Summary bar ───────────────────────────── */}
               <div className="px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)] flex items-center justify-between gap-3 flex-shrink-0">
-                <div className="flex items-center gap-3 text-[12px] flex-wrap">
+                <div className="flex items-center gap-3 text-xs flex-wrap">
                   <span className="font-semibold text-[var(--text-secondary)]">
                     Detected: <span className="text-[#10F088] font-bold">{BROKER_LABELS[detectedFormat ?? 'generic']}</span>
                   </span>
@@ -560,13 +560,13 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                   {dupSkipped > 0 && (
                     <>
                       <span className="text-[var(--text-faint)]">·</span>
-                      <span className="text-[var(--text-muted)] text-[11px]">⏭ {dupSkipped} already imported</span>
+                      <span className="text-[var(--text-muted)] text-xs">⏭ {dupSkipped} already imported</span>
                     </>
                   )}
                   {skippedRows > 0 && (
                     <>
                       <span className="text-[var(--text-faint)]">·</span>
-                      <span className="text-amber-400 text-[11px]">
+                      <span className="text-amber-400 text-xs">
                         <AlertTriangle className="inline w-3 h-3 mr-0.5" />{skippedRows} rows skipped
                       </span>
                     </>
@@ -574,13 +574,13 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                   {newTrades.some(t => t.isOrphan) && (
                     <>
                       <span className="text-[var(--text-faint)]">·</span>
-                      <span className="text-amber-400 text-[11px] font-semibold">
+                      <span className="text-amber-400 text-xs font-semibold">
                         ⚠ {newTrades.filter(t => t.isOrphan).length} inherited ({newTrades.filter(t => t.isOrphan).map(t => t.ticker).join(', ')})
                       </span>
                     </>
                   )}
                 </div>
-                <button onClick={toggleAll} className="text-[11px] font-semibold text-[#22D3EE] hover:underline whitespace-nowrap flex-shrink-0">
+                <button onClick={toggleAll} className="text-xs font-semibold text-[#22D3EE] hover:underline whitespace-nowrap flex-shrink-0">
                   {selectedIds.size === newTrades.length && selectedUpdateIds.size === updates.length ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
@@ -641,7 +641,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                 <p className="text-[14px] font-semibold text-[var(--text-secondary)]">
                   Importing {selectedIds.size} trade{selectedIds.size !== 1 ? 's' : ''}{selectedUpdateIds.size > 0 ? ` + ${selectedUpdateIds.size} update${selectedUpdateIds.size !== 1 ? 's' : ''}` : ''}…
                 </p>
-                <p className="text-[12px] text-[var(--text-muted)] mt-1">{importProgress}% complete</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">{importProgress}% complete</p>
               </div>
               <div className="w-64 h-1.5 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
                 <div className="h-full rounded-full bg-gradient-to-r from-[#10F088] to-[#22D3EE] transition-all" style={{ width: `${importProgress}%` }} />
@@ -657,9 +657,9 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
               </div>
               <div>
                 <p className="text-[16px] font-extrabold text-[var(--text-primary)]">Import complete</p>
-                <p className="text-[12px] text-[var(--text-muted)] mt-1">Your trades are now in the Journal, marked as Non-System imports.</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">Your trades are now in the Journal, marked as Non-System imports.</p>
               </div>
-              <button onClick={onClose} className="mt-2 px-6 py-2.5 rounded-[10px] bg-gradient-to-br from-[#10F088] to-[#22D3EE] text-black text-[12px] font-extrabold uppercase tracking-wider hover:brightness-110 transition">
+              <button onClick={onClose} className="mt-2 px-6 py-2.5 rounded-[10px] bg-gradient-to-br from-[#10F088] to-[#22D3EE] text-black text-xs font-extrabold uppercase tracking-wider hover:brightness-110 transition">
                 View Journal
               </button>
             </div>
@@ -669,18 +669,18 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
         {/* Footer — preview only */}
         {step === 'preview' && (
           <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3 flex-shrink-0 bg-[var(--bg-modal)]">
-            <span className="text-[12px] text-[var(--text-muted)]">
+            <span className="text-xs text-[var(--text-muted)]">
               <span className="font-bold text-[var(--text-secondary)]">{selectedCount}</span> of {totalPreviewItems} selected
               {dupSkipped > 0 && (
                 <span className="text-[var(--text-faint)] ml-2">· {dupSkipped} duplicate{dupSkipped !== 1 ? 's' : ''} auto-skipped</span>
               )}
             </span>
             <div className="flex gap-2.5">
-              <button onClick={onClose} className="px-4 py-2 rounded-[9px] border border-[var(--border-strong)] text-[12px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all">Cancel</button>
+              <button onClick={onClose} className="px-4 py-2 rounded-[9px] border border-[var(--border-strong)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all">Cancel</button>
               <button
                 onClick={() => void handleImport()}
                 disabled={selectedCount === 0}
-                className={cn('px-5 py-2 rounded-[9px] text-[12px] font-extrabold uppercase tracking-wider transition-all flex items-center gap-2',
+                className={cn('px-5 py-2 rounded-[9px] text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-2',
                   selectedCount === 0 ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed' : 'bg-gradient-to-br from-[#10F088] to-[#22D3EE] text-black hover:brightness-110 shadow-[0_0_18px_rgba(16,240,136,0.25)]')}
               >
                 Import {selectedCount > 0 ? `${selectedCount}` : ''} Item{selectedCount !== 1 ? 's' : ''}
@@ -721,13 +721,13 @@ function UpdateRow({
         </span>
 
         {/* Original entry date */}
-        <span className="text-[10px] font-mono text-[var(--text-muted)] w-16 flex-shrink-0">
+        <span className="text-xs font-mono text-[var(--text-muted)] w-16 flex-shrink-0">
           {fmtDate(update.existingPhase1Date)}
         </span>
 
         {/* Shares before / after */}
         <div className="w-28 flex-shrink-0">
-          <span className="text-[10px] font-mono text-[var(--text-faint)]">
+          <span className="text-xs font-mono text-[var(--text-faint)]">
             {update.currentShares} sh → <span className={cn('font-bold', update.willClose ? 'text-[#FF3B5C]' : 'text-[#10F088]')}>{update.newShares} sh</span>
           </span>
         </div>
@@ -759,7 +759,7 @@ function UpdateRow({
           {update.newPartials.map(p => {
             const isBuy = p.action === 'buy';
             return (
-              <div key={p.id} className={cn('flex items-center gap-3 px-3 py-1.5 rounded-[6px] border text-[10px]',
+              <div key={p.id} className={cn('flex items-center gap-3 px-3 py-1.5 rounded-[6px] border text-xs',
                 isBuy ? 'bg-[#22D3EE]/[0.03] border-[#22D3EE]/15' : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]')}>
                 <span className={cn('text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
                   isBuy ? 'bg-[#22D3EE]/15 text-[#22D3EE]' : 'bg-[#A78BFA]/15 text-[#A78BFA]')}>
@@ -847,21 +847,21 @@ function PreviewRow({
 
         <span className="font-mono text-[13px] font-extrabold tracking-tight w-14 flex-shrink-0">{trade.ticker}</span>
 
-        <span className="text-[10px] font-mono text-[var(--text-muted)] w-16 flex-shrink-0">{fmtDate(trade.phase1_date)}</span>
+        <span className="text-xs font-mono text-[var(--text-muted)] w-16 flex-shrink-0">{fmtDate(trade.phase1_date)}</span>
 
         <div className="w-20 flex-shrink-0">
           {trade.isOrphan ? (
-            <span className="text-[10px] font-mono text-amber-400">? (review)</span>
+            <span className="text-xs font-mono text-amber-400">? (review)</span>
           ) : (
             <div>
-              <span className="text-[11px] font-mono text-[var(--text-dim)]">${avgEntry.toFixed(2)}</span>
+              <span className="text-xs font-mono text-[var(--text-dim)]">${avgEntry.toFixed(2)}</span>
               {hasBuyPartials && <span className="text-[8px] text-[#22D3EE] ml-0.5">avg</span>}
             </div>
           )}
         </div>
 
         <div className="w-16 flex-shrink-0">
-          <span className="text-[10px] font-mono text-[var(--text-faint)]">{sharesDisplay}</span>
+          <span className="text-xs font-mono text-[var(--text-faint)]">{sharesDisplay}</span>
           {trade.status === 'open' && realizedPnL !== 0 && (
             <div className={cn('text-[8px] font-mono font-bold', realizedPnL >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]')}>
               {realizedPnL >= 0 ? '+' : ''}${realizedPnL.toFixed(0)} realized
@@ -869,11 +869,11 @@ function PreviewRow({
           )}
         </div>
 
-        <span className="text-[10px] font-mono text-[var(--text-muted)] w-16 flex-shrink-0">
+        <span className="text-xs font-mono text-[var(--text-muted)] w-16 flex-shrink-0">
           {trade.exit_date ? fmtDate(trade.exit_date) : '—'}
         </span>
 
-        <span className={cn('font-mono text-[11px] font-bold w-16 flex-shrink-0',
+        <span className={cn('font-mono text-xs font-bold w-16 flex-shrink-0',
           displayPnL === null ? 'text-[var(--text-faint)]' : pnlPositive ? 'text-[#10F088]' : 'text-[#FF3B5C]')}>
           {displayPnL === null
             ? (trade.status === 'open' ? 'Open' : trade.isOrphan ? '?' : '—')
@@ -914,7 +914,7 @@ function PreviewRow({
           {trade.partials.map(p => {
             const isBuy = p.action === 'buy';
             return (
-              <div key={p.id} className={cn('flex items-center gap-3 px-3 py-1.5 rounded-[6px] border text-[10px]',
+              <div key={p.id} className={cn('flex items-center gap-3 px-3 py-1.5 rounded-[6px] border text-xs',
                 isBuy ? 'bg-[#22D3EE]/[0.03] border-[#22D3EE]/15' : 'bg-[var(--bg-surface)] border-[var(--border-subtle)]')}>
                 <span className={cn('text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
                   isBuy ? 'bg-[#22D3EE]/15 text-[#22D3EE]' : 'bg-[#A78BFA]/15 text-[#A78BFA]')}>

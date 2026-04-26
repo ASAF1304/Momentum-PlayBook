@@ -72,7 +72,7 @@ export default function SignupPage() {
       <h1 className="text-[20px] font-extrabold tracking-tight text-zinc-100 mb-1">
         Create account
       </h1>
-      <p className="text-[12px] text-zinc-500 mb-6">
+      <p className="text-xs text-zinc-500 mb-6">
         Set up your trading journal in under a minute.
       </p>
 
@@ -88,7 +88,7 @@ export default function SignupPage() {
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
               Email
             </label>
             <input
@@ -103,7 +103,7 @@ export default function SignupPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
               Password
             </label>
             <input
@@ -118,7 +118,7 @@ export default function SignupPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-zinc-400">
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
               Confirm Password
             </label>
             <input
@@ -133,7 +133,7 @@ export default function SignupPage() {
           </div>
 
           {error && (
-            <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-[12px] text-[#FF3B5C]">
+            <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-xs text-[#FF3B5C]">
               {error}
             </div>
           )}
@@ -155,7 +155,7 @@ export default function SignupPage() {
       )}
 
       {!message && (
-        <p className="mt-5 text-center text-[12px] text-zinc-500">
+        <p className="mt-5 text-center text-xs text-zinc-500">
           Have an account?{' '}
           <Link href="/login" className="text-[#22D3EE] hover:underline font-semibold">
             Sign in

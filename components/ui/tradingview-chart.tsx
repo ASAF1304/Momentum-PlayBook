@@ -82,7 +82,7 @@ function ChartLegend() {
             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
             style={{ backgroundColor: color }}
           />
-          <span className="font-mono text-[10px] text-[var(--text-faint)]">{label}</span>
+          <span className="font-mono text-xs text-[var(--text-faint)]">{label}</span>
         </div>
       ))}
     </div>

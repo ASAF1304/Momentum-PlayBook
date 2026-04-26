@@ -64,7 +64,7 @@ export function AppNav() {
                 key={href}
                 href={href}
                 className={cn(
-                  'relative flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-semibold tracking-tight transition-colors',
+                  'relative flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold tracking-tight transition-colors',
                   active
                     ? 'text-[var(--text-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]',

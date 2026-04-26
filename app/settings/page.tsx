@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [maxRisk,     setMaxRisk]     = useState('');
   const [maxStop,     setMaxStop]     = useState('');
   const [saving,      setSaving]      = useState(false);
+  const [errors, setErrors] = useState({ accountSize: '', maxRisk: '', maxStop: '' });
 
   // Pre-fill form once profile loads
   useEffect(() => {
@@ -39,26 +40,38 @@ export default function SettingsPage() {
     }
   }, [profile, loading, user, router]);
 
+  const validateAccountSize = () => {
+    const v = parseFloat(accountSize);
+    const msg = !Number.isFinite(v) || v <= 0 ? 'Enter a positive dollar amount' : '';
+    setErrors(prev => ({ ...prev, accountSize: msg }));
+    return !msg;
+  };
+
+  const validateMaxRisk = () => {
+    const v = parseFloat(maxRisk);
+    const msg = !Number.isFinite(v) || v <= 0 || v > 10 ? 'Must be between 0.1% and 10%' : '';
+    setErrors(prev => ({ ...prev, maxRisk: msg }));
+    return !msg;
+  };
+
+  const validateMaxStop = () => {
+    const v = parseFloat(maxStop);
+    const msg = !Number.isFinite(v) || v <= 0 || v > 25 ? 'Must be between 0.5% and 25%' : '';
+    setErrors(prev => ({ ...prev, maxStop: msg }));
+    return !msg;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving || !user) return;
+    const okSize = validateAccountSize();
+    const okRisk = validateMaxRisk();
+    const okStop = validateMaxStop();
+    if (!okSize || !okRisk || !okStop) return;
 
     const size = parseFloat(accountSize);
     const risk = parseFloat(maxRisk);
     const stop = parseFloat(maxStop);
-
-    if (!Number.isFinite(size) || size <= 0) {
-      toast({ title: 'Invalid account size', variant: 'error' });
-      return;
-    }
-    if (!Number.isFinite(risk) || risk <= 0 || risk > 10) {
-      toast({ title: 'Max risk must be 0.1%–10%', variant: 'error' });
-      return;
-    }
-    if (!Number.isFinite(stop) || stop <= 0 || stop > 25) {
-      toast({ title: 'Max stop must be 0.5%–25%', variant: 'error' });
-      return;
-    }
 
     setSaving(true);
 
@@ -98,7 +111,7 @@ export default function SettingsPage() {
       <main className="max-w-[520px] mx-auto px-6 py-10 relative">
         <div className="mb-6">
           <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Settings</h1>
-          <p className="text-[12px] text-[var(--text-muted)]">
+          <p className="text-xs text-[var(--text-muted)]">
             Account size and risk parameters used by the position sizer.
           </p>
         </div>
@@ -106,12 +119,12 @@ export default function SettingsPage() {
         <form onSubmit={handleSave} className="flex flex-col gap-4">
 
           <div className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col gap-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
+            <div className="text-xs uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
               Profile
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                 Display Name
               </label>
               <input
@@ -125,12 +138,12 @@ export default function SettingsPage() {
           </div>
 
           <div className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col gap-4">
-            <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
+            <div className="text-xs uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
               Risk Engine
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
+              <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
                 Account Size ($)
               </label>
               <div className="relative">
@@ -138,50 +151,71 @@ export default function SettingsPage() {
                 <input
                   type="number"
                   value={accountSize}
-                  onChange={e => setAccountSize(e.target.value)}
+                  onChange={e => { setAccountSize(e.target.value); if (errors.accountSize) setErrors(p => ({ ...p, accountSize: '' })); }}
+                  onBlur={validateAccountSize}
                   min="100"
                   max="50000000"
                   step="100"
-                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                  className={cn(
+                    'w-full bg-[var(--bg-input)] border rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition',
+                    errors.accountSize
+                      ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
+                      : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
+                  )}
                 />
               </div>
+              {errors.accountSize && <p className="text-[11px] text-[#FF3B5C] mt-0.5">{errors.accountSize}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+                <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Risk / Trade
                 </label>
                 <div className="relative">
                   <input
                     type="number"
                     value={maxRisk}
-                    onChange={e => setMaxRisk(e.target.value)}
+                    onChange={e => { setMaxRisk(e.target.value); if (errors.maxRisk) setErrors(p => ({ ...p, maxRisk: '' })); }}
+                    onBlur={validateMaxRisk}
                     min="0.1"
                     max="10"
                     step="0.1"
-                    className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                    className={cn(
+                      'w-full bg-[var(--bg-input)] border rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition',
+                      errors.maxRisk
+                        ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
+                        : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
+                    )}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[12px]">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-xs">%</span>
                 </div>
+                {errors.maxRisk && <p className="text-[11px] text-[#FF3B5C] mt-0.5">{errors.maxRisk}</p>}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
+                <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
                   Max Stop Distance
                 </label>
                 <div className="relative">
                   <input
                     type="number"
                     value={maxStop}
-                    onChange={e => setMaxStop(e.target.value)}
+                    onChange={e => { setMaxStop(e.target.value); if (errors.maxStop) setErrors(p => ({ ...p, maxStop: '' })); }}
+                    onBlur={validateMaxStop}
                     min="0.5"
                     max="25"
                     step="0.5"
-                    className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+                    className={cn(
+                      'w-full bg-[var(--bg-input)] border rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition',
+                      errors.maxStop
+                        ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
+                        : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
+                    )}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[12px]">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-xs">%</span>
                 </div>
+                {errors.maxStop && <p className="text-[11px] text-[#FF3B5C] mt-0.5">{errors.maxStop}</p>}
               </div>
             </div>
           </div>

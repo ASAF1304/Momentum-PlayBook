@@ -32,18 +32,18 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           <h1 className="text-[18px] font-extrabold text-zinc-100 mb-2">
             Something went wrong
           </h1>
-          <p className="text-[12px] text-zinc-500 mb-1">
+          <p className="text-xs text-zinc-500 mb-1">
             The app crashed unexpectedly.
           </p>
           {this.state.message && (
-            <p className="text-[11px] font-mono text-zinc-600 mb-5 px-3 py-2 rounded-[6px] bg-black/20 break-all">
+            <p className="text-xs font-mono text-zinc-600 mb-5 px-3 py-2 rounded-[6px] bg-black/20 break-all">
               {this.state.message}
             </p>
           )}
           <div className="flex flex-col gap-2.5">
             <button
               onClick={() => window.location.reload()}
-              className="w-full py-2.5 rounded-[10px] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black text-[12px] font-extrabold uppercase tracking-wider"
+              className="w-full py-2.5 rounded-[10px] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black text-xs font-extrabold uppercase tracking-wider"
             >
               Reload page
             </button>
@@ -52,7 +52,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
                 await clearAuthStorage();
                 window.location.replace('/login?reason=cleared');
               }}
-              className="w-full py-2.5 rounded-[10px] border border-white/[0.08] text-zinc-400 text-[12px] font-semibold hover:text-zinc-200 hover:border-white/20 transition-colors"
+              className="w-full py-2.5 rounded-[10px] border border-white/[0.08] text-zinc-400 text-xs font-semibold hover:text-zinc-200 hover:border-white/20 transition-colors"
             >
               Clear session &amp; go to login
             </button>

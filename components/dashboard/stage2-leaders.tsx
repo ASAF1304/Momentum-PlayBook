@@ -87,7 +87,7 @@ export function Stage2Leaders({ onSelectTicker }: Stage2LeadersProps) {
             <h2 className="text-[15px] font-bold tracking-tight text-[var(--text-primary)]">
               Stage 2 Leaders — Today&apos;s Strongest Setups
             </h2>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
               Stocks passing Minervini&apos;s Trend Template · Ranked by relative strength
             </p>
           </div>
@@ -99,7 +99,7 @@ export function Stage2Leaders({ onSelectTicker }: Stage2LeadersProps) {
           </div>
         </div>
         {formattedScan && (
-          <p className="text-[10px] text-[var(--text-faint)] mt-2 font-mono">
+          <p className="text-xs text-[var(--text-faint)] mt-2 font-mono">
             Last scan: {formattedScan}
           </p>
         )}
@@ -108,7 +108,7 @@ export function Stage2Leaders({ onSelectTicker }: Stage2LeadersProps) {
       {/* Body */}
       <div className="p-3">
         {loading ? (
-          <div className="flex items-center gap-2 py-8 px-2 text-[var(--text-faint)] text-[12px]">
+          <div className="flex items-center gap-2 py-8 px-2 text-[var(--text-faint)] text-xs">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />
             Loading leaders…
           </div>
@@ -171,13 +171,13 @@ function LeaderRow({
           {leader.ticker}
         </div>
         {leader.company && (
-          <div className="text-[10px] text-[var(--text-faint)] truncate">{leader.company}</div>
+          <div className="text-xs text-[var(--text-faint)] truncate">{leader.company}</div>
         )}
       </button>
 
       {/* Price */}
       <div className="text-right flex-shrink-0 w-16">
-        <div className="font-mono text-[12px] font-semibold text-[var(--text-dim)]">
+        <div className="font-mono text-xs font-semibold text-[var(--text-dim)]">
           {leader.price != null ? `$${leader.price.toFixed(2)}` : '—'}
         </div>
         {leader.market_cap && (
@@ -187,7 +187,7 @@ function LeaderRow({
 
       {/* Change % */}
       <div className={cn(
-        'flex items-center gap-0.5 font-mono text-[11px] font-semibold flex-shrink-0 w-14 justify-end',
+        'flex items-center gap-0.5 font-mono text-xs font-semibold flex-shrink-0 w-14 justify-end',
         isUp ? 'text-[#10F088]' : 'text-[#FF3B5C]',
       )}>
         {isUp
@@ -227,14 +227,14 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
   return (
     <div className="py-10 flex flex-col items-center text-center gap-3">
       <p className="text-[13px] font-semibold text-[var(--text-secondary)]">No leaders yet</p>
-      <p className="text-[11px] text-[var(--text-muted)] max-w-[280px]">
+      <p className="text-xs text-[var(--text-muted)] max-w-[280px]">
         The daily scan runs at 4:15 PM ET on trading days. Check back after market close,
         or trigger the scan manually.
       </p>
       <button
         type="button"
         onClick={onRefresh}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[var(--border-subtle)] text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-all"
       >
         <RefreshCw className="w-3 h-3" /> Refresh
       </button>

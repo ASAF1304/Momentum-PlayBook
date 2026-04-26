@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import {
@@ -75,6 +75,8 @@ function PlaybookInner() {
   const [fetchError,  setFetchError]  = useState<string | null>(null);
   const [slowLoad,    setSlowLoad]    = useState(false);
   const [showWhatIf,  setShowWhatIf]  = useState(false);
+  const tabScrollRef  = useRef<HTMLDivElement>(null);
+  const [tabFade, setTabFade] = useState({ left: false, right: false });
 
   useEffect(() => {
     if (!loading) { setSlowLoad(false); return; }
@@ -108,6 +110,20 @@ function PlaybookInner() {
   }, []);
 
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
+
+  useEffect(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    const update = () => setTabFade({
+      left:  el.scrollLeft > 0,
+      right: el.scrollLeft < el.scrollWidth - el.clientWidth - 1,
+    });
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
+  }, []);
 
   const openTrades  = useMemo(() => trades.filter(t => t.status === 'open' && !t.is_what_if), [trades]);
   const openTickers = useMemo(() => openTrades.map(t => t.ticker), [openTrades]);
@@ -193,7 +209,7 @@ function PlaybookInner() {
           <button
             type="button"
             onClick={() => setShowWhatIf(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-amber-500/15 border border-amber-500/30 text-amber-600 hover:bg-amber-500/25 hover:border-amber-500/50 transition-all text-[12px] font-bold uppercase tracking-wider flex-shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-amber-500/15 border border-amber-500/30 text-amber-600 hover:bg-amber-500/25 hover:border-amber-500/50 transition-all text-xs font-bold uppercase tracking-wider flex-shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             Log Off-System Trade
@@ -242,7 +258,7 @@ function PlaybookInner() {
                 <StatTile label="Win Rate"  sublabel="no closed trades yet" value="—" />
                 <StatTile label="Avg R"     sublabel="no closed trades yet" value="—" />
                 <StatTile label="Total PnL" sublabel="close a position to see stats" value="—" />
-                <p className="col-span-3 text-[11px] text-center text-[var(--text-faint)] -mt-1">
+                <p className="col-span-3 text-xs text-center text-[var(--text-faint)] -mt-1">
                   No closed trades yet — stats appear once you record one.
                 </p>
               </>
@@ -251,13 +267,20 @@ function PlaybookInner() {
         )}
 
         {/* Segmented control tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--tab-strip-bg)] mb-7 overflow-x-auto">
+        <div className="relative mb-7">
+          {tabFade.left && (
+            <div className="absolute left-0 top-0 bottom-0 w-8 rounded-l-xl bg-gradient-to-r from-[var(--tab-strip-bg)] to-transparent pointer-events-none z-10" />
+          )}
+          {tabFade.right && (
+            <div className="absolute right-0 top-0 bottom-0 w-8 rounded-r-xl bg-gradient-to-l from-[var(--tab-strip-bg)] to-transparent pointer-events-none z-10" />
+          )}
+        <div ref={tabScrollRef} className="flex items-center gap-1 p-1 rounded-xl bg-[var(--tab-strip-bg)] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TABS.map(t => (
             <Link
               key={t.key}
               href={t.href}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all whitespace-nowrap flex-shrink-0',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex-shrink-0',
                 filter === t.key
                   ? 'bg-[var(--tab-active-bg)] text-[var(--text-primary)] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
@@ -268,7 +291,7 @@ function PlaybookInner() {
               )}
               {t.label}
               <span className={cn(
-                'font-mono text-[10px] px-1.5 py-0.5 rounded-full tabular-nums',
+                'font-mono text-xs px-1.5 py-0.5 rounded-full tabular-nums',
                 filter === t.key
                   ? tabBadgeActive[t.key]
                   : 'bg-[var(--bg-elevated)] text-[var(--text-faint)]',
@@ -278,6 +301,7 @@ function PlaybookInner() {
             </Link>
           ))}
         </div>
+        </div>
 
         {/* Content */}
         {loading && (
@@ -286,7 +310,7 @@ function PlaybookInner() {
               <Loader2 className="w-5 h-5 animate-spin text-[#22D3EE]" />
               <span className="text-[13px] font-semibold">Loading trades…</span>
             </div>
-            {slowLoad && <p className="text-[11px] text-[var(--text-faint)]">Taking longer than usual — still trying…</p>}
+            {slowLoad && <p className="text-xs text-[var(--text-faint)]">Taking longer than usual — still trying…</p>}
           </div>
         )}
 
@@ -295,7 +319,7 @@ function PlaybookInner() {
             <div className="px-4 py-3 rounded-[10px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-[#FF3B5C] text-[13px] max-w-md">
               {fetchError}
             </div>
-            <button onClick={() => void fetchTrades()} className="text-[12px] font-semibold text-[#22D3EE] hover:underline uppercase tracking-wider">
+            <button onClick={() => void fetchTrades()} className="text-xs font-semibold text-[#22D3EE] hover:underline uppercase tracking-wider">
               Retry
             </button>
           </div>
@@ -359,7 +383,7 @@ function StatTile({
           )} />
         )}
       </div>
-      <div className="text-[10px] font-mono text-[var(--text-faint)] opacity-70">{sublabel}</div>
+      <div className="text-xs font-mono text-[var(--text-faint)] opacity-70">{sublabel}</div>
     </div>
   );
 }
@@ -412,13 +436,13 @@ function ClosedTradeCard({ trade }: { trade: Trade }) {
                 </span>
               )}
             </div>
-            <div className="text-[10px] font-mono text-[var(--text-faint)]">
+            <div className="text-xs font-mono text-[var(--text-faint)]">
               {entryDate}{exitDate ? ` → ${exitDate}` : ''}
             </div>
           </div>
 
           <div className={cn(
-            'flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-[6px] flex-shrink-0',
+            'flex items-center gap-1 text-xs font-extrabold uppercase tracking-wider px-2 py-1 rounded-[6px] flex-shrink-0',
             badgeCls,
           )}>
             {outcome === 'winner' && <Check className="w-2.5 h-2.5" strokeWidth={3} />}
@@ -428,7 +452,7 @@ function ClosedTradeCard({ trade }: { trade: Trade }) {
         </div>
 
         {/* Price grid */}
-        <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
           <div>
             <div className="text-[var(--text-faint)] mb-0.5 uppercase tracking-wider text-[9px]">Entry</div>
             <div className="text-[#22D3EE] font-semibold">${trade.phase1_price.toFixed(2)}</div>
@@ -468,7 +492,7 @@ function ClosedTradeCard({ trade }: { trade: Trade }) {
               </span>
             </div>
             {trade.r_multiple !== null && (
-              <span className={cn('font-mono text-[12px] font-bold', accentText)}>
+              <span className={cn('font-mono text-xs font-bold', accentText)}>
                 {trade.r_multiple >= 0 ? '+' : ''}{trade.r_multiple.toFixed(2)}R
               </span>
             )}
@@ -485,14 +509,14 @@ function ClosedTradeCard({ trade }: { trade: Trade }) {
               ? <Check className="w-2.5 h-2.5 text-[#10F088]" strokeWidth={4} />
               : <X     className="w-2.5 h-2.5 text-[#EF4444]" strokeWidth={4} />}
           </span>
-          <span className="text-[10px] text-[var(--text-muted)]">Trend Template</span>
+          <span className="text-xs text-[var(--text-muted)]">Trend Template</span>
         </div>
 
         {/* Partial exits mini-list */}
         {sells.length > 0 && (
           <div className="flex flex-col gap-1 border-t border-[var(--divider-dim)] pt-2.5">
             {sells.map((p, i) => (
-              <div key={p.id} className="flex items-center justify-between text-[10px] font-mono text-[var(--text-faint)]">
+              <div key={p.id} className="flex items-center justify-between text-xs font-mono text-[var(--text-faint)]">
                 <span>Exit {i + 1} · {p.shares} sh @ ${p.price.toFixed(2)}</span>
                 <span className={p.pnl_dollars >= 0 ? 'text-[#10F088]' : 'text-[#EF4444]'}>
                   {p.pnl_dollars >= 0 ? '+' : ''}${p.pnl_dollars.toFixed(0)}
@@ -504,7 +528,7 @@ function ClosedTradeCard({ trade }: { trade: Trade }) {
 
         {/* Notes */}
         {trade.notes && (
-          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed line-clamp-2 border-t border-[var(--border-subtle)] pt-2.5">
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-2 border-t border-[var(--border-subtle)] pt-2.5">
             {trade.notes}
           </p>
         )}
@@ -552,7 +576,7 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
                 </span>
               )}
             </div>
-            <div className="text-[10px] font-mono text-[var(--text-faint)]">{formatDate(trade.phase1_date)} · {daysIn}d in trade</div>
+            <div className="text-xs font-mono text-[var(--text-faint)]">{formatDate(trade.phase1_date)} · {daysIn}d in trade</div>
           </div>
 
           <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-[6px] bg-amber-400/15 text-amber-500 flex-shrink-0">
@@ -569,14 +593,14 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
             </span>
             {livePrice && (
               <span className={cn(
-                'font-mono text-[11px] font-semibold',
+                'font-mono text-xs font-semibold',
                 livePrice.changePct >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]',
               )}>
                 {livePrice.changePct >= 0 ? '+' : ''}{livePrice.changePct.toFixed(2)}%
               </span>
             )}
             {unrealizedPnL !== null && (
-              <span className={cn('font-mono text-[11px] font-semibold tabular-nums ml-auto',
+              <span className={cn('font-mono text-xs font-semibold tabular-nums ml-auto',
                 unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400',
               )}>
                 P&amp;L {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(0)}
@@ -586,7 +610,7 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
         )}
 
         {/* Entry details */}
-        <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
           <div>
             <div className="text-[var(--text-faint)] mb-0.5 uppercase tracking-wider text-[9px]">Entry</div>
             <div className="text-[#22D3EE] font-semibold">${trade.phase1_price.toFixed(2)}</div>
@@ -629,12 +653,12 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
               ? <Check className="w-2.5 h-2.5 text-[#10F088]" strokeWidth={4} />
               : <X     className="w-2.5 h-2.5 text-[#EF4444]" strokeWidth={4} />}
           </span>
-          <span className="text-[10px] text-[var(--text-muted)]">Trend Template</span>
+          <span className="text-xs text-[var(--text-muted)]">Trend Template</span>
         </div>
 
         <Link
           href="/journal"
-          className="text-center text-[11px] font-semibold text-[var(--text-muted)] hover:text-[#22D3EE] transition-colors mt-auto"
+          className="text-center text-xs font-semibold text-[var(--text-muted)] hover:text-[#22D3EE] transition-colors mt-auto"
         >
           Manage in Journal →
         </Link>
@@ -685,7 +709,7 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
                 </span>
               )}
             </div>
-            <div className="text-[10px] font-mono text-[var(--text-faint)]">
+            <div className="text-xs font-mono text-[var(--text-faint)]">
               {formatDate(trade.phase1_date)} · {trade.status === 'open' ? `${daysIn}d in trade` : 'closed'}
             </div>
           </div>
@@ -695,7 +719,7 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
         </div>
 
         {/* Price grid */}
-        <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
           <div>
             <div className="text-[var(--text-faint)] mb-0.5 uppercase tracking-wider text-[9px]">Entry</div>
             <div className="text-[#22D3EE] font-semibold">${trade.phase1_price.toFixed(2)}</div>
@@ -738,14 +762,14 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
             </div>
             <ul className="flex flex-col gap-0.5">
               {trade.failed_gates.map(g => (
-                <li key={g} className="flex items-start gap-1.5 text-[10px] text-[var(--text-dim)]">
+                <li key={g} className="flex items-start gap-1.5 text-xs text-[var(--text-dim)]">
                   <span className="w-1 h-1 rounded-full bg-[#EF4444]/60 flex-shrink-0 mt-[5px]" />
                   {GATE_LABELS[g] ?? g}
                 </li>
               ))}
             </ul>
             {trade.what_if_reason && (
-              <p className="text-[10px] text-[var(--text-muted)] italic mt-1.5 leading-snug">
+              <p className="text-xs text-[var(--text-muted)] italic mt-1.5 leading-snug">
                 "{trade.what_if_reason}"
               </p>
             )}
@@ -753,7 +777,7 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
         )}
 
         <div className="flex items-center gap-1.5 pt-0.5 border-t border-[var(--divider)] mt-auto">
-          <span className="text-[10px] text-amber-600 font-semibold">⚠ Not counted in system stats</span>
+          <span className="text-xs text-amber-600 font-semibold">⚠ Not counted in system stats</span>
         </div>
       </div>
     </div>
@@ -786,13 +810,13 @@ function ChartCard({ trade }: { trade: Trade }) {
         <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between">
           <span className="font-mono text-[15px] font-extrabold tracking-tight text-white">{trade.ticker}</span>
           {trade.pnl_pct !== null && (
-            <span className={cn('font-mono text-[12px] font-bold', trade.pnl_pct >= 0 ? 'text-[#10F088]' : 'text-[#EF4444]')}>
+            <span className={cn('font-mono text-xs font-bold', trade.pnl_pct >= 0 ? 'text-[#10F088]' : 'text-[#EF4444]')}>
               {trade.pnl_pct >= 0 ? '+' : ''}{trade.pnl_pct.toFixed(2)}%
             </span>
           )}
         </div>
       </div>
-      <div className="px-3 py-2 flex items-center gap-2 text-[10px] font-mono text-[var(--text-muted)]">
+      <div className="px-3 py-2 flex items-center gap-2 text-xs font-mono text-[var(--text-muted)]">
         <span>{formatDate(trade.phase1_date)}</span>
         {trade.setup_type && <span className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] text-[var(--text-secondary)]">{trade.setup_type}</span>}
         <span className={cn('ml-auto font-bold uppercase', outcomeText)}>
@@ -824,7 +848,7 @@ function EmptyState({ filter }: { filter: TabFilter }) {
       <p className="text-[13px] text-[var(--text-muted)] mb-6 max-w-[280px] leading-relaxed">{body}</p>
       <Link
         href="/journal"
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-[12px] uppercase tracking-[0.08em] hover:opacity-90 transition bg-[var(--text-primary)] text-[var(--bg-primary)]"
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-[0.08em] hover:opacity-90 transition bg-[var(--text-primary)] text-[var(--bg-primary)]"
       >
         Go to Journal
       </Link>
