@@ -16,6 +16,7 @@ import { GridOverlay } from '@/components/ui/grid-overlay';
 import { AddWhatIfModal } from '@/components/playbook/add-what-if-modal';
 import { supabase, type Trade, type TradeOutcome, type PartialExit } from '@/lib/supabase-client';
 import { useAuth } from '@/lib/auth-context';
+import { useLivePrices, type LivePrice } from '@/lib/use-live-prices';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -107,6 +108,10 @@ function PlaybookInner() {
   }, []);
 
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
+
+  const openTrades  = useMemo(() => trades.filter(t => t.status === 'open' && !t.is_what_if), [trades]);
+  const openTickers = useMemo(() => openTrades.map(t => t.ticker), [openTrades]);
+  const { prices: livePrices } = useLivePrices(openTickers);
 
   const stats = useMemo(() => {
     const allEvents = trades.flatMap(getExitEvents);
@@ -207,28 +212,38 @@ function PlaybookInner() {
         )}
 
         {/* Stats strip */}
-        {!loading && stats.closedCount > 0 && (
+        {!loading && (
           <div className="grid grid-cols-3 gap-5 mb-7">
-            <StatTile
-              label="Win Rate"
-              sublabel={`${stats.totalEvents} exit event${stats.totalEvents !== 1 ? 's' : ''}`}
-              value={stats.winRate !== null ? `${stats.winRate.toFixed(1)}%` : '—'}
-              positive={stats.winRate !== null && stats.winRate >= 50}
-            />
-            <StatTile
-              label="Avg R"
-              sublabel="realized exits only"
-              value={stats.avgR !== null ? `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R` : '—'}
-              positive={stats.avgR !== null && stats.avgR >= 0}
-            />
-            <StatTile
-              label="Total PnL"
-              sublabel={stats.openPartialPnL !== 0
-                ? `+$${stats.openPartialPnL.toFixed(0)} booked open`
-                : 'closed trades'}
-              value={`${stats.totalPnL >= 0 ? '+' : ''}$${Math.abs(stats.totalPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-              positive={stats.totalPnL >= 0}
-            />
+            {stats.closedCount > 0 ? (
+              <>
+                <StatTile
+                  label="Win Rate"
+                  sublabel={`${stats.totalEvents} exit event${stats.totalEvents !== 1 ? 's' : ''}`}
+                  value={stats.winRate !== null ? `${stats.winRate.toFixed(1)}%` : '—'}
+                  positive={stats.winRate !== null ? stats.winRate >= 50 : undefined}
+                />
+                <StatTile
+                  label="Avg R"
+                  sublabel="realized exits only"
+                  value={stats.avgR !== null ? `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R` : '—'}
+                  positive={stats.avgR !== null ? stats.avgR >= 0 : undefined}
+                />
+                <StatTile
+                  label="Total PnL"
+                  sublabel={stats.openPartialPnL !== 0
+                    ? `+$${stats.openPartialPnL.toFixed(0)} booked open`
+                    : 'closed trades'}
+                  value={`${stats.totalPnL >= 0 ? '+' : ''}$${Math.abs(stats.totalPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  positive={stats.totalPnL >= 0}
+                />
+              </>
+            ) : (
+              <>
+                <StatTile label="Win Rate"  sublabel="no closed trades yet" value="—" />
+                <StatTile label="Avg R"     sublabel="no closed trades yet" value="—" />
+                <StatTile label="Total PnL" sublabel="close a position to see stats" value="—" />
+              </>
+            )}
           </div>
         )}
 
@@ -301,7 +316,7 @@ function PlaybookInner() {
               trade.is_what_if
                 ? <WhatIfTradeCard key={trade.id} trade={trade} />
                 : trade.status === 'open'
-                  ? <LiveTradeCard key={trade.id} trade={trade} />
+                  ? <LiveTradeCard key={trade.id} trade={trade} livePrice={livePrices[trade.ticker]} />
                   : <ClosedTradeCard key={trade.id} trade={trade} />
             )}
           </div>
@@ -315,7 +330,8 @@ function PlaybookInner() {
 
 function StatTile({
   label, sublabel, value, positive,
-}: { label: string; sublabel: string; value: string; positive: boolean }) {
+}: { label: string; sublabel: string; value: string; positive?: boolean }) {
+  const hasData = value !== '—';
   return (
     <div
       className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
@@ -325,13 +341,19 @@ function StatTile({
         {label}
       </div>
       <div className="flex items-center gap-2.5 mb-1">
-        <span className="font-mono text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">
+        <span className={cn(
+          'font-mono text-3xl font-extrabold tracking-tight tabular-nums',
+          !hasData || positive === undefined ? 'text-[var(--text-primary)]'
+            : positive ? 'text-emerald-400' : 'text-red-400',
+        )}>
           {value}
         </span>
-        <span className={cn(
-          'w-2 h-2 rounded-full flex-shrink-0',
-          positive ? 'bg-[#10F088]' : 'bg-[#EF4444]',
-        )} />
+        {hasData && positive !== undefined && (
+          <span className={cn(
+            'w-2 h-2 rounded-full flex-shrink-0',
+            positive ? 'bg-[#10F088]' : 'bg-[#EF4444]',
+          )} />
+        )}
       </div>
       <div className="text-[10px] font-mono text-[var(--text-faint)] opacity-70">{sublabel}</div>
     </div>
@@ -489,7 +511,7 @@ function ClosedTradeCard({ trade }: { trade: Trade }) {
 
 // ── LiveTradeCard ──────────────────────────────────────────────────────────────
 
-function LiveTradeCard({ trade }: { trade: Trade }) {
+function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePrice }) {
   const sells           = getSells(trade);
   const buys            = getBuys(trade);
   const bookedPnL       = sells.reduce((s, p) => s + p.pnl_dollars, 0);
@@ -498,6 +520,9 @@ function LiveTradeCard({ trade }: { trade: Trade }) {
     + buys.reduce((s, p)  => s + p.shares, 0)
     - sells.reduce((s, p) => s + p.shares, 0);
   const daysIn = Math.floor((Date.now() - new Date(trade.phase1_date).getTime()) / 86_400_000);
+
+  const currentPrice   = livePrice?.price ?? null;
+  const unrealizedPnL  = currentPrice != null ? (currentPrice - trade.phase1_price) * sharesRemaining : null;
 
   return (
     <div
@@ -531,6 +556,30 @@ function LiveTradeCard({ trade }: { trade: Trade }) {
             Live
           </div>
         </div>
+
+        {/* Live price row */}
+        {currentPrice != null && (
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-[15px] font-extrabold text-[var(--text-primary)]">
+              ${currentPrice.toFixed(2)}
+            </span>
+            {livePrice && (
+              <span className={cn(
+                'font-mono text-[11px] font-semibold',
+                livePrice.changePct >= 0 ? 'text-[#10F088]' : 'text-[#FF3B5C]',
+              )}>
+                {livePrice.changePct >= 0 ? '+' : ''}{livePrice.changePct.toFixed(2)}%
+              </span>
+            )}
+            {unrealizedPnL !== null && (
+              <span className={cn('font-mono text-[11px] font-semibold tabular-nums ml-auto',
+                unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400',
+              )}>
+                P&amp;L {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(0)}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Entry details */}
         <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">

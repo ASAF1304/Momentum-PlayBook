@@ -14,6 +14,7 @@
 
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+  type ReactNode,
 } from 'react';
 import {
   AlertTriangle, BookOpen, Calendar, Check, Clock, Info,
@@ -378,7 +379,7 @@ export function ChecklistCard({ className }: { className?: string }) {
 
       {/* Auto-computed Minervini gates */}
       {data && (
-        <div>
+        <div className="animate-[fade-in_300ms_ease_both]">
           <SectionLabel text="Auto-Computed Checks" aside="from live market data" />
           {dataQuality === 'insufficient' && !insufficientDismissed && (
             <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-[8px] bg-amber-500/[0.07] border border-amber-500/25 text-[11px] text-amber-600">
@@ -394,11 +395,18 @@ export function ChecklistCard({ className }: { className?: string }) {
               gateKey="above_ath_avwap"
               value={autoGates.above_ath_avwap}
               label="Price above ATH-anchored AVWAP"
-              helperLine={(() => {
-                if (!data.ath_avwap) return undefined;
-                const diff = ((data.price.last - data.ath_avwap) / data.ath_avwap) * 100;
-                return `Price $${data.price.last.toFixed(2)} vs ATH AVWAP $${data.ath_avwap.toFixed(2)} (${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%)`;
-              })()}
+              helperLine={data.ath_avwap != null ? (() => {
+                const diff = ((data.price.last - data.ath_avwap!) / data.ath_avwap!) * 100;
+                return (
+                  <>
+                    Price{' '}
+                    <span className="tabular-nums">${data.price.last.toFixed(2)}</span>
+                    {' '}vs ATH AVWAP{' '}
+                    <span className="tabular-nums">${data.ath_avwap!.toFixed(2)}</span>
+                    {' '}(<PctSpan value={diff} />)
+                  </>
+                );
+              })() : undefined}
               lowConfidence={data.ath_avwap_low_confidence}
             />
             <AutoComputedGateRow
@@ -406,7 +414,7 @@ export function ChecklistCard({ className }: { className?: string }) {
               value={autoGates.near_52wh}
               label="Within 25% of 52-week high"
               helperLine={data.distance_from_52wh_pct !== null
-                ? `Distance from 52W high: ${data.distance_from_52wh_pct.toFixed(1)}%`
+                ? <>Distance from 52W high: <PctSpan value={data.distance_from_52wh_pct} /></>
                 : undefined}
             />
             <AutoComputedGateRow
@@ -414,7 +422,7 @@ export function ChecklistCard({ className }: { className?: string }) {
               value={autoGates.above_52wl}
               label="At least 30% above 52-week low"
               helperLine={data.distance_from_52wl_pct !== null
-                ? `Distance from 52W low: +${data.distance_from_52wl_pct.toFixed(1)}%`
+                ? <>Distance from 52W low: <PctSpan value={data.distance_from_52wl_pct} /></>
                 : undefined}
             />
           </div>
@@ -432,9 +440,12 @@ export function ChecklistCard({ className }: { className?: string }) {
               <button
                 key={gate.key}
                 type="button"
+                role="checkbox"
+                aria-checked={checked}
                 onClick={() => toggleGate(gate.key)}
                 className={cn(
                   'flex items-start gap-3 px-3 py-2.5 border rounded-[9px] text-left transition-all',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22D3EE]/50',
                   checked
                     ? 'bg-[#10F088]/[0.05] border-[#10F088]/25'
                     : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:border-[var(--border-hover)]',
@@ -654,13 +665,39 @@ export function SizerCard({ className }: { className?: string }) {
 // Private sub-components
 // ══════════════════════════════════════════════════════════════════════════════
 
+function PctSpan({ value }: { value: number }) {
+  const sign    = value >= 0 ? '+' : '';
+  const colorCn = value < 0 ? 'text-red-400' : 'text-emerald-400';
+  return (
+    <span className={cn('tabular-nums font-semibold', colorCn)}>
+      {sign}{value.toFixed(1)}%
+    </span>
+  );
+}
+
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <span tabIndex={0} aria-label={text} className="cursor-help">
+        <Info className="w-3 h-3 text-amber-400 flex-shrink-0" />
+      </span>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[200px] px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-[10px] text-zinc-200 leading-snug opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 z-50 whitespace-normal"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
 function AutoComputedGateRow({
   gateKey, value, label, helperLine, lowConfidence,
 }: {
   gateKey: AutoGateKey;
   value: boolean | null;
   label: string;
-  helperLine?: string;
+  helperLine?: ReactNode;
   lowConfidence?: boolean;
 }) {
   const state = value === null ? 'insufficient' : value ? 'pass' : 'fail';
@@ -693,16 +730,16 @@ function AutoComputedGateRow({
         )}>
           {label}
           {lowConfidence && (
-            <span title="Low confidence — fewer than 20 bars since ATH">
-              <Info className="w-3 h-3 text-amber-400 flex-shrink-0" />
-            </span>
+            <InfoTooltip text="Low confidence — fewer than 20 bars since ATH" />
           )}
         </div>
         {helperLine && (
-          <div className="text-[10px] text-[var(--text-faint)] leading-snug mt-0.5">{helperLine}</div>
+          <div className="text-[12px] font-semibold text-zinc-200 leading-snug mt-1">
+            {helperLine}
+          </div>
         )}
         {state === 'insufficient' && !helperLine && (
-          <div className="text-[10px] text-[var(--text-faint)] leading-snug mt-0.5">Needs 1+ year of price history</div>
+          <div className="text-[11px] text-[var(--text-faint)] leading-snug mt-0.5">Needs 1+ year of price history</div>
         )}
       </div>
     </div>

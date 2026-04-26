@@ -283,12 +283,16 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
   const { passed, checks } = data.trendTemplate;
 
   const emaChecks = [
-    { label: 'Price > 20-EMA',  ok: checks.priceAboveEMA20.passed  },
-    { label: 'Price > 50-EMA',  ok: checks.priceAboveEMA50.passed  },
-    { label: 'Price > 150-EMA', ok: checks.priceAboveEMA150.passed },
-    { label: 'Price > 200-EMA', ok: checks.priceAboveEMA200.passed },
-    { label: '50 > 150-EMA',    ok: checks.ema50AboveEma150.passed },
-    { label: '200-EMA rising',  ok: checks.ema200Uptrending.passed },
+    { label: 'Price > 20-EMA',   ok: checks.priceAboveEMA20.passed   },
+    { label: 'Price > 50-EMA',   ok: checks.priceAboveEMA50.passed   },
+    { label: 'Price > 150-EMA',  ok: checks.priceAboveEMA150.passed  },
+    { label: 'Price > 200-EMA',  ok: checks.priceAboveEMA200.passed  },
+    { label: '50 > 150-EMA',     ok: checks.ema50AboveEma150.passed  },
+    { label: '200-EMA rising',   ok: checks.ema200Uptrending.passed  },
+    { label: '150 > 200-EMA',    ok: checks.ema150AboveEma200.passed },
+    { label: '50-EMA > 200-SMA', ok: checks.ema50AboveSma200.passed  },
+    { label: 'Within 25% of hi', ok: checks.closeTo52wHigh.passed    },
+    { label: '30%+ above low',   ok: checks.farFrom52wLow.passed     },
   ];
 
   const passCount = emaChecks.filter(c => c.ok).length;
@@ -337,18 +341,28 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
             Checks
           </div>
           <div className="font-mono text-[14px] font-bold text-[var(--text-dim)]">
-            {passCount}/{emaChecks.length}
+            {passCount}/10
           </div>
         </div>
       </div>
 
-      {/* 52W range */}
+      {/* 52W range + ATH AVWAP */}
       <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
         {[
           { label: '52W High',  val: `$${data.range52w.high.toFixed(2)}` },
           { label: '52W Low',   val: `$${data.range52w.low.toFixed(2)}`  },
           { label: 'From High', val: `${data.range52w.distanceFromHigh.toFixed(1)}%` },
           { label: 'From Low',  val: `+${data.range52w.distanceFromLow.toFixed(1)}%` },
+          ...(data.ath_avwap != null ? [
+            { label: 'ATH AVWAP', val: `$${data.ath_avwap.toFixed(2)}` },
+            {
+              label: 'vs AVWAP',
+              val: (() => {
+                const pct = ((data.price.last - data.ath_avwap!) / data.ath_avwap!) * 100;
+                return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+              })(),
+            },
+          ] : []),
         ].map(({ label, val }) => (
           <div key={label} className="flex flex-col gap-0.5 p-2 rounded-[6px] bg-[var(--bg-elevated)]">
             <span className="text-[var(--text-faint)] text-[8px] uppercase tracking-wider">{label}</span>
@@ -357,7 +371,7 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
         ))}
       </div>
 
-      {/* Collapsible EMA checks */}
+      {/* Collapsible: all 10 Trend Template checks */}
       <div>
         <button
           type="button"
@@ -367,7 +381,7 @@ function TickerSnapshot({ data }: { data: TickerResponse }) {
           {showDetails
             ? <ChevronUp className="w-3 h-3" />
             : <ChevronDown className="w-3 h-3" />}
-          {showDetails ? 'Hide details' : 'Show EMA details'}
+          {showDetails ? 'Hide details' : `All 10 checks (${passCount}/10)`}
         </button>
 
         {showDetails && (

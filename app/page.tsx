@@ -321,7 +321,13 @@ function StatCard({ label, value, positive, negative }: {
         {label}
       </div>
       <div className="flex items-center gap-2">
-        <span className="font-mono text-[22px] font-extrabold tracking-tight tabular-nums text-[var(--text-primary)]">
+        <span className={cn(
+          'font-mono text-[22px] font-extrabold tracking-tight tabular-nums',
+          positive === true ? 'text-emerald-400'
+            : negative === true ? 'text-red-400'
+            : positive === false ? 'text-zinc-400'
+            : 'text-[var(--text-primary)]',
+        )}>
           {value}
         </span>
         {positive !== undefined && value !== '—' && (
@@ -439,7 +445,7 @@ function PositionCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePric
         {unrealizedPnL !== null && (
           <>
             <span className="text-[var(--border-hover)]">·</span>
-            <span className={unrealizedPnL >= 0 ? 'text-[#10F088]/70' : 'text-red-500/70'}>
+            <span className={cn('tabular-nums', unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400')}>
               P&amp;L {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(0)}
             </span>
           </>
