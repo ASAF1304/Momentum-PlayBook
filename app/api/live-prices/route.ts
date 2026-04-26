@@ -4,8 +4,9 @@
 // Uses yahoo-finance2 .quote() — current-day data only, much faster than .chart().
 // Concurrent per-ticker fetches with Promise.allSettled so one failure doesn't block others.
 
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import YahooFinance from 'yahoo-finance2';
+import { checkLimit, getWriteLimiter } from '@/lib/rate-limit';
 
 const yf = new YahooFinance();
 
@@ -22,7 +23,17 @@ export interface LivePricesResponse {
   fetchedAt: string;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Rate limit: 60 req / 60s per IP
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon';
+  const limit = await checkLimit(getWriteLimiter(), `live-prices:${ip}`);
+  if (!limit.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, {
+      status: 429,
+      headers: { 'Retry-After': String(limit.retryAfter ?? 60) },
+    });
+  }
+
   let body: { tickers?: unknown };
   try {
     body = await request.json() as { tickers?: unknown };

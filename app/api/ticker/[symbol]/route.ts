@@ -3,9 +3,10 @@
 // GET /api/ticker/NVDA — returns fully-analyzed ticker data.
 // All moving averages labeled as EMA (Asaf's methodology).
 
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { getMarketData, MarketDataError, type MarketData } from '@/lib/market-data';
 import { analyzeStops, type StopAnalysis } from '@/lib/stop-calculator';
+import { checkLimit, getTickerLimiter } from '@/lib/rate-limit';
 
 export interface TickerResponse {
   ticker: string;
@@ -75,9 +76,19 @@ export interface TickerErrorResponse {
 }
 
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ symbol: string }> },
 ) {
+  // Rate limit: 30 req / 60s per IP
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon';
+  const limit = await checkLimit(getTickerLimiter(), `ticker:${ip}`);
+  if (!limit.allowed) {
+    return NextResponse.json<TickerErrorResponse>(
+      { error: 'Too many requests. Please wait before retrying.', code: 'rate_limit', retryable: true },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfter ?? 60) } },
+    );
+  }
+
   const { symbol } = await params;
   const _t0 = Date.now();
 
