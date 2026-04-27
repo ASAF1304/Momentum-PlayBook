@@ -22,6 +22,7 @@ export interface RawTransaction {
   fees:     number;
   currency: 'USD' | 'ILS';
   isShort:  boolean;
+  pnl?:     number;   // realized P&L from file (Meitav sell rows only)
 }
 
 export interface PartialRecord {
@@ -203,16 +204,18 @@ interface ColumnMap {
   price:    string;
   date:     string;
   fees?:    string;
+  pnl?:     string;
 }
 
 const BROKER_COLUMNS: Record<BrokerFormat, ColumnMap> = {
   meitav: {
     ticker:   'סימול',
-    action:   'סוג פעולה',
+    action:   'פעולה',
     quantity: 'כמות',
     price:    'מחיר',
     date:     'תאריך',
     fees:     'עמלה',
+    pnl:      'P&L',
   },
   ibi: {
     ticker:   'Symbol',
@@ -278,6 +281,7 @@ function mapToTransactions(
       const priceCol    = findCol(row, colMap.price);
       const dateCol     = findCol(row, colMap.date);
       const feesCol     = colMap.fees ? findCol(row, colMap.fees) : null;
+      const pnlCol      = colMap.pnl  ? findCol(row, colMap.pnl)  : null;
 
       if (!tickerCol || !actionCol || !quantityCol || !priceCol || !dateCol) {
         skippedRows++;
@@ -307,7 +311,15 @@ function mapToTransactions(
       const date = normaliseDate(rawDate, format);
       if (!date) { skippedRows++; continue; }
 
-      transactions.push({ ticker: rawTicker, action, quantity, price, date, fees, currency: 'USD', isShort });
+      // Extract realized P&L from file (only meaningful on Meitav sell rows)
+      let pnl: number | undefined;
+      if (pnlCol) {
+        const rawPnl = row[pnlCol]?.replace(/[,$₪\s]/g, '') ?? '';
+        const parsed = parseFloat(rawPnl);
+        if (isFinite(parsed) && parsed !== 0) pnl = parsed;
+      }
+
+      transactions.push({ ticker: rawTicker, action, quantity, price, date, fees, currency: 'USD', isShort, pnl });
     } catch {
       skippedRows++;
     }
@@ -330,9 +342,10 @@ function normaliseAction(raw: string, format: BrokerFormat): { action: 'buy' | '
   }
 
   // ── Meitav Hebrew ─────────────────────────────────────────────────────────
+  // קניה / קניה לכיסוי → buy   |   מכירה / מכירה לכיסוי / שורט → sell
   if (format === 'meitav') {
-    if (s.includes('קני') || s.includes('buy'))  return { action: 'buy',  isShort: false };
-    if (s.includes('מכיר') || s.includes('sell')) return { action: 'sell', isShort: false };
+    if (s.includes('קני')  || s.includes('buy'))  return { action: 'buy',  isShort: false };
+    if (s.includes('מכיר') || s.includes('שורט') || s.includes('sell')) return { action: 'sell', isShort: false };
     return null;
   }
 

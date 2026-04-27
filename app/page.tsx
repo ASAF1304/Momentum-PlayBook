@@ -18,6 +18,7 @@ import { useLivePrices, type LivePrice }                   from '@/lib/use-live-
 import { computeWinRate }                                  from '@/lib/stats/win-rate';
 import {
   type Period,
+  getPeriodStart,
   filterClosedByPeriod,
   computeMaxDrawdown,
   computeAvgWinLoss,
@@ -106,6 +107,31 @@ export default function Dashboard() {
   const equityDelta    = dashStats.realizedPnL + unrealizedPnL;
   const accountEquity  = accountSize + equityDelta;
   const equityDeltaPct = accountSize > 0 ? (equityDelta / accountSize) * 100 : 0;
+
+  const monthlyStats = useMemo(() => {
+    const periodStart = getPeriodStart(period);
+    const months = new Map<string, { pnl: number; wins: number; losses: number }>();
+    for (const t of trades) {
+      if (t.status === 'open' || !t.exit_date || t.pnl_dollars === null) continue;
+      if (periodStart && t.exit_date < periodStart) continue;
+      const key = t.exit_date.slice(0, 7); // YYYY-MM
+      if (!months.has(key)) months.set(key, { pnl: 0, wins: 0, losses: 0 });
+      const m = months.get(key)!;
+      m.pnl += t.pnl_dollars;
+      if (t.pnl_dollars >  0.005) m.wins++;
+      if (t.pnl_dollars < -0.005) m.losses++;
+    }
+    return [...months.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, d]) => ({
+        month,
+        label: new Date(`${month}-15`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        pnl:     d.pnl,
+        wins:    d.wins,
+        losses:  d.losses,
+        winRate: (d.wins + d.losses) > 0 ? (d.wins / (d.wins + d.losses)) * 100 : null,
+      }));
+  }, [trades, period]);
 
   const playbookCounts = useMemo(() => ({
     winners:    trades.filter(t => !t.is_what_if && t.outcome === 'winner').length,
@@ -316,6 +342,11 @@ export default function Dashboard() {
             negative={dashStats.winLoss.ratio !== null && dashStats.winLoss.ratio < 1}
           />
         </div>
+
+        {/* ── Monthly Performance ───────────────────────────────────────────── */}
+        {monthlyStats.length > 0 && (
+          <MonthlyPerformance data={monthlyStats} />
+        )}
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
         <ValidatorProvider
@@ -642,6 +673,107 @@ function PositionsEmptyState() {
       <p className="text-xs text-[var(--text-muted)]">
         Log a trade using the validator or add manually.
       </p>
+    </div>
+  );
+}
+
+// ── MonthlyPerformance ──────────────────────────────────────────────────────────
+
+interface MonthlyData {
+  month:   string;
+  label:   string;
+  pnl:     number;
+  wins:    number;
+  losses:  number;
+  winRate: number | null;
+}
+
+function MonthlyPerformance({ data }: { data: MonthlyData[] }) {
+  const maxAbs = Math.max(...data.map(d => Math.abs(d.pnl)), 1);
+
+  return (
+    <div
+      className="mb-7 p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+      style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
+    >
+      <h2 className="text-[13px] font-bold tracking-tight text-[var(--text-primary)] mb-4">
+        Monthly Performance
+      </h2>
+
+      {/* Bar chart */}
+      <div className="flex gap-[3px] overflow-x-auto pb-1 mb-4" style={{ minHeight: 100 }}>
+        {data.map(m => {
+          const frac = Math.abs(m.pnl) / maxAbs;
+          const isPos = m.pnl >= 0;
+          const barPct = Math.max(frac * 100, 2);
+          return (
+            <div
+              key={m.month}
+              className="flex flex-col items-center gap-0 flex-shrink-0"
+              style={{ minWidth: 28 }}
+              title={`${m.label}: ${isPos ? '+' : ''}$${Math.round(m.pnl).toLocaleString('en-US')} (${m.wins}W / ${m.losses}L)`}
+            >
+              {/* Top half — positive bars grow upward from center */}
+              <div className="flex items-end justify-center w-full" style={{ height: 48 }}>
+                {isPos && (
+                  <div
+                    className="w-4 rounded-t-sm bg-emerald-400/80"
+                    style={{ height: `${barPct}%` }}
+                  />
+                )}
+              </div>
+              {/* Zero line */}
+              <div className="w-full h-px bg-[var(--border-subtle)]" />
+              {/* Bottom half — negative bars grow downward from center */}
+              <div className="flex items-start justify-center w-full" style={{ height: 48 }}>
+                {!isPos && (
+                  <div
+                    className="w-4 rounded-b-sm bg-red-400/80"
+                    style={{ height: `${barPct}%` }}
+                  />
+                )}
+              </div>
+              <span className="text-[7px] font-mono text-[var(--text-faint)] mt-1 leading-none">
+                {m.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Table */}
+      <table className="w-full text-xs font-mono border-collapse">
+        <thead>
+          <tr>
+            {['Month', 'P&L', 'Wins', 'Losses', 'Win Rate'].map(h => (
+              <th
+                key={h}
+                className={cn(
+                  'text-[9px] uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)] pb-1.5',
+                  h === 'Month' ? 'text-left' : 'text-right',
+                )}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[...data].reverse().map(m => (
+            <tr key={m.month} className="border-t border-[var(--divider)]">
+              <td className="py-1 text-[var(--text-muted)]">{m.label}</td>
+              <td className={cn('py-1 text-right font-bold tabular-nums', m.pnl >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                {m.pnl >= 0 ? '+' : ''}${Math.round(Math.abs(m.pnl)).toLocaleString('en-US')}
+              </td>
+              <td className="py-1 text-right text-[var(--text-muted)] tabular-nums">{m.wins}</td>
+              <td className="py-1 text-right text-[var(--text-muted)] tabular-nums">{m.losses}</td>
+              <td className="py-1 text-right text-[var(--text-muted)] tabular-nums">
+                {m.winRate !== null ? `${m.winRate.toFixed(0)}%` : '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

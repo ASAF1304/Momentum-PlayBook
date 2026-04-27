@@ -88,7 +88,7 @@ export function groupToTrades(
   const trades: ImportedTrade[] = [];
   let skippedCount = 0;
 
-  for (const { ticker, action, quantity, price, date, isShort = false } of sorted) {
+  for (const { ticker, action, quantity, price, date, isShort = false, pnl: txPnl } of sorted) {
 
     // ── Deduplication: skip if this exact transaction is already in the DB ────
     const sig = `${ticker}|${date}|${price.toFixed(2)}|${quantity}|${action}`;
@@ -196,12 +196,15 @@ export function groupToTrades(
       }
 
       const sellShares = Math.min(quantity, open.shares);
-      // Short: profit when price falls (avgCost − price); Long: profit when price rises
-      const pnlDollars = open.isShort
-        ? (open.avgCost - price) * sellShares
-        : (price - open.avgCost) * sellShares;
+      // Prefer the realized P&L supplied directly by the broker file (Meitav).
+      // Fall back to price-based calculation for formats that don't supply it.
+      const pnlDollars = txPnl !== undefined
+        ? txPnl
+        : open.isShort
+          ? (open.avgCost - price) * sellShares
+          : (price - open.avgCost) * sellShares;
       const pnlPct    = open.avgCost > 0
-        ? (open.isShort ? (open.avgCost - price) / open.avgCost : (price - open.avgCost) / open.avgCost) * 100
+        ? (pnlDollars / (open.avgCost * sellShares)) * 100
         : 0;
       const riskPerSh = open.isShort
         ? Math.max(0, open.initial_stop - open.avgCost)   // short risk: stop above entry

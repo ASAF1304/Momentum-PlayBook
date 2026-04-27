@@ -81,6 +81,10 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
   const [importProgress,    setImportProgress]   = useState(0);
   const [expandedId,        setExpandedId]       = useState<string | null>(null);
 
+  // Re-import (clean slate) state
+  const [resetMode,             setResetMode]            = useState(false);
+  const [showReimportConfirm,   setShowReimportConfirm]  = useState(false);
+
   // Existing positions loaded from DB (for cross-file continuity)
   const existingPositionsRef  = useRef<Map<string, ExistingPosition>>(new Map());
   const existingSignaturesRef = useRef<Set<string>>(new Set());
@@ -286,6 +290,17 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
     setImporting(true);
     setStep('importing');
     setImportProgress(0);
+
+    // Clean-slate re-import: delete all existing trades first
+    if (resetMode) {
+      const { error: delErr } = await supabase.from('trades').delete().eq('user_id', userId);
+      if (delErr) {
+        toast({ title: 'Delete failed', body: delErr.message, variant: 'error' });
+        setImporting(false);
+        setStep('preview');
+        return;
+      }
+    }
 
     const brokerLabel  = BROKER_LABELS[detectedFormat ?? 'generic'];
     const importedNote = `Imported from ${brokerLabel} on ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
@@ -501,6 +516,49 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                 </p>
               </div>
 
+              {/* Re-import: clean-slate option */}
+              {!showReimportConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowReimportConfirm(true)}
+                  className="self-start text-xs font-semibold text-red-400/80 hover:text-red-400 border border-red-400/30 hover:border-red-400/60 px-3 py-1.5 rounded-[8px] transition-all"
+                >
+                  Delete all trades &amp; re-import from scratch
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2.5 px-3.5 py-3 rounded-[10px] bg-red-500/[0.07] border border-red-500/30">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-400 leading-relaxed">
+                      <strong>This will permanently delete ALL your existing trades</strong> — manually logged and imported — then re-import from the selected file. This cannot be undone.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowReimportConfirm(false)}
+                      className="flex-1 py-2 rounded-[8px] border border-[var(--border-strong)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Clear existing positions — clean slate parse (no merging)
+                        existingPositionsRef.current  = new Map();
+                        existingSignaturesRef.current = new Set();
+                        setResetMode(true);
+                        setShowReimportConfirm(false);
+                        fileRef.current?.click();
+                      }}
+                      className="flex-[2] py-2 rounded-[8px] bg-red-500/20 border border-red-500/40 text-xs font-extrabold text-red-400 hover:bg-red-500/30 hover:border-red-500/60 transition-all uppercase tracking-wider"
+                    >
+                      Yes, delete all &amp; re-import
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="sr-only"
                 onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} />
             </div>
@@ -670,9 +728,15 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
         {step === 'preview' && (
           <div className="px-5 py-4 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3 flex-shrink-0 bg-[var(--bg-modal)]">
             <span className="text-xs text-[var(--text-muted)]">
-              <span className="font-bold text-[var(--text-secondary)]">{selectedCount}</span> of {totalPreviewItems} selected
-              {dupSkipped > 0 && (
-                <span className="text-[var(--text-faint)] ml-2">· {dupSkipped} duplicate{dupSkipped !== 1 ? 's' : ''} auto-skipped</span>
+              {resetMode ? (
+                <span className="text-red-400 font-semibold">⚠ Will delete all existing trades first</span>
+              ) : (
+                <>
+                  <span className="font-bold text-[var(--text-secondary)]">{selectedCount}</span> of {totalPreviewItems} selected
+                  {dupSkipped > 0 && (
+                    <span className="text-[var(--text-faint)] ml-2">· {dupSkipped} duplicate{dupSkipped !== 1 ? 's' : ''} auto-skipped</span>
+                  )}
+                </>
               )}
             </span>
             <div className="flex gap-2.5">

@@ -34,6 +34,7 @@ interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  profileLoading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -42,14 +43,16 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   profile: null,
   loading: true,
+  profileLoading: false,
   signOut: async () => {},
   refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user,    setUser]    = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user,           setUser]           = useState<User | null>(null);
+  const [profile,        setProfile]        = useState<UserProfile | null>(null);
+  const [loading,        setLoading]        = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const inFlight   = useRef(false);
   const isResolved = useRef(false); // tracks whether auth has resolved (for timeout)
 
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (inFlight.current) return;
     inFlight.current = true;
+    setProfileLoading(true);
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -85,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[AUTH-FAIL] fetchProfile threw:', err);
     } finally {
       inFlight.current = false;
+      setProfileLoading(false);
     }
   }, []);
 
@@ -155,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, fetchProfile]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, profileLoading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

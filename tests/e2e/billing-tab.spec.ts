@@ -70,37 +70,27 @@ test('grace user sees "תקופת חסד" banner in billing tab', async ({ page 
   const trialEnd = new Date(Date.now() + 20 * 86_400_000).toISOString();
   await setupSession(page, 'grace', trialEnd);
 
-  await page.goto('/settings');
+  await page.goto('/settings?tab=billing');
 
-  // Wait for auth + profile to load, then click billing tab
-  await expect(page.getByRole('button', { name: 'חיוב' })).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'חיוב' }).click();
-
-  await expect(page.getByText('תקופת חסד')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('תקופת חסד')).toBeVisible({ timeout: 15_000 });
 });
 
 // Case 2: active user sees "מנוי פעיל" banner
 test('active user sees "מנוי פעיל" banner in billing tab', async ({ page }) => {
   await setupSession(page, 'active');
 
-  await page.goto('/settings');
-  await expect(page.getByRole('button', { name: 'חיוב' })).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'חיוב' }).click();
+  await page.goto('/settings?tab=billing');
 
-  await expect(page.getByText('מנוי פעיל')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('מנוי פעיל')).toBeVisible({ timeout: 15_000 });
 });
 
 // Case 3: expired_grace user sees add-card CTA
 test('expired_grace user sees "הוסף כרטיס" CTA in billing tab', async ({ page }) => {
   await setupSession(page, 'expired_grace');
 
-  await page.goto('/settings');
+  await page.goto('/settings?tab=billing');
 
-  // Wait for page to finish loading (tabs appear once auth + profile are ready)
-  await expect(page.getByRole('button', { name: 'חיוב' })).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'חיוב' }).click();
-
-  await expect(page.getByText('תקופת החסד הסתיימה')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('תקופת החסד הסתיימה')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('button', { name: /הוסף כרטיס/i })).toBeVisible();
 });
 

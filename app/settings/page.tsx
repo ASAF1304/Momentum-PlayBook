@@ -239,7 +239,7 @@ function BillingBtn({
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, loading, profileLoading, refreshProfile } = useAuth();
 
   const [activeTab,  setActiveTab]  = useState<Tab>('account');
   const [displayName, setDisplayName] = useState('');
@@ -257,7 +257,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && !profile && user) {
+    if (!loading && !profileLoading && !profile && user) {
       router.replace('/onboarding');
       return;
     }
@@ -267,7 +267,7 @@ export default function SettingsPage() {
       setMaxRisk(String(profile.max_risk_per_trade_pct));
       setMaxStop(String(profile.max_stop_distance_pct));
     }
-  }, [profile, loading, user, router]);
+  }, [profile, loading, profileLoading, user, router]);
 
   const validateAccountSize = () => {
     const v = parseFloat(accountSize);
