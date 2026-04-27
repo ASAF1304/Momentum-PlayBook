@@ -43,7 +43,8 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   expired_grace: <XCircle       className="w-4 h-4" />,
 };
 
-function BillingTab({ userId }: { userId: string }) {
+function BillingTab({ user }: { user: { id: string; email?: string } }) {
+  const { id: userId } = user;
   const router   = useRouter();
   const paddleRef = useRef<Paddle | null>(null);
   const [sub,         setSub]         = useState<Subscription | null>(null);
@@ -73,7 +74,7 @@ function BillingTab({ userId }: { userId: string }) {
       .catch(err => console.error('[BILLING-TAB] Paddle init failed:', err));
   }, []);
 
-  function openCheckout(userEmail: string) {
+  function openCheckout() {
     const priceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID;
     if (!paddleReady || !priceId) {
       router.push('/onboarding/checkout');
@@ -82,7 +83,9 @@ function BillingTab({ userId }: { userId: string }) {
     setOpening(true);
     paddleRef.current?.Checkout.open({
       items:      [{ priceId, quantity: 1 }],
-      customer:   { email: userEmail },
+      customer:   sub?.paddle_customer_id
+        ? { id: sub.paddle_customer_id }
+        : { email: user.email ?? '' },
       customData: { user_id: userId },
       settings: {
         successUrl: `${window.location.origin}/settings?tab=billing`,
@@ -183,7 +186,7 @@ function BillingTab({ userId }: { userId: string }) {
         <BillingBtn
           label={status === 'expired_grace' ? 'הוסף כרטיס אשראי' : 'התחל ניסיון חינמי'}
           loading={opening}
-          onClick={() => openCheckout('')}
+          onClick={() => openCheckout()}
           primary
         />
       )}
@@ -191,7 +194,7 @@ function BillingTab({ userId }: { userId: string }) {
         <BillingBtn
           label="הוסף כרטיס אשראי"
           loading={opening}
-          onClick={() => openCheckout('')}
+          onClick={() => openCheckout()}
           primary
         />
       )}
@@ -475,7 +478,7 @@ export default function SettingsPage() {
 
         {/* Billing tab */}
         {activeTab === 'billing' && user && (
-          <BillingTab userId={user.id} />
+          <BillingTab user={user} />
         )}
       </main>
     </div>
