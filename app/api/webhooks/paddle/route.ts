@@ -58,12 +58,19 @@ export async function POST(request: NextRequest) {
           id: string;
           customerId: string;
           status: string;
-          customData?: { user_id?: string };
+          customData?: { user_id?: string } | string;
           trialDates?: { endsAt?: string };
           currentBillingPeriod?: { endsAt?: string };
         };
 
-        const userId = sub.customData?.user_id;
+        // Paddle.js CDN serialises customData to a JSON string before sending
+        // to the checkout API. Paddle may store and re-emit it as a string, so
+        // parse it defensively.
+        const customData: { user_id?: string } | null =
+          typeof sub.customData === 'string'
+            ? (() => { try { return JSON.parse(sub.customData as string); } catch { return null; } })()
+            : (sub.customData ?? null);
+        const userId = customData?.user_id;
         if (!userId) {
           console.error('[PADDLE-WEBHOOK] No user_id in custom_data', sub.id);
           break;
