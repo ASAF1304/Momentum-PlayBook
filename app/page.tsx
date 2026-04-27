@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, Loader2, Plus, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2, Plus, RefreshCw, WifiOff } from 'lucide-react';
 import { AppNav }                                          from '@/components/nav/app-nav';
 import { GridOverlay }                                     from '@/components/ui/grid-overlay';
 import { OnboardingModal }                                 from '@/components/onboarding-modal';
@@ -15,20 +15,37 @@ import { Stage2Leaders }                                   from '@/components/da
 import { supabase, type Trade }                            from '@/lib/supabase-client';
 import { useAuth }                                         from '@/lib/auth-context';
 import { useLivePrices, type LivePrice }                   from '@/lib/use-live-prices';
+import { computeWinRate }                                  from '@/lib/stats/win-rate';
+import {
+  type Period,
+  filterClosedByPeriod,
+  computeMaxDrawdown,
+  computeAvgWinLoss,
+  computeUnrealizedPnL,
+  computeCurrentR,
+} from '@/lib/stats/dashboard-stats';
 import { toast }                                           from '@/lib/toast';
 import { cn }                                              from '@/lib/utils';
 import type { PositionSizerResult }                        from '@/lib/position-sizer';
 import type { TickerResponse }                             from '@/app/api/ticker/[symbol]/route';
 
+const PERIODS: { key: Period; label: string }[] = [
+  { key: 'all', label: 'All Time'    },
+  { key: 'ytd', label: 'YTD'         },
+  { key: 'mtd', label: 'MTD'         },
+  { key: '30d', label: 'Last 30 Days' },
+];
+
 export default function Dashboard() {
   const { user, profile, loading: authLoading } = useAuth();
 
-  const [trades,           setTrades]           = useState<Trade[]>([]);
-  const [tradesLoading,    setTradesLoading]     = useState(true);
-  const [tradesError,      setTradesError]       = useState<string | null>(null);
-  const [showAddModal,     setShowAddModal]      = useState(false);
-  const [prefilledTicker,  setPrefilledTicker]   = useState<string | undefined>(undefined);
-  const [onboardingDone,   setOnboardingDone]    = useState(false);
+  const [trades,          setTrades]          = useState<Trade[]>([]);
+  const [tradesLoading,   setTradesLoading]   = useState(true);
+  const [tradesError,     setTradesError]     = useState<string | null>(null);
+  const [showAddModal,    setShowAddModal]    = useState(false);
+  const [prefilledTicker, setPrefilledTicker] = useState<string | undefined>(undefined);
+  const [onboardingDone,  setOnboardingDone]  = useState(false);
+  const [period,          setPeriod]          = useState<Period>('all');
   const validatorRef = useRef<HTMLDivElement>(null);
 
   const showOnboarding = !authLoading && !!profile && !profile.dismissed_onboarding_at && !onboardingDone;
@@ -40,16 +57,13 @@ export default function Dashboard() {
     const tid = setTimeout(() => controller.abort(), 15_000);
     let ok = false;
     try {
-      console.time(`[DASHBOARD] fetchTrades (attempt ${attempt})`);
       const { data, error } = await supabase
         .from('trades').select('*').order('phase1_date', { ascending: false })
         .abortSignal(controller.signal);
-      console.timeEnd(`[DASHBOARD] fetchTrades (attempt ${attempt})`);
       if (error) throw new Error(error.message);
       setTrades((data as Trade[]) ?? []);
       ok = true;
     } catch (err) {
-      console.timeEnd(`[DASHBOARD] fetchTrades (attempt ${attempt})`);
       if (attempt === 0) { setTimeout(() => void fetchTrades(1), 2_000); return; }
       const isTimeout = (err as Error).name === 'AbortError';
       setTradesError(isTimeout ? 'Request timed out — check your connection.' : ((err as Error).message || 'Failed to load.'));
@@ -63,27 +77,35 @@ export default function Dashboard() {
 
   const openTrades = useMemo(() => trades.filter(t => t.status === 'open'), [trades]);
 
-  // Live prices for all open positions — polls every 60s, pauses when tab hidden
+  // Live prices for all open positions — polls every 10s, pauses when tab hidden
   const openTickers = useMemo(() => openTrades.map(t => t.ticker), [openTrades]);
-  const { prices: livePrices, lastUpdated: pricesUpdatedAt, refreshing: pricesRefreshing, refresh: refreshPrices } = useLivePrices(openTickers);
+  const {
+    prices: livePrices,
+    lastUpdated: pricesUpdatedAt,
+    refreshing: pricesRefreshing,
+    refresh: refreshPrices,
+    lastFetchFailed,
+  } = useLivePrices(openTickers);
 
-  const stats = useMemo(() => {
-    const system    = trades.filter(t => !t.is_what_if);
-    const completed = system.filter(t => t.status !== 'open');
-    const winners   = completed.filter(t => t.outcome === 'winner');
-    const withR     = completed.filter(t => t.r_multiple !== null);
-    const ytdStart  = `${new Date().getFullYear()}-01-01T00:00:00.000Z`;
-    const ytdPnL    = completed
-      .filter(t => t.exit_date && t.exit_date >= ytdStart)
-      .reduce((s, t) => s + (t.pnl_dollars ?? 0), 0);
-    return {
-      accountSize: profile?.account_size ?? 0,
-      openCount:   openTrades.length,
-      winRate:     completed.length > 0 ? (winners.length / completed.length) * 100 : null,
-      avgR:        withR.length > 0 ? withR.reduce((s, t) => s + (t.r_multiple ?? 0), 0) / withR.length : null,
-      ytdPnL,
-    };
-  }, [trades, openTrades, profile]);
+  // ── Stats (period-aware) ────────────────────────────────────────────────────
+  const accountSize = profile?.account_size ?? 0;
+
+  const dashStats = useMemo(() => {
+    const periodClosed = filterClosedByPeriod(trades, period);
+    const wr      = computeWinRate(periodClosed);
+    const maxDD   = computeMaxDrawdown(periodClosed, accountSize);
+    const winLoss = computeAvgWinLoss(periodClosed);
+    return { wr, maxDD, winLoss, realizedPnL: wr.totalPnL };
+  }, [trades, period, accountSize]);
+
+  const unrealizedPnL = useMemo(
+    () => computeUnrealizedPnL(openTrades, livePrices),
+    [openTrades, livePrices],
+  );
+
+  const equityDelta    = dashStats.realizedPnL + unrealizedPnL;
+  const accountEquity  = accountSize + equityDelta;
+  const equityDeltaPct = accountSize > 0 ? (equityDelta / accountSize) * 100 : 0;
 
   const playbookCounts = useMemo(() => ({
     winners:    trades.filter(t => !t.is_what_if && t.outcome === 'winner').length,
@@ -101,20 +123,20 @@ export default function Dashboard() {
   }) => {
     if (!user) return;
     const { error } = await supabase.from('trades').insert({
-      user_id:              user.id,
-      ticker:               payload.ticker,
-      phase1_date:          new Date().toISOString(),
-      phase1_price:         payload.entry,
-      phase1_shares:        payload.sizing.phase1Shares,
-      initial_stop:         payload.stop,
-      current_stop:         payload.stop,
-      stop_distance_pct:    payload.sizing.stopDistancePct,
-      risk_dollars:         payload.sizing.dollarRisk,
+      user_id:               user.id,
+      ticker:                payload.ticker,
+      phase1_date:           new Date().toISOString(),
+      phase1_price:          payload.entry,
+      phase1_shares:         payload.sizing.phase1Shares,
+      initial_stop:          payload.stop,
+      current_stop:          payload.stop,
+      stop_distance_pct:     payload.sizing.stopDistancePct,
+      risk_dollars:          payload.sizing.dollarRisk,
       trend_template_passed: payload.tickerData.trendTemplate.passed,
-      status:               'open',
-      is_what_if:           payload.isWhatIf,
-      failed_gates:         payload.isWhatIf ? payload.failedGates : null,
-      what_if_reason:       null,
+      status:                'open',
+      is_what_if:            payload.isWhatIf,
+      failed_gates:          payload.isWhatIf ? payload.failedGates : null,
+      what_if_reason:        null,
     });
     if (error) { toast({ title: 'Failed to log trade', body: error.message, variant: 'error' }); return; }
     if (payload.isWhatIf) {
@@ -125,7 +147,6 @@ export default function Dashboard() {
     void fetchTrades();
   };
 
-  // When user clicks a ticker in Stage2Leaders — pre-fill validator and scroll to it
   const handleSelectTicker = useCallback((ticker: string) => {
     setPrefilledTicker(ticker);
     setTimeout(() => {
@@ -154,16 +175,146 @@ export default function Dashboard() {
 
       <main className="max-w-[1440px] mx-auto px-6 py-7 relative">
 
-        {/* ── Stats strip ───────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-7">
-          <StatCard label="Account"       value={stats.accountSize > 0 ? fmtAccountSize(stats.accountSize) : '—'} />
-          <StatCard label="Open"          value={tradesLoading ? '…' : String(stats.openCount)} />
-          <StatCard label="Win Rate"      value={stats.winRate !== null ? `${stats.winRate.toFixed(1)}%` : '—'} />
-          <StatCard label="Avg R"         value={stats.avgR !== null ? `${stats.avgR >= 0 ? '+' : ''}${stats.avgR.toFixed(2)}R` : '—'}
-                                          positive={stats.avgR !== null && stats.avgR > 0}
-                                          negative={stats.avgR !== null && stats.avgR < 0} />
-          <StatCard label="YTD P&L"       value={stats.ytdPnL !== 0 ? `${stats.ytdPnL >= 0 ? '+' : ''}$${Math.abs(stats.ytdPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}
-                                          positive={stats.ytdPnL > 0} negative={stats.ytdPnL < 0} />
+        {/* ── Period filter tabs ─────────────────────────────────────────────── */}
+        <div className="flex gap-1 mb-4 p-1 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] w-fit">
+          {PERIODS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setPeriod(key)}
+              className={cn(
+                'px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all',
+                period === key
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Row 1: Account Equity hero ─────────────────────────────────────── */}
+        <div
+          className="mb-3 p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+          style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
+        >
+          <div className="flex items-start justify-between mb-2">
+            <div className="text-xs uppercase tracking-[0.18em] font-semibold text-[var(--text-muted)] opacity-60">
+              Account Equity
+            </div>
+            <div className="flex items-center gap-2">
+              {lastFetchFailed && openTrades.length > 0 && (
+                <WifiOff className="w-3 h-3 text-amber-400" aria-label="Price fetch failed — showing last known prices" />
+              )}
+              <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                Live
+              </div>
+            </div>
+          </div>
+
+          <div className="font-mono text-[34px] font-extrabold tracking-tight tabular-nums">
+            {accountSize > 0
+              ? `$${Math.round(accountEquity).toLocaleString('en-US')}`
+              : tradesLoading ? '…' : '$0'}
+          </div>
+
+          {accountSize > 0 && (
+            <div className={cn(
+              'flex items-baseline gap-2 mt-1',
+              equityDelta >= 0 ? 'text-emerald-400' : 'text-red-400',
+            )}>
+              <span className="text-[15px] font-bold font-mono">
+                {equityDelta >= 0 ? '+' : '−'}${Math.abs(Math.round(equityDelta)).toLocaleString('en-US')}
+              </span>
+              <span className="text-[13px] font-semibold">
+                ({equityDeltaPct >= 0 ? '+' : ''}{equityDeltaPct.toFixed(1)}%)
+              </span>
+              <span className="text-xs text-[var(--text-faint)] font-normal">
+                from ${accountSize.toLocaleString('en-US')}
+              </span>
+            </div>
+          )}
+
+          <div className="text-xs text-[var(--text-faint)] mt-1.5 font-mono">
+            {openTrades.length} open position{openTrades.length !== 1 ? 's' : ''}
+          </div>
+        </div>
+
+        {/* ── Row 2: Realized / Unrealized / Win Rate / Avg R ────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+          <StatCard
+            label="Realized PnL"
+            value={dashStats.realizedPnL !== 0
+              ? `${dashStats.realizedPnL >= 0 ? '+' : '−'}$${Math.abs(Math.round(dashStats.realizedPnL)).toLocaleString('en-US')}`
+              : '$0'}
+            positive={dashStats.realizedPnL > 0}
+            negative={dashStats.realizedPnL < 0}
+          />
+          <StatCard
+            label="Unrealized PnL"
+            value={openTrades.length > 0
+              ? `${unrealizedPnL >= 0 ? '+' : '−'}$${Math.abs(Math.round(unrealizedPnL)).toLocaleString('en-US')}`
+              : '—'}
+            sublabel={openTrades.length > 0 ? 'live positions' : undefined}
+            positive={openTrades.length > 0 && unrealizedPnL > 0}
+            negative={openTrades.length > 0 && unrealizedPnL < 0}
+          />
+          <StatCard
+            label="Win Rate"
+            value={dashStats.wr.winRate !== null ? `${dashStats.wr.winRate.toFixed(1)}%` : '—'}
+            sublabel={dashStats.wr.closedCount > 0 ? `${dashStats.wr.closedCount} closed trades` : undefined}
+            positive={dashStats.wr.winRate !== null && dashStats.wr.winRate >= 50}
+          />
+          <StatCard
+            label="Avg R"
+            value={dashStats.wr.avgR !== null
+              ? `${dashStats.wr.avgR >= 0 ? '+' : ''}${dashStats.wr.avgR.toFixed(2)}R`
+              : '—'}
+            positive={dashStats.wr.avgR !== null && dashStats.wr.avgR > 0}
+            negative={dashStats.wr.avgR !== null && dashStats.wr.avgR < 0}
+          />
+        </div>
+
+        {/* ── Row 3: Max DD / Avg Win / Avg Loss / Win:Loss ratio ────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-7">
+          <StatCard
+            label="Max Drawdown"
+            value={dashStats.maxDD ? `-${dashStats.maxDD.pct.toFixed(1)}%` : '—'}
+            sublabel={dashStats.maxDD
+              ? `$${Math.round(dashStats.maxDD.fromAmount).toLocaleString('en-US')} → $${Math.round(dashStats.maxDD.toAmount).toLocaleString('en-US')}`
+              : undefined}
+            negative={!!dashStats.maxDD}
+          />
+          <StatCard
+            label="Avg Win"
+            value={dashStats.winLoss.avgWin !== null
+              ? `$${Math.round(dashStats.winLoss.avgWin).toLocaleString('en-US')}`
+              : '—'}
+            sublabel={dashStats.winLoss.winCount > 0
+              ? `${dashStats.winLoss.winCount} winner${dashStats.winLoss.winCount !== 1 ? 's' : ''}`
+              : undefined}
+            positive={dashStats.winLoss.avgWin !== null}
+          />
+          <StatCard
+            label="Avg Loss"
+            value={dashStats.winLoss.avgLoss !== null
+              ? `$${Math.round(dashStats.winLoss.avgLoss).toLocaleString('en-US')}`
+              : '—'}
+            sublabel={dashStats.winLoss.lossCount > 0
+              ? `${dashStats.winLoss.lossCount} loser${dashStats.winLoss.lossCount !== 1 ? 's' : ''}`
+              : undefined}
+            negative={dashStats.winLoss.avgLoss !== null}
+          />
+          <StatCard
+            label="Win / Loss"
+            value={dashStats.winLoss.ratio !== null
+              ? `${dashStats.winLoss.ratio.toFixed(1)}:1`
+              : '—'}
+            sublabel="avg win ÷ avg loss"
+            positive={dashStats.winLoss.ratio !== null && dashStats.winLoss.ratio >= 1}
+            negative={dashStats.winLoss.ratio !== null && dashStats.winLoss.ratio < 1}
+          />
         </div>
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
@@ -176,10 +327,10 @@ export default function Dashboard() {
         >
           <div ref={validatorRef} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[420px_1fr_380px] gap-5 items-start">
 
-            {/* Col 1 (lg: left top, xl: col 1) — Checklist */}
+            {/* Col 1 — Checklist */}
             <ChecklistCard className="lg:col-start-1 lg:row-start-1 xl:col-start-1" />
 
-            {/* Col 3 (lg: right col spanning 2 rows, xl: col 3) — Positions + Playbook + Leaders */}
+            {/* Col 3 — Positions + Playbook + Leaders */}
             <div className="flex flex-col gap-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 xl:col-start-3 xl:row-start-1 xl:row-span-1">
 
               {/* Active Positions */}
@@ -280,7 +431,7 @@ export default function Dashboard() {
 
             </div>
 
-            {/* Col 2 (lg: left bottom, xl: col 2) — Sizer */}
+            {/* Col 2 — Sizer */}
             <SizerCard className="lg:col-start-1 lg:row-start-2 xl:col-start-2 xl:row-start-1" />
 
           </div>
@@ -307,17 +458,24 @@ function fmtAccountSize(n: number): string {
     const m = n / 1_000_000;
     return `$${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M`;
   }
-  if (n >= 1_000) {
-    return `$${(n / 1_000).toFixed(0)}K`;
-  }
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
   return `$${n.toLocaleString()}`;
 }
+// Keep export-compatible for any future imports
+export { fmtAccountSize };
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, positive, negative }: {
-  label: string; value: string; positive?: boolean; negative?: boolean;
+function StatCard({
+  label, value, sublabel, positive, negative,
+}: {
+  label: string; value: string; sublabel?: string;
+  positive?: boolean; negative?: boolean;
 }) {
+  const hasValue  = value !== '—';
+  const isPositive = positive === true;
+  const isNegative = negative === true;
+
   return (
     <div
       className="p-4 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
@@ -329,34 +487,37 @@ function StatCard({ label, value, positive, negative }: {
       <div className="flex items-center gap-2">
         <span className={cn(
           'font-mono text-[22px] font-extrabold tracking-tight tabular-nums',
-          positive === true ? 'text-emerald-400'
-            : negative === true ? 'text-red-400'
-            : positive === false ? 'text-zinc-400'
+          isPositive ? 'text-emerald-400'
+            : isNegative ? 'text-red-400'
             : 'text-[var(--text-primary)]',
         )}>
           {value}
         </span>
-        {positive !== undefined && value !== '—' && (
-          <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0',
-            positive ? 'bg-[#10F088]' : negative ? 'bg-red-500' : 'bg-[var(--text-faint)]',
+        {hasValue && (positive !== undefined || negative !== undefined) && (
+          <span className={cn(
+            'w-1.5 h-1.5 rounded-full flex-shrink-0',
+            isPositive ? 'bg-[#10F088]' : isNegative ? 'bg-red-500' : 'bg-[var(--text-faint)]',
           )} />
         )}
       </div>
+      {sublabel && (
+        <div className="text-[10px] text-[var(--text-faint)] font-mono mt-1 truncate">
+          {sublabel}
+        </div>
+      )}
     </div>
   );
 }
 
 function PositionCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePrice }) {
-  const daysIn = Math.floor((Date.now() - new Date(trade.phase1_date).getTime()) / 86_400_000);
+  const daysIn       = Math.floor((Date.now() - new Date(trade.phase1_date).getTime()) / 86_400_000);
   const currentShares = trade.current_shares || trade.phase1_shares;
+  const currentPrice  = livePrice?.price ?? null;
 
-  // Live P&L
-  const currentPrice = livePrice?.price ?? null;
   const unrealizedPnL = currentPrice != null
     ? (currentPrice - trade.phase1_price) * currentShares
     : null;
 
-  // Stop proximity alert
   const stop = trade.current_stop ?? trade.initial_stop;
   const distanceToStop = currentPrice != null
     ? ((currentPrice - stop) / currentPrice) * 100
@@ -366,6 +527,8 @@ function PositionCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePric
   const isNearStop        = distanceToStop !== null && distanceToStop <= 3 && !isApproachingStop;
   const isWinning         = unrealizedPnL !== null && unrealizedPnL > 0 && !isNearStop && !isApproachingStop;
   const isLosing          = unrealizedPnL !== null && unrealizedPnL < 0 && !isNearStop && !isApproachingStop;
+
+  const currentR = currentPrice != null ? computeCurrentR(trade, currentPrice) : null;
 
   return (
     <Link
@@ -443,8 +606,8 @@ function PositionCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePric
         ))}
       </div>
 
-      {/* Risk line */}
-      <div className="text-xs text-[var(--text-faint)] font-mono flex items-center gap-2">
+      {/* Risk + P&L + Current R */}
+      <div className="text-xs text-[var(--text-faint)] font-mono flex items-center gap-2 flex-wrap">
         <span>Risk ${trade.risk_dollars.toFixed(0)}</span>
         <span className="text-[var(--border-hover)]">·</span>
         <span className="text-red-500/70">−{trade.stop_distance_pct.toFixed(2)}% stop</span>
@@ -453,6 +616,14 @@ function PositionCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePric
             <span className="text-[var(--border-hover)]">·</span>
             <span className={cn('tabular-nums', unrealizedPnL >= 0 ? 'text-emerald-400' : 'text-red-400')}>
               P&amp;L {unrealizedPnL >= 0 ? '+' : ''}${unrealizedPnL.toFixed(0)}
+            </span>
+          </>
+        )}
+        {currentR !== null && (
+          <>
+            <span className="text-[var(--border-hover)]">·</span>
+            <span className={cn('tabular-nums font-semibold', currentR >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+              {currentR >= 0 ? '+' : ''}{currentR.toFixed(2)}R
             </span>
           </>
         )}

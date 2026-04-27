@@ -16,6 +16,7 @@ import { GridOverlay } from '@/components/ui/grid-overlay';
 import { AddWhatIfModal } from '@/components/playbook/add-what-if-modal';
 import { supabase, type Trade, type TradeOutcome, type PartialExit } from '@/lib/supabase-client';
 import { computeWinRate } from '@/lib/stats/win-rate';
+import { computeUnrealizedPnL, computeCurrentR } from '@/lib/stats/dashboard-stats';
 import { useAuth } from '@/lib/auth-context';
 import { useLivePrices, type LivePrice } from '@/lib/use-live-prices';
 import { cn } from '@/lib/utils';
@@ -147,6 +148,11 @@ function PlaybookInner() {
     };
   }, [trades]);
 
+  const unrealizedPnL = useMemo(
+    () => computeUnrealizedPnL(openTrades, livePrices),
+    [openTrades, livePrices],
+  );
+
   const counts = useMemo(() => {
     const closed = trades.filter(t => t.status !== 'open');
     return {
@@ -198,7 +204,15 @@ function PlaybookInner() {
 
         <div className="flex items-start justify-between mb-7">
           <div>
-            <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Playbook</h1>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-[20px] font-extrabold tracking-tight">Playbook</h1>
+              {openTrades.length > 0 && (
+                <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+                  Live
+                </span>
+              )}
+            </div>
             <p className="text-[13px] text-[var(--text-muted)] leading-relaxed">
               Every trade — closed and live. Stats computed from realized outcomes only.
             </p>
@@ -226,7 +240,7 @@ function PlaybookInner() {
 
         {/* Stats strip */}
         {!loading && (
-          <div className="grid grid-cols-3 gap-5 mb-7">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 mb-7">
             {stats.closedCount > 0 ? (
               <>
                 <StatTile
@@ -249,13 +263,29 @@ function PlaybookInner() {
                   value={`${stats.totalPnL >= 0 ? '+' : ''}$${Math.abs(stats.totalPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   positive={stats.totalPnL >= 0}
                 />
+                <StatTile
+                  label="Unrealized PnL"
+                  sublabel={openTrades.length > 0 ? `${openTrades.length} open position${openTrades.length !== 1 ? 's' : ''}` : 'no open positions'}
+                  value={openTrades.length > 0
+                    ? `${unrealizedPnL >= 0 ? '+' : ''}$${Math.abs(unrealizedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+                    : '—'}
+                  positive={openTrades.length > 0 ? unrealizedPnL >= 0 : undefined}
+                />
               </>
             ) : (
               <>
-                <StatTile label="Win Rate"  sublabel="no closed trades yet" value="—" />
-                <StatTile label="Avg R"     sublabel="no closed trades yet" value="—" />
-                <StatTile label="Total PnL" sublabel="close a position to see stats" value="—" />
-                <p className="col-span-3 text-xs text-center text-[var(--text-faint)] -mt-1">
+                <StatTile label="Win Rate"       sublabel="no closed trades yet" value="—" />
+                <StatTile label="Avg R"          sublabel="no closed trades yet" value="—" />
+                <StatTile label="Total PnL"      sublabel="close a position to see stats" value="—" />
+                <StatTile
+                  label="Unrealized PnL"
+                  sublabel={openTrades.length > 0 ? `${openTrades.length} open position${openTrades.length !== 1 ? 's' : ''}` : 'no open positions'}
+                  value={openTrades.length > 0
+                    ? `${unrealizedPnL >= 0 ? '+' : ''}$${Math.abs(unrealizedPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+                    : '—'}
+                  positive={openTrades.length > 0 ? unrealizedPnL >= 0 : undefined}
+                />
+                <p className="col-span-2 sm:col-span-4 text-xs text-center text-[var(--text-faint)] -mt-1">
                   No closed trades yet — stats appear once you record one.
                 </p>
               </>
@@ -548,6 +578,7 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
 
   const currentPrice   = livePrice?.price ?? null;
   const unrealizedPnL  = currentPrice != null ? (currentPrice - trade.phase1_price) * sharesRemaining : null;
+  const currentR       = currentPrice != null ? computeCurrentR(trade, currentPrice) : null;
 
   return (
     <div
@@ -636,6 +667,20 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
             <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-faint)]">Booked so far</span>
             <span className={cn('font-mono text-[13px] font-extrabold', bookedPositive ? 'text-[#10F088]' : 'text-[#EF4444]')}>
               {bookedPositive ? '+' : ''}${bookedPnL.toFixed(0)}
+            </span>
+          </div>
+        )}
+
+        {currentR !== null && (
+          <div className={cn(
+            'flex items-center justify-between px-3 py-2 rounded-[8px] border',
+            currentR >= 0
+              ? 'bg-[#10F088]/[0.06] border-[#10F088]/20'
+              : 'bg-[#EF4444]/[0.06] border-[#EF4444]/20',
+          )}>
+            <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-faint)]">Current R</span>
+            <span className={cn('font-mono text-[13px] font-extrabold', currentR >= 0 ? 'text-[#10F088]' : 'text-[#EF4444]')}>
+              {currentR >= 0 ? '+' : ''}{currentR.toFixed(2)}R
             </span>
           </div>
         )}

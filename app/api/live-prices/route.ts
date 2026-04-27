@@ -10,6 +10,16 @@ import { checkLimit, getWriteLimiter } from '@/lib/rate-limit';
 
 const yf = new YahooFinance();
 
+// ── 8-second server-side cache ─────────────────────────────────────────────────
+// Deduplicates concurrent users polling the same ticker sets.
+// Per-instance (not shared across Vercel lambdas) but still cuts Yahoo calls
+// significantly at low-to-medium traffic.
+interface CacheEntry { data: LivePricesResponse; expiresAt: number }
+const _cache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 8_000;
+
+function cacheKey(tickers: string[]): string { return [...tickers].sort().join(','); }
+
 export interface LivePrice {
   ticker: string;
   price: number;
@@ -54,6 +64,13 @@ export async function POST(request: NextRequest) {
       .filter(t => /^[A-Z][A-Z0-9.-]{0,9}$/.test(t)),
   )].slice(0, 25);
 
+  // Check cache before hitting Yahoo
+  const key    = cacheKey(tickers);
+  const cached = _cache.get(key);
+  if (cached && Date.now() < cached.expiresAt) {
+    return NextResponse.json(cached.data);
+  }
+
   const prices: Record<string, LivePrice> = {};
 
   await Promise.allSettled(
@@ -73,8 +90,14 @@ export async function POST(request: NextRequest) {
     }),
   );
 
-  return NextResponse.json({
-    prices,
-    fetchedAt: new Date().toISOString(),
-  } satisfies LivePricesResponse);
+  const responseData: LivePricesResponse = { prices, fetchedAt: new Date().toISOString() };
+
+  // Populate cache; evict stale entries when it grows large
+  _cache.set(key, { data: responseData, expiresAt: Date.now() + CACHE_TTL_MS });
+  if (_cache.size > 200) {
+    const now = Date.now();
+    for (const [k, v] of _cache) { if (v.expiresAt < now) _cache.delete(k); }
+  }
+
+  return NextResponse.json(responseData);
 }

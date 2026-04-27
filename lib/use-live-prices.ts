@@ -1,7 +1,8 @@
 // lib/use-live-prices.ts
 //
-// React hook that polls /api/live-prices every 60 seconds.
+// React hook that polls /api/live-prices every 10 seconds.
 // Pauses when the tab is hidden; resumes + refetches immediately on tab focus.
+// Falls back to the last known prices on fetch failure and sets lastFetchFailed.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LivePrice, LivePricesResponse } from '@/app/api/live-prices/route';
@@ -9,18 +10,20 @@ import type { LivePrice, LivePricesResponse } from '@/app/api/live-prices/route'
 export type { LivePrice };
 
 export interface UseLivePricesResult {
-  prices: Record<string, LivePrice>;
-  lastUpdated: Date | null;
-  refreshing: boolean;
-  refresh: () => void;
+  prices:          Record<string, LivePrice>;
+  lastUpdated:     Date | null;
+  refreshing:      boolean;
+  refresh:         () => void;
+  lastFetchFailed: boolean; // true when the most recent fetch returned an error
 }
 
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 10_000; // 10 seconds
 
 export function useLivePrices(tickers: string[]): UseLivePricesResult {
-  const [prices,      setPrices]      = useState<Record<string, LivePrice>>({});
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [refreshing,  setRefreshing]  = useState(false);
+  const [prices,          setPrices]          = useState<Record<string, LivePrice>>({});
+  const [lastUpdated,     setLastUpdated]     = useState<Date | null>(null);
+  const [refreshing,      setRefreshing]      = useState(false);
+  const [lastFetchFailed, setLastFetchFailed] = useState(false);
 
   const tickersKey  = tickers.join(',');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -42,12 +45,19 @@ export function useLivePrices(tickers: string[]): UseLivePricesResult {
         body:    JSON.stringify({ tickers }),
         signal:  controller.signal,
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setLastFetchFailed(true);
+        return;
+      }
       const data = await res.json() as LivePricesResponse;
-      setPrices(data.prices);
+      // Merge with existing prices so positions without updated prices
+      // still show their last known value
+      setPrices(prev => ({ ...prev, ...data.prices }));
       setLastUpdated(new Date(data.fetchedAt));
-    } catch {
-      // AbortError or network failure — silently skip
+      setLastFetchFailed(false);
+    } catch (err) {
+      // AbortError = intentional cancel — don't mark as failure
+      if ((err as Error).name !== 'AbortError') setLastFetchFailed(true);
     } finally {
       setRefreshing(false);
     }
@@ -85,5 +95,5 @@ export function useLivePrices(tickers: string[]): UseLivePricesResult {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tickersKey]);
 
-  return { prices, lastUpdated, refreshing, refresh: fetchPrices };
+  return { prices, lastUpdated, refreshing, refresh: fetchPrices, lastFetchFailed };
 }
