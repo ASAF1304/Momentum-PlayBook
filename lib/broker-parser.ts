@@ -1,9 +1,15 @@
 // lib/broker-parser.ts
 //
-// Parses Excel/CSV broker exports into normalised trade rows, then groups
-// individual buy/sell transactions into complete trades (open or closed).
-// Merges with existing open positions already in the database so that
-// uploading multiple month-files produces correct single trades per ticker.
+// Parses Excel/CSV broker exports into ImportedTrade objects.
+//
+// MEITAV (Hebrew broker) uses a completely different path from all other formats:
+//   • Each SELL row (מכירה / שורט) = one closed trade; P&L is read DIRECTLY from
+//     the file's "P&L" column — no FIFO calculation, no price arithmetic.
+//   • Each BUY row (קניה / קניה לכיסוי) = open position; BUYs for the same ticker
+//     are aggregated into one open trade (phase1 + buy partials).
+//
+// All other brokers (IBI, IBKR, eToro, generic) continue to use the FIFO grouping
+// logic in broker-parser-internal.ts.
 
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
@@ -22,7 +28,7 @@ export interface RawTransaction {
   fees:     number;
   currency: 'USD' | 'ILS';
   isShort:  boolean;
-  pnl?:     number;   // realized P&L from file (Meitav sell rows only)
+  pnl?:     number;
 }
 
 export interface PartialRecord {
@@ -37,7 +43,7 @@ export interface PartialRecord {
 }
 
 export interface ImportedTrade {
-  _importId:          string;    // client-only ID for dedup/selection
+  _importId:          string;
   ticker:             string;
   phase1_date:        string;
   phase1_price:       number;
@@ -60,33 +66,30 @@ export interface ImportedTrade {
   is_short:           boolean;
   failed_gates:       string[];
   notes:              string;
-  // computed display-only
   isDuplicate:        boolean;
   hasWarning:         boolean;
   warningMsg:         string;
   isOrphan:           boolean;
 }
 
-/** An existing open trade in Supabase that a new file should merge into. */
 export interface ExistingPosition {
   existingId:   string;
   ticker:       string;
-  phase1Date:   string;   // ISO string — used for display in preview
-  shares:       number;   // current_shares from DB
-  avgCost:      number;   // computed from partials
+  phase1Date:   string;
+  shares:       number;
+  avgCost:      number;
   initial_stop: number;
   isShort?:     boolean;
 }
 
-/** Pending update to an existing DB trade — new partials to attach. */
 export interface TradeUpdate {
-  _updateId:          string;   // client-only ID for selection
+  _updateId:          string;
   existingId:         string;
   ticker:             string;
   existingPhase1Date: string;
-  currentShares:      number;   // shares BEFORE this update (for display)
+  currentShares:      number;
   newPartials:        PartialRecord[];
-  newShares:          number;   // shares AFTER update
+  newShares:          number;
   willClose:          boolean;
   closeDate:          string | null;
   closePrice:         number | null;
@@ -95,10 +98,10 @@ export interface TradeUpdate {
 export interface ParseResult {
   format:       BrokerFormat;
   transactions: RawTransaction[];
-  newTrades:    ImportedTrade[];  // brand-new trades to INSERT
-  updates:      TradeUpdate[];    // existing DB trades to UPDATE
-  skippedRows:  number;           // rows that failed to parse (bad format/data)
-  dupSkipped:   number;           // rows skipped because already in DB
+  newTrades:    ImportedTrade[];
+  updates:      TradeUpdate[];
+  skippedRows:  number;
+  dupSkipped:   number;
 }
 
 // ── File → raw rows ────────────────────────────────────────────────────────────
@@ -119,6 +122,14 @@ export async function parseFile(
 
   const headers = Object.keys(rawRows[0] ?? {});
   const format  = detectBrokerFormat(headers);
+
+  // ── Meitav: bypass FIFO entirely ─────────────────────────────────────────
+  if (format === 'meitav') {
+    const { newTrades, skippedRows, dupSkipped } = parseMeitavRows(rawRows, existingSignatures);
+    return { format, transactions: [], newTrades, updates: [], skippedRows, dupSkipped };
+  }
+
+  // ── All other brokers: FIFO grouping ──────────────────────────────────────
   const { transactions, skippedRows } = mapToTransactions(rawRows, format);
   const { newTrades, updates, skippedCount: dupSkipped } = groupToTrades(
     transactions,
@@ -135,7 +146,7 @@ export async function parseFile(
 function parseCsv(file: File): Promise<Record<string, string>[]> {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
-      header:       true,
+      header:         true,
       skipEmptyLines: true,
       complete: r  => resolve(r.data as Record<string, string>[]),
       error:    e  => reject(new Error(e.message)),
@@ -154,7 +165,6 @@ function parseExcel(file: File): Promise<Record<string, string>[]> {
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet    = workbook.Sheets[workbook.SheetNames[0]];
         const rows     = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-        // Convert all cell values to strings for uniform handling
         resolve(rows.map(r =>
           Object.fromEntries(Object.entries(r).map(([k, v]) => [k, String(v ?? '').trim()])),
         ));
@@ -172,22 +182,18 @@ function parseExcel(file: File): Promise<Record<string, string>[]> {
 function detectBrokerFormat(headers: string[]): BrokerFormat {
   const h = headers.map(x => x.toLowerCase().trim());
 
-  // Meitav Trade — Hebrew headers
   if (h.some(x => x.includes('סימול') || x.includes('מחיר') || x.includes('כמות') || x.includes('פעולה'))) {
     return 'meitav';
   }
-  // Interactive Brokers — specific column combo
   if ((h.includes('tradeprice') || h.includes('trade price')) && (h.includes('buy/sell') || h.includes('buysell'))) {
     return 'ibkr';
   }
   if (h.includes('tradedate') && h.includes('quantity') && h.includes('tradeprice')) {
     return 'ibkr';
   }
-  // IBI — specific action + symbol pattern
   if (h.includes('action') && h.includes('symbol') && h.includes('quantity') && h.includes('price')) {
     return 'ibi';
   }
-  // eToro
   if (h.some(x => x.includes('position id')) || (h.includes('open date') && h.includes('close date'))) {
     return 'etoro';
   }
@@ -195,7 +201,259 @@ function detectBrokerFormat(headers: string[]): BrokerFormat {
   return 'generic';
 }
 
-// ── Column mapper ─────────────────────────────────────────────────────────────
+// ── Fuzzy column finder ───────────────────────────────────────────────────────
+
+function findCol(row: Record<string, string>, candidate: string): string | null {
+  if (!candidate) return null;
+  const keys   = Object.keys(row);
+  const target = candidate.toLowerCase().trim();
+  const exact  = keys.find(k => k.toLowerCase().trim() === target);
+  if (exact) return exact;
+  const partial = keys.find(k => k.toLowerCase().includes(target) || target.includes(k.toLowerCase().trim()));
+  return partial ?? null;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// MEITAV-SPECIFIC PARSER — no FIFO, no price arithmetic, P&L from file only
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Meitav columns: תאריך | פעולה | כמות | סימול | מחיר | P&L | Principal
+//
+// Action values:
+//   קניה          → BUY  (open long)
+//   מכירה         → SELL (close long)  — pnl_dollars = row["P&L"]
+//   שורט          → SELL (short trade) — pnl_dollars = row["P&L"]
+//   קניה לכיסוי   → BUY  (cover short)
+//
+// Output:
+//   SELL rows  → one ImportedTrade per row, status='closed', pnl from file
+//   BUY rows   → aggregated per ticker, status='open'
+
+function parseMeitavRows(
+  rows:               Record<string, string>[],
+  existingSignatures: Set<string>,
+): { newTrades: ImportedTrade[]; skippedRows: number; dupSkipped: number } {
+
+  const closedTrades: ImportedTrade[] = [];
+  let skippedRows = 0;
+  let dupSkipped  = 0;
+
+  // Accumulate open positions per ticker
+  interface OpenAccum {
+    ticker:       string;
+    phase1_date:  string;
+    phase1_price: number;
+    phase1_shares:number;
+    extraBuys:    Array<{ date: string; price: number; shares: number }>;
+    totalShares:  number;
+    totalInvested:number;
+  }
+  const openPositions = new Map<string, OpenAccum>();
+
+  for (const row of rows) {
+    try {
+      // ── Find columns ──────────────────────────────────────────────────────
+      const tickerCol = findCol(row, 'סימול');
+      const actionCol = findCol(row, 'פעולה');
+      const qtyCol    = findCol(row, 'כמות');
+      const priceCol  = findCol(row, 'מחיר');
+      const dateCol   = findCol(row, 'תאריך');
+      const pnlCol    = findCol(row, 'P&L');
+
+      if (!tickerCol || !actionCol || !qtyCol || !priceCol || !dateCol) {
+        skippedRows++;
+        continue;
+      }
+
+      // ── Parse values ──────────────────────────────────────────────────────
+      const rawTicker = row[tickerCol]?.trim().toUpperCase() ?? '';
+      const rawAction = row[actionCol]?.trim() ?? '';
+      const rawQty    = row[qtyCol]?.replace(/[,\s]/g, '') ?? '';
+      const rawPrice  = row[priceCol]?.replace(/[,$₪\s]/g, '') ?? '';
+      const rawDate   = row[dateCol]?.trim() ?? '';
+
+      if (!rawTicker || !/^[A-Z.]{1,10}$/.test(rawTicker)) { skippedRows++; continue; }
+
+      const qty   = Math.abs(parseFloat(rawQty));
+      const price = parseFloat(rawPrice);
+      if (!isFinite(qty) || qty <= 0)   { skippedRows++; continue; }
+      if (!isFinite(price) || price <= 0) { skippedRows++; continue; }
+
+      const date = normaliseDate(rawDate, 'meitav');
+      if (!date) { skippedRows++; continue; }
+
+      // ── Classify action ───────────────────────────────────────────────────
+      // קניה / קניה לכיסוי → BUY   |   מכירה / שורט → SELL
+      const isSell = rawAction.includes('מכיר') || rawAction.includes('שורט');
+      const isBuy  = rawAction.includes('קני');
+      if (!isSell && !isBuy) { skippedRows++; continue; }
+
+      const action: 'buy' | 'sell' = isSell ? 'sell' : 'buy';
+
+      // ── Deduplication ─────────────────────────────────────────────────────
+      // Closed trades: dedup via sell signature (exit price, not entry)
+      // Open trades:   dedup via buy signature (entry price)
+      const sig = `${rawTicker}|${date}|${price.toFixed(2)}|${qty}|${action}`;
+      if (existingSignatures.has(sig)) {
+        dupSkipped++;
+        continue;
+      }
+
+      // ── Read P&L for sell rows ────────────────────────────────────────────
+      let pnl = 0;
+      if (isSell && pnlCol) {
+        const rawPnl = row[pnlCol]?.replace(/[,$₪\s]/g, '') ?? '';
+        const parsed = parseFloat(rawPnl);
+        if (isFinite(parsed)) pnl = parsed;
+      }
+
+      // ── BUY → accumulate open position ───────────────────────────────────
+      if (!isSell) {
+        const existing = openPositions.get(rawTicker);
+        if (!existing) {
+          openPositions.set(rawTicker, {
+            ticker:        rawTicker,
+            phase1_date:   `${date}T12:00:00Z`,
+            phase1_price:  price,
+            phase1_shares: qty,
+            extraBuys:     [],
+            totalShares:   qty,
+            totalInvested: price * qty,
+          });
+        } else {
+          existing.extraBuys.push({ date, price, shares: qty });
+          existing.totalShares   += qty;
+          existing.totalInvested += price * qty;
+        }
+        continue;
+      }
+
+      // ── SELL → one closed ImportedTrade ───────────────────────────────────
+      //
+      // Back-calculate the approximate average entry price from the P&L:
+      //   pnl = (sellPrice - avgEntry) × qty  →  avgEntry = sellPrice - pnl/qty
+      //
+      // For שורט (short), the same formula works because Meitav records the
+      // net realized gain/loss regardless of direction.
+      const avgEntry   = qty > 0 ? price - pnl / qty : price;
+      const safeEntry  = Math.max(0.01, avgEntry);
+      const estStop    = safeEntry * 0.92;
+      const outcome    = pnl >  0.005 ? 'winner'
+                       : pnl < -0.005 ? 'loser'
+                       : 'breakeven';
+      const pnlPct     = safeEntry > 0
+        ? (pnl / (safeEntry * qty)) * 100
+        : null;
+
+      // The sell partial enables future deduplication: when this trade is
+      // already in the DB, the partial's signature matches the sell row's sig.
+      const sellPartial: PartialRecord = {
+        id:          crypto.randomUUID(),
+        date:        `${date}T12:00:00Z`,
+        action:      'sell',
+        shares:      qty,
+        price,           // exit / sell price
+        pnl_dollars: pnl,
+        pnl_pct:     pnlPct ?? 0,
+        r_multiple:  0,
+      };
+
+      closedTrades.push({
+        _importId:             crypto.randomUUID(),
+        ticker:                rawTicker,
+        phase1_date:           `${date}T12:00:00Z`,   // best estimate — same day as exit
+        phase1_price:          safeEntry,              // back-calculated avg entry
+        phase1_shares:         qty,
+        initial_stop:          estStop,
+        current_stop:          estStop,
+        stop_distance_pct:     8,
+        risk_dollars:          0,
+        status:                'closed',
+        exit_date:             `${date}T12:00:00Z`,
+        exit_price:            price,
+        pnl_dollars:           pnl,                   // ← READ FROM FILE, not calculated
+        pnl_pct:               pnlPct,
+        r_multiple:            null,
+        outcome,
+        partials:              [sellPartial],          // for dedup on re-import
+        current_shares:        0,
+        trend_template_passed: false,
+        is_what_if:            true,
+        is_short:              rawAction.includes('שורט'),
+        failed_gates:          ['imported_from_broker'],
+        notes:                 'Imported from Meitav',
+        isDuplicate:           false,
+        hasWarning:            false,
+        warningMsg:            '',
+        isOrphan:              false,
+      });
+
+    } catch {
+      skippedRows++;
+    }
+  }
+
+  // ── Convert accumulated open positions → ImportedTrade ────────────────────
+  const openTrades: ImportedTrade[] = [];
+  for (const pos of openPositions.values()) {
+    const avgCost = pos.totalShares > 0
+      ? pos.totalInvested / pos.totalShares
+      : pos.phase1_price;
+    const estStop = avgCost * 0.92;
+
+    const buyPartials: PartialRecord[] = pos.extraBuys.map(b => ({
+      id:          crypto.randomUUID(),
+      date:        `${b.date}T12:00:00Z`,
+      action:      'buy' as const,
+      shares:      b.shares,
+      price:       b.price,
+      pnl_dollars: 0,
+      pnl_pct:     0,
+      r_multiple:  0,
+    }));
+
+    openTrades.push({
+      _importId:             crypto.randomUUID(),
+      ticker:                pos.ticker,
+      phase1_date:           pos.phase1_date,
+      phase1_price:          pos.phase1_price,
+      phase1_shares:         pos.phase1_shares,
+      initial_stop:          estStop,
+      current_stop:          estStop,
+      stop_distance_pct:     8,
+      risk_dollars:          0,
+      status:                'open',
+      exit_date:             null,
+      exit_price:            null,
+      pnl_dollars:           null,
+      pnl_pct:               null,
+      r_multiple:            null,
+      outcome:               null,
+      partials:              buyPartials,
+      current_shares:        pos.totalShares,
+      trend_template_passed: false,
+      is_what_if:            true,
+      is_short:              false,
+      failed_gates:          ['imported_from_broker'],
+      notes:                 'Imported from Meitav',
+      isDuplicate:           false,
+      hasWarning:            false,
+      warningMsg:            '',
+      isOrphan:              false,
+    });
+  }
+
+  // Sort: open trades first (entry ASC), closed trades after (entry DESC)
+  openTrades.sort((a, b) => a.phase1_date.localeCompare(b.phase1_date));
+  closedTrades.sort((a, b) => b.phase1_date.localeCompare(a.phase1_date));
+
+  const newTrades = [...openTrades, ...closedTrades];
+  console.log(`[MEITAV] ${closedTrades.length} closed trades, ${openTrades.length} open positions, ${skippedRows} skipped, ${dupSkipped} duplicates`);
+
+  return { newTrades, skippedRows, dupSkipped };
+}
+
+// ── Column mapper (non-Meitav formats) ───────────────────────────────────────
 
 interface ColumnMap {
   ticker:   string;
@@ -250,23 +508,10 @@ const BROKER_COLUMNS: Record<BrokerFormat, ColumnMap> = {
   },
 };
 
-// Fuzzy column finder — matches case-insensitively, with partial match fallback
-function findCol(row: Record<string, string>, candidate: string): string | null {
-  if (!candidate) return null;
-  const keys   = Object.keys(row);
-  const target = candidate.toLowerCase().trim();
-  // Exact match first
-  const exact = keys.find(k => k.toLowerCase().trim() === target);
-  if (exact) return exact;
-  // Partial match
-  const partial = keys.find(k => k.toLowerCase().includes(target) || target.includes(k.toLowerCase().trim()));
-  return partial ?? null;
-}
-
-// ── Transaction mapping ───────────────────────────────────────────────────────
+// ── Transaction mapping (non-Meitav) ─────────────────────────────────────────
 
 function mapToTransactions(
-  rows: Record<string, string>[],
+  rows:   Record<string, string>[],
   format: BrokerFormat,
 ): { transactions: RawTransaction[]; skippedRows: number } {
   const colMap = BROKER_COLUMNS[format];
@@ -311,7 +556,6 @@ function mapToTransactions(
       const date = normaliseDate(rawDate, format);
       if (!date) { skippedRows++; continue; }
 
-      // Extract realized P&L from file (only meaningful on Meitav sell rows)
       let pnl: number | undefined;
       if (pnlCol) {
         const rawPnl = row[pnlCol]?.replace(/[,$₪\s]/g, '') ?? '';
@@ -331,25 +575,19 @@ function mapToTransactions(
 function normaliseAction(raw: string, format: BrokerFormat): { action: 'buy' | 'sell'; isShort: boolean } | null {
   const s = raw.toLowerCase().trim();
 
-  // ── Short / Cover — must come BEFORE generic buy/sell checks ──────────────
-  // "short", "sell short", "short sale" → opens a short (treated like a buy)
   if ((s.includes('short') || s === 'ss') && !s.includes('cover')) {
     return { action: 'buy', isShort: true };
   }
-  // "buy to cover", "cover", "btc" → closes a short (treated like a sell)
   if (s.includes('cover') || s === 'btc') {
     return { action: 'sell', isShort: true };
   }
 
-  // ── Meitav Hebrew ─────────────────────────────────────────────────────────
-  // קניה / קניה לכיסוי → buy   |   מכירה / מכירה לכיסוי / שורט → sell
   if (format === 'meitav') {
     if (s.includes('קני')  || s.includes('buy'))  return { action: 'buy',  isShort: false };
     if (s.includes('מכיר') || s.includes('שורט') || s.includes('sell')) return { action: 'sell', isShort: false };
     return null;
   }
 
-  // ── Standard long buy/sell keywords ──────────────────────────────────────
   if (s === 'buy' || s === 'b' || s === 'bot' || s === 'long') return { action: 'buy',  isShort: false };
   if (s === 'sell' || s === 's' || s === 'sld')                 return { action: 'sell', isShort: false };
   if (s.includes('buy')  || s.includes('long'))                  return { action: 'buy',  isShort: false };
@@ -359,34 +597,24 @@ function normaliseAction(raw: string, format: BrokerFormat): { action: 'buy' | '
 
 function normaliseDate(raw: string, format: BrokerFormat): string | null {
   try {
-    // IBKR: YYYYMMDD
     if (format === 'ibkr' && /^\d{8}$/.test(raw)) {
       return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
     }
-    // ISO already: YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-    // DD.MM.YYYY (European / Israeli — dots are unambiguous)
     if (/^\d{1,2}\.\d{1,2}\.\d{4}/.test(raw)) {
       const [d, m, y] = raw.split('.');
       return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     }
-    // Slash-delimited: DD/MM/YYYY or MM/DD/YYYY
     if (/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(raw)) {
       const parts = raw.split('/');
       const [a, b, c] = parts;
       const year = c.length === 2 ? `20${c}` : c;
-      // Israeli brokers (meitav, ibi) use DD/MM/YYYY.
-      // If first part > 12 it MUST be DD (no month 13+).
-      // If broker is a known Israeli format, always treat as DD/MM.
       const isIsraeliBroker = format === 'meitav' || format === 'ibi';
       if (isIsraeliBroker || parseInt(a, 10) > 12) {
-        // DD/MM/YYYY
         return `${year}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`;
       }
-      // US: MM/DD/YYYY (IBKR, eToro, generic)
       return `${year}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`;
     }
-    // Date object serialised as number (Excel serial)
     const ts = Date.parse(raw);
     if (!isNaN(ts)) return new Date(ts).toISOString().slice(0, 10);
     return null;
