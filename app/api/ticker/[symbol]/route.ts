@@ -4,6 +4,8 @@
 // All moving averages labeled as EMA (Asaf's methodology).
 
 import { type NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import * as Sentry from '@sentry/nextjs';
 import { getMarketData, MarketDataError, type MarketData } from '@/lib/market-data';
 import { analyzeStops, type StopAnalysis } from '@/lib/stop-calculator';
@@ -80,6 +82,19 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ symbol: string }> },
 ) {
+  // Auth check — reject unauthenticated callers
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json<TickerErrorResponse>(
+    { error: 'Unauthorized', code: 'unknown', retryable: false },
+    { status: 401 },
+  );
+
   // Rate limit: 30 req / 60s per IP
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon';
   const limit = await checkLimit(getTickerLimiter(), `ticker:${ip}`);

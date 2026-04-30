@@ -5,6 +5,8 @@
 // Concurrent per-ticker fetches with Promise.allSettled so one failure doesn't block others.
 
 import { type NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import YahooFinance from 'yahoo-finance2';
 import { checkLimit, getWriteLimiter } from '@/lib/rate-limit';
 
@@ -34,6 +36,16 @@ export interface LivePricesResponse {
 }
 
 export async function POST(request: NextRequest) {
+  // Auth check — reject unauthenticated callers
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   // Rate limit: 60 req / 60s per IP
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anon';
   const limit = await checkLimit(getWriteLimiter(), `live-prices:${ip}`);

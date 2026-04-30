@@ -38,7 +38,7 @@ const PERIODS: { key: Period; label: string }[] = [
 ];
 
 export default function Dashboard() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, profileLoading } = useAuth();
 
   const [trades,          setTrades]          = useState<Trade[]>([]);
   const [tradesLoading,   setTradesLoading]   = useState(true);
@@ -188,7 +188,7 @@ export default function Dashboard() {
       </div>
     );
   }
-  if (user && !profile && !authLoading) {
+  if (user && !profile && !authLoading && !profileLoading) {
     if (typeof window !== 'undefined') window.location.replace('/onboarding');
     return null;
   }
@@ -742,6 +742,7 @@ function MonthlyPerformance({ data }: { data: MonthlyData[] }) {
       </div>
 
       {/* Table */}
+      <div className="overflow-x-auto">
       <table className="w-full text-xs font-mono border-collapse">
         <thead>
           <tr>
@@ -774,6 +775,7 @@ function MonthlyPerformance({ data }: { data: MonthlyData[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -791,7 +793,7 @@ function PlaybookStrip({ counts }: {
   const labels: Record<string, string> = { W: 'Winners', L: 'Losers', BE: 'Breakeven', WI: 'What-If', All: 'All' };
 
   return (
-    <div className="grid grid-cols-5 gap-1.5">
+    <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
       {items.map(item => (
         <Link
           key={item.label}

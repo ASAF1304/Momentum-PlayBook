@@ -47,7 +47,7 @@ export function AppNav() {
           >
             <TrendingUp className="w-3.5 h-3.5 text-black" strokeWidth={3.5} />
           </div>
-          <div className="flex flex-col leading-none">
+          <div className="hidden sm:flex flex-col leading-none">
             <span className="text-[14px] font-extrabold tracking-tight text-[var(--text-primary)]">Momentum Playbook</span>
             <span className="text-[9px] text-[var(--text-faint)] tracking-[0.22em] uppercase font-semibold mt-0.5">
               {profile?.display_name ?? 'Stage 2 only'}
@@ -71,7 +71,7 @@ export function AppNav() {
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
                 {active && (
                   <span
                     className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-gradient-to-r from-[#22D3EE] to-[#10F088]"

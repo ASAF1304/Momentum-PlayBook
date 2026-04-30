@@ -148,7 +148,7 @@ export default function WatchlistPage() {
             value={tickerInput}
             onChange={e => setTickerInput(e.target.value.toUpperCase().slice(0, 10))}
             placeholder="TICKER"
-            className="flex-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[10px] px-4 py-3 font-mono text-[18px] font-bold uppercase text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+            className="flex-1 min-w-0 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[10px] px-4 py-3 font-mono text-[18px] font-bold uppercase text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
           />
           <button
             type="submit"

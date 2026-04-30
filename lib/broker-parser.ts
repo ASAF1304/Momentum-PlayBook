@@ -155,6 +155,15 @@ function parseCsv(file: File): Promise<Record<string, string>[]> {
 }
 
 // ── Excel parser ──────────────────────────────────────────────────────────────
+//
+// Key design decisions:
+//   1. Use header:1 (raw arrays) so we can detect the ACTUAL header row.
+//      Israeli broker files commonly have 2-5 metadata rows before the column
+//      names — using the default header:0 would treat those metadata rows as
+//      column keys, making every findCol call return null and skipping all data.
+//   2. Convert Date objects with local-time getters (getDate/getMonth/getFullYear)
+//      NOT with toISOString(). In UTC+2 (Israel), toISOString() shifts midnight
+//      dates back by 2 hours into the previous day, corrupting every date.
 
 function parseExcel(file: File): Promise<Record<string, string>[]> {
   return new Promise((resolve, reject) => {
@@ -164,10 +173,50 @@ function parseExcel(file: File): Promise<Record<string, string>[]> {
         const data     = new Uint8Array(e.target!.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet    = workbook.Sheets[workbook.SheetNames[0]];
-        const rows     = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-        resolve(rows.map(r =>
-          Object.fromEntries(Object.entries(r).map(([k, v]) => [k, String(v ?? '').trim()])),
-        ));
+
+        // Get raw arrays — rows are unknown[], not keyed objects yet
+        const rawArrays = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+          header:  1,
+          defval:  '',
+          raw:     true,
+        });
+
+        // Scan for the actual header row — first row whose cells include any
+        // known Meitav Hebrew keyword OR common English broker column keyword.
+        const HEADER_MARKERS = [
+          'סימול', 'פעולה', 'תאריך', 'כמות', 'מחיר',   // Meitav Hebrew
+          'ticker', 'symbol', 'action', 'trade', 'price', 'quantity', 'buy/sell',
+        ];
+        let headerIdx = rawArrays.findIndex(row =>
+          Array.isArray(row) && row.some(cell => {
+            const s = String(cell ?? '').trim().toLowerCase();
+            return s.length > 0 && HEADER_MARKERS.some(m => s.includes(m));
+          }),
+        );
+        if (headerIdx < 0) headerIdx = 0; // fallback: treat first row as headers
+
+        const headers  = (rawArrays[headerIdx] as unknown[]).map(h => String(h ?? '').trim());
+        const dataRows = rawArrays.slice(headerIdx + 1);
+
+        // Convert a single cell value to a clean string.
+        // Dates get DD/MM/YYYY in LOCAL time (avoids UTC-shift bug).
+        const cellToStr = (v: unknown): string => {
+          if (v instanceof Date) {
+            const dd = String(v.getDate()).padStart(2, '0');
+            const mm = String(v.getMonth() + 1).padStart(2, '0');
+            return `${dd}/${mm}/${v.getFullYear()}`;
+          }
+          return String(v ?? '').trim();
+        };
+
+        const rows = dataRows
+          .map(row => {
+            const cells = Array.isArray(row) ? row : [];
+            return Object.fromEntries(headers.map((h, i) => [h, cellToStr(cells[i])]));
+          })
+          .filter(r => Object.values(r).some(v => v !== '')); // drop blank rows
+
+        resolve(rows);
       } catch (err) {
         reject(err);
       }
@@ -214,20 +263,41 @@ function findCol(row: Record<string, string>, candidate: string): string | null 
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// MEITAV-SPECIFIC PARSER — no FIFO, no price arithmetic, P&L from file only
+// MEITAV-SPECIFIC PARSER
 // ════════════════════════════════════════════════════════════════════════════
 //
-// Meitav columns: תאריך | פעולה | כמות | סימול | מחיר | P&L | Principal
+// Columns: תאריך | פעולה | כמות | סימול | מחיר | P&L | Principal
 //
-// Action values:
-//   קניה          → BUY  (open long)
-//   מכירה         → SELL (close long)  — pnl_dollars = row["P&L"]
-//   שורט          → SELL (short trade) — pnl_dollars = row["P&L"]
-//   קניה לכיסוי   → BUY  (cover short)
+// Action values (exact strings from Meitav export):
+//   קניה          → BUY    open long position
+//   מכירה         → SELL   close long; P&L column = realized P&L (read directly)
+//   שורט          → SHORT  open short position
+//   קניה לכיסוי   → COVER  close short; P&L column = realized P&L (read directly)
 //
-// Output:
-//   SELL rows  → one ImportedTrade per row, status='closed', pnl from file
-//   BUY rows   → aggregated per ticker, status='open'
+// Closed trade output: one ImportedTrade per SELL/COVER row — P&L from file, NEVER recalculated
+// Open position output: one ImportedTrade per ticker — FIFO weighted-avg of remaining lots
+
+// ── Stock split configuration ─────────────────────────────────────────────
+// Add future splits here. Rows dated BEFORE `date` are pre-split:
+//   qty  × ratio  (more shares at lower price per share)
+//   price ÷ ratio
+// P&L dollars are NOT adjusted — they are already in dollar terms.
+export const STOCK_SPLITS: Record<string, Array<{ date: string; ratio: number }>> = {
+  POWL: [{ date: '2026-03-06', ratio: 3 }],   // 3-for-1 on 2026-03-06
+};
+
+function applySplits(ticker: string, isoDate: string, qty: number, price: number) {
+  const splits = STOCK_SPLITS[ticker] ?? [];
+  let adjQty   = qty;
+  let adjPrice = price;
+  for (const s of splits) {
+    if (isoDate < s.date) {
+      adjQty   *= s.ratio;
+      adjPrice /= s.ratio;
+    }
+  }
+  return { qty: adjQty, price: adjPrice };
+}
 
 function parseMeitavRows(
   rows:               Record<string, string>[],
@@ -238,21 +308,16 @@ function parseMeitavRows(
   let skippedRows = 0;
   let dupSkipped  = 0;
 
-  // Accumulate open positions per ticker
-  interface OpenAccum {
-    ticker:       string;
-    phase1_date:  string;
-    phase1_price: number;
-    phase1_shares:number;
-    extraBuys:    Array<{ date: string; price: number; shares: number }>;
-    totalShares:  number;
-    totalInvested:number;
-  }
-  const openPositions = new Map<string, OpenAccum>();
+  // posKey = "TICKER|long" or "TICKER|short"
+  interface BuyLot { date: string; price: number; qty: number; }
+  const buyLots = new Map<string, BuyLot[]>();   // per-ticker BUY lots (split-adjusted)
+  const soldQty  = new Map<string, number>();    // per-ticker cumulative sold qty (split-adjusted)
+  const skipReasons: string[] = [];              // for validation log
 
-  for (const row of rows) {
+  // ── Per-row loop ──────────────────────────────────────────────────────────
+  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+    const row = rows[rowIdx];
     try {
-      // ── Find columns ──────────────────────────────────────────────────────
       const tickerCol = findCol(row, 'סימול');
       const actionCol = findCol(row, 'פעולה');
       const qtyCol    = findCol(row, 'כמות');
@@ -262,124 +327,142 @@ function parseMeitavRows(
 
       if (!tickerCol || !actionCol || !qtyCol || !priceCol || !dateCol) {
         skippedRows++;
+        skipReasons.push(`row ${rowIdx}: missing required column(s)`);
         continue;
       }
 
-      // ── Parse values ──────────────────────────────────────────────────────
-      const rawTicker = row[tickerCol]?.trim().toUpperCase() ?? '';
-      const rawAction = row[actionCol]?.trim() ?? '';
-      const rawQty    = row[qtyCol]?.replace(/[,\s]/g, '') ?? '';
-      const rawPrice  = row[priceCol]?.replace(/[,$₪\s]/g, '') ?? '';
-      const rawDate   = row[dateCol]?.trim() ?? '';
+      const rawTicker = (row[tickerCol] ?? '').trim().toUpperCase();
+      const rawAction = (row[actionCol] ?? '').trim();
+      const rawQtyStr = (row[qtyCol]   ?? '').replace(/[,\s]/g, '');
+      const rawPrice  = (row[priceCol] ?? '').replace(/[,$₪\s]/g, '');
+      const rawDate   = (row[dateCol]  ?? '').trim();
 
-      if (!rawTicker || !/^[A-Z.]{1,10}$/.test(rawTicker)) { skippedRows++; continue; }
+      // Accept tickers: 1-10 uppercase letters, optional dots, optional trailing digits
+      if (!rawTicker || !/^[A-Z][A-Z0-9.]{0,9}$/.test(rawTicker)) {
+        skippedRows++;
+        skipReasons.push(`row ${rowIdx}: invalid ticker "${rawTicker}"`);
+        continue;
+      }
 
-      const qty   = Math.abs(parseFloat(rawQty));
+      const qty   = Math.abs(parseFloat(rawQtyStr));
       const price = parseFloat(rawPrice);
-      if (!isFinite(qty) || qty <= 0)   { skippedRows++; continue; }
-      if (!isFinite(price) || price <= 0) { skippedRows++; continue; }
+      if (!isFinite(qty) || qty <= 0) {
+        skippedRows++;
+        skipReasons.push(`row ${rowIdx}: invalid qty "${rawQtyStr}"`);
+        continue;
+      }
+      if (!isFinite(price) || price <= 0) {
+        skippedRows++;
+        skipReasons.push(`row ${rowIdx}: invalid price "${rawPrice}"`);
+        continue;
+      }
 
       const date = normaliseDate(rawDate, 'meitav');
-      if (!date) { skippedRows++; continue; }
-
-      // ── Classify action ───────────────────────────────────────────────────
-      // קניה / קניה לכיסוי → BUY   |   מכירה / שורט → SELL
-      const isSell = rawAction.includes('מכיר') || rawAction.includes('שורט');
-      const isBuy  = rawAction.includes('קני');
-      if (!isSell && !isBuy) { skippedRows++; continue; }
-
-      const action: 'buy' | 'sell' = isSell ? 'sell' : 'buy';
-
-      // ── Deduplication ─────────────────────────────────────────────────────
-      // Closed trades: dedup via sell signature (exit price, not entry)
-      // Open trades:   dedup via buy signature (entry price)
-      const sig = `${rawTicker}|${date}|${price.toFixed(2)}|${qty}|${action}`;
-      if (existingSignatures.has(sig)) {
-        dupSkipped++;
+      if (!date) {
+        skippedRows++;
+        skipReasons.push(`row ${rowIdx}: unparseable date "${rawDate}"`);
         continue;
       }
 
-      // ── Read P&L for sell rows ────────────────────────────────────────────
+      // ── Action classification ──────────────────────────────────────────
+      // Check "כיסוי" BEFORE "קני" — "קניה לכיסוי" contains "קני".
+      const isKniyaLekisui = rawAction.includes('כיסוי');
+      const isMechira      = rawAction.includes('מכיר') || rawAction === 'מכירה';
+      const isShortOpen    = rawAction.includes('שורט');
+      const isKniya        = rawAction.includes('קני') && !isKniyaLekisui;
+
+      const isClosed = isMechira || isKniyaLekisui;  // SELL or COVER
+      const isOpen   = isKniya   || isShortOpen;     // BUY  or SHORT
+
+      if (!isClosed && !isOpen) {
+        skippedRows++;
+        skipReasons.push(`row ${rowIdx}: unknown action "${rawAction}" for ${rawTicker}`);
+        continue;
+      }
+
+      // ── P&L (closed rows only — read from file, never recalculated) ───
       let pnl = 0;
-      if (isSell && pnlCol) {
-        const rawPnl = row[pnlCol]?.replace(/[,$₪\s]/g, '') ?? '';
+      if (isClosed && pnlCol) {
+        const rawPnl = (row[pnlCol] ?? '').replace(/[,$₪\s]/g, '');
         const parsed = parseFloat(rawPnl);
         if (isFinite(parsed)) pnl = parsed;
       }
 
-      // ── BUY → accumulate open position ───────────────────────────────────
-      if (!isSell) {
-        const existing = openPositions.get(rawTicker);
-        if (!existing) {
-          openPositions.set(rawTicker, {
-            ticker:        rawTicker,
-            phase1_date:   `${date}T12:00:00Z`,
-            phase1_price:  price,
-            phase1_shares: qty,
-            extraBuys:     [],
-            totalShares:   qty,
-            totalInvested: price * qty,
-          });
-        } else {
-          existing.extraBuys.push({ date, price, shares: qty });
-          existing.totalShares   += qty;
-          existing.totalInvested += price * qty;
+      // ── Deduplication — uses RAW (pre-split) values as sig key ────────
+      const dedupAction = isClosed ? 'sell' : 'buy';
+      const sig = `${rawTicker}|${date}|${price.toFixed(2)}|${qty}|${dedupAction}`;
+      if (existingSignatures.has(sig)) {
+        dupSkipped++;
+        // IMPORTANT: even though we skip creating the trade object, we still need
+        // to count the sold qty so open-position FIFO is correct.
+        // If sells were previously imported, they still reduce the open position.
+        if (isClosed) {
+          const adj = applySplits(rawTicker, date, qty, price);
+          const closedPosKey = `${rawTicker}|${isKniyaLekisui ? 'short' : 'long'}`;
+          soldQty.set(closedPosKey, (soldQty.get(closedPosKey) ?? 0) + adj.qty);
         }
         continue;
       }
 
-      // ── SELL → one closed ImportedTrade ───────────────────────────────────
-      //
-      // Back-calculate the approximate average entry price from the P&L:
-      //   pnl = (sellPrice - avgEntry) × qty  →  avgEntry = sellPrice - pnl/qty
-      //
-      // For שורט (short), the same formula works because Meitav records the
-      // net realized gain/loss regardless of direction.
-      const avgEntry   = qty > 0 ? price - pnl / qty : price;
-      const safeEntry  = Math.max(0.01, avgEntry);
-      const estStop    = safeEntry * 0.92;
-      const outcome    = pnl >  0.005 ? 'winner'
-                       : pnl < -0.005 ? 'loser'
-                       : 'breakeven';
-      const pnlPct     = safeEntry > 0
-        ? (pnl / (safeEntry * qty)) * 100
-        : null;
+      // ── Apply stock splits ─────────────────────────────────────────────
+      const adj = applySplits(rawTicker, date, qty, price);
 
-      // The sell partial enables future deduplication: when this trade is
-      // already in the DB, the partial's signature matches the sell row's sig.
-      const sellPartial: PartialRecord = {
-        id:          crypto.randomUUID(),
-        date:        `${date}T12:00:00Z`,
-        action:      'sell',
-        shares:      qty,
-        price,           // exit / sell price
-        pnl_dollars: pnl,
-        pnl_pct:     pnlPct ?? 0,
-        r_multiple:  0,
-      };
+      // ── OPEN row → accumulate split-adjusted buy lot ───────────────────
+      if (isOpen) {
+        const posKey = `${rawTicker}|${isShortOpen ? 'short' : 'long'}`;
+        const lots   = buyLots.get(posKey) ?? [];
+        lots.push({ date, price: adj.price, qty: adj.qty });
+        buyLots.set(posKey, lots);
+        continue;
+      }
+
+      // ── CLOSED row → one ImportedTrade + update soldQty ───────────────
+      const isShortClose = isKniyaLekisui;
+      const closedPosKey = `${rawTicker}|${isShortClose ? 'short' : 'long'}`;
+      soldQty.set(closedPosKey, (soldQty.get(closedPosKey) ?? 0) + adj.qty);
+
+      // Back-calculate entry price for display only (P&L is authoritative)
+      //   long:  avgEntry = sellPrice - P&L / qty
+      //   short: avgEntry = coverPrice + P&L / qty
+      const avgEntry  = adj.qty > 0
+        ? isShortClose ? adj.price + pnl / adj.qty : adj.price - pnl / adj.qty
+        : adj.price;
+      const safeEntry = Math.max(0.01, avgEntry);
+      const estStop   = isShortClose ? safeEntry * 1.08 : safeEntry * 0.92;
+      const outcome   = pnl >  0.005 ? 'winner' : pnl < -0.005 ? 'loser' : 'breakeven';
+      const pnlPct    = safeEntry > 0 ? (pnl / (safeEntry * adj.qty)) * 100 : null;
 
       closedTrades.push({
         _importId:             crypto.randomUUID(),
         ticker:                rawTicker,
-        phase1_date:           `${date}T12:00:00Z`,   // best estimate — same day as exit
-        phase1_price:          safeEntry,              // back-calculated avg entry
-        phase1_shares:         qty,
+        phase1_date:           `${date}T12:00:00Z`,
+        phase1_price:          safeEntry,
+        phase1_shares:         adj.qty,
         initial_stop:          estStop,
         current_stop:          estStop,
         stop_distance_pct:     8,
         risk_dollars:          0,
         status:                'closed',
         exit_date:             `${date}T12:00:00Z`,
-        exit_price:            price,
-        pnl_dollars:           pnl,                   // ← READ FROM FILE, not calculated
+        exit_price:            adj.price,
+        pnl_dollars:           pnl,    // ← FROM FILE — never recalculated
         pnl_pct:               pnlPct,
         r_multiple:            null,
         outcome,
-        partials:              [sellPartial],          // for dedup on re-import
+        partials:              [{
+          id:          crypto.randomUUID(),
+          date:        `${date}T12:00:00Z`,
+          action:      'sell',
+          shares:      adj.qty,
+          price:       adj.price,
+          pnl_dollars: pnl,
+          pnl_pct:     pnlPct ?? 0,
+          r_multiple:  0,
+        }],
         current_shares:        0,
         trend_template_passed: false,
         is_what_if:            true,
-        is_short:              rawAction.includes('שורט'),
+        is_short:              isShortClose,
         failed_gates:          ['imported_from_broker'],
         notes:                 'Imported from Meitav',
         isDuplicate:           false,
@@ -388,36 +471,53 @@ function parseMeitavRows(
         isOrphan:              false,
       });
 
-    } catch {
+    } catch (err) {
       skippedRows++;
+      skipReasons.push(`row ${rowIdx}: exception — ${String(err)}`);
     }
   }
 
-  // ── Convert accumulated open positions → ImportedTrade ────────────────────
+  // ── FIFO open position conversion ─────────────────────────────────────────
+  // For each ticker, sort buy lots oldest-first, consume the already-sold qty
+  // from the front of the queue (FIFO), then compute the weighted-average cost
+  // from the remaining (unclosed) lots only.
   const openTrades: ImportedTrade[] = [];
-  for (const pos of openPositions.values()) {
-    const avgCost = pos.totalShares > 0
-      ? pos.totalInvested / pos.totalShares
-      : pos.phase1_price;
-    const estStop = avgCost * 0.92;
+  for (const [posKey, lots] of buyLots.entries()) {
+    lots.sort((a, b) => a.date.localeCompare(b.date));
 
-    const buyPartials: PartialRecord[] = pos.extraBuys.map(b => ({
-      id:          crypto.randomUUID(),
-      date:        `${b.date}T12:00:00Z`,
-      action:      'buy' as const,
-      shares:      b.shares,
-      price:       b.price,
-      pnl_dollars: 0,
-      pnl_pct:     0,
-      r_multiple:  0,
-    }));
+    const totalBought = lots.reduce((s, l) => s + l.qty, 0);
+    const alreadySold = soldQty.get(posKey) ?? 0;
+    const netShares   = Math.round(totalBought - alreadySold);
+    if (netShares <= 0) continue;   // ticker is fully closed
+
+    // Consume sold shares FIFO from oldest lots
+    let toConsume = alreadySold;
+    const remainingLots: BuyLot[] = [];
+    for (const lot of lots) {
+      if (toConsume <= 0) {
+        remainingLots.push({ ...lot });
+      } else if (lot.qty <= toConsume) {
+        toConsume -= lot.qty;
+      } else {
+        remainingLots.push({ ...lot, qty: lot.qty - toConsume });
+        toConsume = 0;
+      }
+    }
+
+    const totalCost = remainingLots.reduce((s, l) => s + l.price * l.qty, 0);
+    const avgCost   = netShares > 0 ? totalCost / netShares : (remainingLots[0]?.price ?? 0);
+
+    const [ticker, direction] = posKey.split('|');
+    const isShortPos = direction === 'short';
+    const estStop    = isShortPos ? avgCost * 1.08 : avgCost * 0.92;
+    const phase1Lot  = remainingLots[0];
 
     openTrades.push({
       _importId:             crypto.randomUUID(),
-      ticker:                pos.ticker,
-      phase1_date:           pos.phase1_date,
-      phase1_price:          pos.phase1_price,
-      phase1_shares:         pos.phase1_shares,
+      ticker,
+      phase1_date:           `${phase1Lot.date}T12:00:00Z`,
+      phase1_price:          avgCost,   // FIFO-weighted avg of remaining lots only
+      phase1_shares:         netShares,
       initial_stop:          estStop,
       current_stop:          estStop,
       stop_distance_pct:     8,
@@ -429,11 +529,20 @@ function parseMeitavRows(
       pnl_pct:               null,
       r_multiple:            null,
       outcome:               null,
-      partials:              buyPartials,
-      current_shares:        pos.totalShares,
+      partials:              remainingLots.slice(1).map(b => ({
+        id:          crypto.randomUUID(),
+        date:        `${b.date}T12:00:00Z`,
+        action:      'buy' as const,
+        shares:      b.qty,
+        price:       b.price,
+        pnl_dollars: 0,
+        pnl_pct:     0,
+        r_multiple:  0,
+      })),
+      current_shares:        netShares,
       trend_template_passed: false,
       is_what_if:            true,
-      is_short:              false,
+      is_short:              isShortPos,
       failed_gates:          ['imported_from_broker'],
       notes:                 'Imported from Meitav',
       isDuplicate:           false,
@@ -443,12 +552,35 @@ function parseMeitavRows(
     });
   }
 
-  // Sort: open trades first (entry ASC), closed trades after (entry DESC)
+  // Sort: open positions first (oldest entry first), closed trades last (newest first)
   openTrades.sort((a, b) => a.phase1_date.localeCompare(b.phase1_date));
   closedTrades.sort((a, b) => b.phase1_date.localeCompare(a.phase1_date));
 
   const newTrades = [...openTrades, ...closedTrades];
-  console.log(`[MEITAV] ${closedTrades.length} closed trades, ${openTrades.length} open positions, ${skippedRows} skipped, ${dupSkipped} duplicates`);
+
+  // ── Validation log ────────────────────────────────────────────────────────
+  console.group('[MEITAV] Import summary');
+  console.log(`Rows in file  : ${rows.length}`);
+  console.log(`Rows skipped  : ${skippedRows}${skippedRows > 0 ? ' (see details below)' : ''}`);
+  console.log(`Dedup-skipped : ${dupSkipped}`);
+  console.log(`Closed trades : ${closedTrades.length}`);
+  console.log(`Open positions: ${openTrades.length}`);
+  if (openTrades.length > 0) {
+    console.group('Open position details');
+    for (const t of openTrades) {
+      console.log(
+        `  ${t.ticker.padEnd(8)} ${t.current_shares} shares @ $${t.phase1_price.toFixed(2)} avg` +
+        `${STOCK_SPLITS[t.ticker] ? '  [split-adjusted]' : ''}`,
+      );
+    }
+    console.groupEnd();
+  }
+  if (skipReasons.length > 0) {
+    console.group('Skip reasons (first 20)');
+    skipReasons.slice(0, 20).forEach(r => console.log(' ', r));
+    console.groupEnd();
+  }
+  console.groupEnd();
 
   return { newTrades, skippedRows, dupSkipped };
 }

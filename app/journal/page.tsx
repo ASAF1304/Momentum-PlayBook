@@ -153,6 +153,7 @@ export default function JournalPage() {
   const handleTradeAdded = (trade: Trade) => {
     setTrades(prev => [trade, ...prev]);
     setShowAddModal(false);
+    toast({ title: 'Trade added', body: `${trade.ticker} logged successfully`, variant: 'success' });
   };
 
   const handleDeleteTrade = useCallback(async (id: string) => {
@@ -220,7 +221,8 @@ export default function JournalPage() {
         </div>
 
         {/* Segmented control filter tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--tab-strip-bg)] mb-5 w-fit">
+        <div className="overflow-x-auto mb-5">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--tab-strip-bg)] w-fit min-w-max">
           {([
             { key: 'all',         label: 'All'         },
             { key: 'open',        label: 'Open'        },
@@ -250,6 +252,7 @@ export default function JournalPage() {
             </button>
           ))}
         </div>
+        </div>
 
         {/* Body */}
         {loading && <LoadingState slow={slowLoad} />}
@@ -258,7 +261,9 @@ export default function JournalPage() {
           <EmptyState filter={statusFilter} onAdd={() => setShowAddModal(true)} />
         )}
         {!loading && !fetchError && filteredTrades.length > 0 && (
-          <TradeTable trades={filteredTrades} onRowClick={setSelectedTrade} onDelete={id => void handleDeleteTrade(id)} />
+          <div className="overflow-x-auto">
+            <TradeTable trades={filteredTrades} onRowClick={setSelectedTrade} onDelete={id => void handleDeleteTrade(id)} />
+          </div>
         )}
       </main>
 
@@ -338,7 +343,7 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
         {formatDate(trade.phase1_date)}
       </span>
 
-      <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+      <div className="flex items-center gap-1.5 min-w-[64px] flex-wrap">
         {trade.screenshot_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={trade.screenshot_url} alt="" className="w-8 h-5 rounded object-cover flex-shrink-0 opacity-60 border border-[var(--border-subtle)]" />
