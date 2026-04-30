@@ -388,24 +388,39 @@ function parseMeitavRows(
         if (isFinite(parsed)) pnl = parsed;
       }
 
-      // ── Deduplication — uses RAW (pre-split) values as sig key ────────
+      // ── Apply stock splits (always first — needed in dedup path too) ──────
+      const adj = applySplits(rawTicker, date, qty, price);
+
+      // ── Per-row trace for debug tickers ───────────────────────────────
+      const _dbgTickers = new Set(['ALAB', 'TER', 'POWL', 'IREN']);
+      if (_dbgTickers.has(rawTicker)) {
+        const splitNote = STOCK_SPLITS[rawTicker]
+          ? ` → adj qty=${adj.qty.toFixed(4)}`
+          : '';
+        console.log(
+          `[MEITAV DBG] ${rawTicker} row${rowIdx}  action="${rawAction}"  raw qty=${qty}${splitNote}  price=${price.toFixed(2)}  date=${date}  ${isClosed ? 'SELL' : 'BUY'}`,
+        );
+      }
+
+      // ── Deduplication — sig uses RAW (pre-split) values ───────────────
+      // For BOTH buy and sell dedup'd rows we still track qty in
+      // buyLots / soldQty so the net-share formula stays accurate.
       const dedupAction = isClosed ? 'sell' : 'buy';
       const sig = `${rawTicker}|${date}|${price.toFixed(2)}|${qty}|${dedupAction}`;
       if (existingSignatures.has(sig)) {
         dupSkipped++;
-        // IMPORTANT: even though we skip creating the trade object, we still need
-        // to count the sold qty so open-position FIFO is correct.
-        // If sells were previously imported, they still reduce the open position.
         if (isClosed) {
-          const adj = applySplits(rawTicker, date, qty, price);
           const closedPosKey = `${rawTicker}|${isKniyaLekisui ? 'short' : 'long'}`;
           soldQty.set(closedPosKey, (soldQty.get(closedPosKey) ?? 0) + adj.qty);
+        } else {
+          // BUY dedup'd: still add to buyLots so totalBought is correct
+          const posKey = `${rawTicker}|${isShortOpen ? 'short' : 'long'}`;
+          const lots   = buyLots.get(posKey) ?? [];
+          lots.push({ date, price: adj.price, qty: adj.qty });
+          buyLots.set(posKey, lots);
         }
         continue;
       }
-
-      // ── Apply stock splits ─────────────────────────────────────────────
-      const adj = applySplits(rawTicker, date, qty, price);
 
       // ── OPEN row → accumulate split-adjusted buy lot ───────────────────
       if (isOpen) {
@@ -557,6 +572,24 @@ function parseMeitavRows(
   closedTrades.sort((a, b) => b.phase1_date.localeCompare(a.phase1_date));
 
   const newTrades = [...openTrades, ...closedTrades];
+
+  // ── Debug breakdown for ALAB / TER / POWL / IREN ─────────────────────────
+  console.group('[MEITAV] Net-share breakdown for debug tickers');
+  const _dbg = new Set(['ALAB', 'TER', 'POWL', 'IREN']);
+  const _allPosKeys = new Set([...buyLots.keys(), ...soldQty.keys()]);
+  for (const posKey of _allPosKeys) {
+    const [ticker] = posKey.split('|');
+    if (!_dbg.has(ticker)) continue;
+    const lots   = buyLots.get(posKey) ?? [];
+    const tb     = lots.reduce((s, l) => s + l.qty, 0);
+    const ts     = soldQty.get(posKey) ?? 0;
+    const net    = Math.round(tb - ts);
+    const splitFlag = STOCK_SPLITS[ticker] ? ' [split-adjusted]' : '';
+    console.log(
+      `${ticker.padEnd(8)} totalBought=${tb.toFixed(4).padStart(10)}  totalSold=${ts.toFixed(4).padStart(10)}  net=${net}${splitFlag}`,
+    );
+  }
+  console.groupEnd();
 
   // ── Validation log ────────────────────────────────────────────────────────
   console.group('[MEITAV] Import summary');
