@@ -531,8 +531,8 @@ function parseMeitavRows(
       _importId:             crypto.randomUUID(),
       ticker,
       phase1_date:           `${phase1Lot.date}T12:00:00Z`,
-      phase1_price:          avgCost,   // FIFO-weighted avg of remaining lots only
-      phase1_shares:         netShares,
+      phase1_price:          phase1Lot.price,
+      phase1_shares:         phase1Lot.qty,
       initial_stop:          estStop,
       current_stop:          estStop,
       stop_distance_pct:     8,
