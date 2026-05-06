@@ -91,8 +91,9 @@ export async function middleware(request: NextRequest) {
       const BILLING_REDIRECT_STATUSES = ['expired_grace', 'cancelled'];
 
       if (!ACTIVE_STATUSES.includes(status ?? '')) {
-        const dest = BILLING_REDIRECT_STATUSES.includes(status ?? '') ? '/billing' : '/onboarding/checkout';
-        return NextResponse.redirect(new URL(dest, request.url));
+        // Always go to /billing — whether expired, cancelled, or no subscription yet.
+        // The billing page handles all "no access" states and explains the free trial offer.
+        return NextResponse.redirect(new URL('/billing', request.url));
       }
     } catch (err) {
       // DB error — allow through rather than locking users out

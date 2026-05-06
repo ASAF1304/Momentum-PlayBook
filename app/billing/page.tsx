@@ -75,7 +75,8 @@ export default function BillingPage() {
   const hasPaddle  = HAS_PADDLE_SUB.includes(status);
   const isGrace    = status === 'grace';
   const isComp     = status === 'comp';
-  const needsCard  = !sub || status === 'cancelled' || status === 'expired_grace';
+  const noSub      = !sub;
+  const needsCard  = noSub || status === 'cancelled' || status === 'expired_grace';
 
   const graceDaysLeft = isGrace && trialEnd
     ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86_400_000))
@@ -140,12 +141,13 @@ export default function BillingPage() {
           {isGrace && (
             <p className="text-sm text-[var(--text-muted)]">
               {graceDaysLeft !== null && graceDaysLeft > 0
-                ? <>גישת הבטא בחינם מסתיימת בעוד{' '}
+                ? <>ניסיון חינמי מסתיים בעוד{' '}
                     <span className="font-semibold text-[#22D3EE]">
                       {graceDaysLeft} {graceDaysLeft === 1 ? 'יום' : 'ימים'}
                     </span>
+                    {' '}— הוסף כרטיס ותקבל חודש נוסף חינם
                   </>
-                : 'גישת הבטא בחינם הסתיימה — הוסף כרטיס כדי להמשיך'}
+                : 'הניסיון החינמי הסתיים — הוסף כרטיס כדי להמשיך'}
             </p>
           )}
           {isComp && (
@@ -156,19 +158,29 @@ export default function BillingPage() {
 
           {/* CTA */}
           {needsCard ? (
-            <button
-              onClick={() => router.push('/onboarding/checkout')}
-              className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
-            >
-              {status === 'expired_grace' ? 'הוסף כרטיס אשראי' : 'התחל ניסיון חינמי'}
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push('/onboarding/checkout')}
+                className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
+              >
+                הוסף כרטיס אשראי — חודש חינם
+              </button>
+              <p className="text-center text-xs text-[var(--text-faint)]">
+                חודש ניסיון חינמי, לאחר מכן 50 ₪ / חודש. ביטול בכל עת.
+              </p>
+            </div>
           ) : isGrace ? (
-            <button
-              onClick={() => router.push('/onboarding/checkout')}
-              className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
-            >
-              הוסף כרטיס אשראי לפני שהגישה מסתיימת
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push('/onboarding/checkout')}
+                className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
+              >
+                הוסף כרטיס — קבל חודש נוסף חינם
+              </button>
+              <p className="text-center text-xs text-[var(--text-faint)]">
+                חודש ניסיון חינמי, לאחר מכן 50 ₪ / חודש. ביטול בכל עת.
+              </p>
+            </div>
           ) : isComp ? null : hasPaddle ? (
             <a
               href="https://customer.paddle.com/subscriptions"

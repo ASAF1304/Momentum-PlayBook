@@ -68,9 +68,11 @@ export default function OnboardingPage() {
     }
 
     await refreshProfile();
-    // Redirect to Paddle checkout if configured, otherwise go straight to dashboard
-    const dest = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID ? '/onboarding/checkout' : '/';
-    router.push(dest);
+
+    // Start 14-day free trial (no CC required). Idempotent — safe to call multiple times.
+    await fetch('/api/start-trial', { method: 'POST' });
+
+    router.push('/');
   };
 
   if (loading) {
@@ -100,8 +102,11 @@ export default function OnboardingPage() {
           <h1 className="text-[20px] font-extrabold tracking-tight text-[var(--text-primary)] mb-1 mt-6">
             Set up your account
           </h1>
-          <p className="text-xs text-[var(--text-muted)] mb-6 leading-relaxed">
+          <p className="text-xs text-[var(--text-muted)] mb-1 leading-relaxed">
             These parameters drive the position sizer and risk engine. You can change them later in Settings.
+          </p>
+          <p className="text-xs font-semibold text-[#10F088] mb-6">
+            ✓ 14 days free — no credit card required
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -199,7 +204,7 @@ export default function OnboardingPage() {
               )}
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {submitting ? 'Saving…' : 'Start trading →'}
+              {submitting ? 'Saving…' : 'Start free trial →'}
             </button>
           </form>
         </div>
