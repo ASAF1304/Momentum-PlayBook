@@ -15,6 +15,7 @@ import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
 import { AddWhatIfModal } from '@/components/playbook/add-what-if-modal';
 import { supabase, type Trade, type TradeOutcome, type PartialExit } from '@/lib/supabase-client';
+import { getPartials, getSells, getBuys } from '@/lib/trade-utils';
 import { computeWinRate } from '@/lib/stats/win-rate';
 import { computeUnrealizedPnL, computeCurrentR } from '@/lib/stats/dashboard-stats';
 import { useAuth } from '@/lib/auth-context';
@@ -25,10 +26,6 @@ import Link from 'next/link';
 type TabFilter = 'all' | 'winner' | 'loser' | 'breakeven' | 'live' | 'what-if' | 'charts';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
-
-const getPartials = (t: Trade): PartialExit[] => Array.isArray(t.partials) ? t.partials : [];
-const getSells    = (t: Trade) => getPartials(t).filter(p => (p.action ?? 'sell') === 'sell');
-const getBuys     = (t: Trade) => getPartials(t).filter(p => p.action === 'buy');
 
 function getExitEvents(t: Trade): { isWin: boolean; r_multiple: number }[] {
   const events: { isWin: boolean; r_multiple: number }[] = [];
@@ -92,16 +89,13 @@ function PlaybookInner() {
     const tid = setTimeout(() => controller.abort(), 15_000);
     let ok = false;
     try {
-      console.time(`[PLAYBOOK] fetchTrades (attempt ${attempt})`);
       const { data, error } = await supabase
         .from('trades').select('*').order('phase1_date', { ascending: false })
         .abortSignal(controller.signal);
-      console.timeEnd(`[PLAYBOOK] fetchTrades (attempt ${attempt})`);
       if (error) throw new Error(error.message);
       setTrades((data as Trade[]) ?? []);
       ok = true;
     } catch (err) {
-      console.timeEnd(`[PLAYBOOK] fetchTrades (attempt ${attempt})`);
       if (attempt === 0) { setTimeout(() => void fetchTrades(1), 2_000); return; }
       const isTimeout = (err as Error).name === 'AbortError';
       setFetchError(isTimeout ? 'Request timed out — check your connection.' : ((err as Error).message || 'Failed to load trades.'));

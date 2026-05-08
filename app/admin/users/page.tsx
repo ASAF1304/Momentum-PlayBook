@@ -68,11 +68,9 @@ export default function AdminUsersPage() {
   const [extendLoading, setExtendLoading] = useState(false);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!profile?.is_admin) { router.replace('/'); return; }
-    loadUsers();
+    if (!authLoading) loadUsers();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, authLoading, router]);
+  }, [authLoading]);
 
   async function loadUsers() {
     setLoading(true);

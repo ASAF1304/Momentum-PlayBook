@@ -23,8 +23,9 @@ export async function POST(
   if (denied) return denied;
 
   const { userId } = await params;
-  const body = await request.json().catch(() => ({})) as { action?: string };
+  const body = await request.json().catch(() => ({})) as { action?: string; days?: number };
   const action = body.action;
+  const days = Math.min(365, Math.max(1, typeof body.days === 'number' ? body.days : 30));
 
   if (!['comp', 'extend', 'revoke'].includes(action ?? '')) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -51,7 +52,7 @@ export async function POST(
     const base = sub?.trial_ends_at && new Date(sub.trial_ends_at) > new Date()
       ? new Date(sub.trial_ends_at)
       : new Date();
-    base.setDate(base.getDate() + 30);
+    base.setDate(base.getDate() + days);
 
     await db.from('subscriptions').upsert({
       user_id:       userId,
@@ -62,7 +63,7 @@ export async function POST(
 
   } else if (action === 'revoke') {
     const thirtyDaysOut = new Date();
-    thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
+    thirtyDaysOut.setDate(thirtyDaysOut.getDate() + days);
 
     await db.from('subscriptions').upsert({
       user_id:       userId,

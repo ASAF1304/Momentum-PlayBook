@@ -5,6 +5,7 @@
 
 import type { Trade } from '@/lib/supabase-client';
 import type { LivePrice } from '@/app/api/live-prices/route';
+import { computeAvgEntry } from '@/lib/trade-utils';
 
 // ── Period ────────────────────────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ export function computeUnrealizedPnL(
     const price = livePrices[t.ticker]?.price;
     if (price == null) return sum;
     const shares = t.current_shares || t.phase1_shares;
-    return sum + (price - t.phase1_price) * shares;
+    return sum + (price - computeAvgEntry(t)) * shares;
   }, 0);
 }
 
@@ -120,7 +121,7 @@ export function computeUnrealizedPnL(
  * Returns null when stop === entry (zero risk).
  */
 export function computeCurrentR(trade: Trade, currentPrice: number): number | null {
-  const entry = trade.phase1_price;
+  const entry = computeAvgEntry(trade);
   const stop  = trade.current_stop ?? trade.initial_stop;
   const risk  = entry - stop;
   if (risk <= 0) return null;

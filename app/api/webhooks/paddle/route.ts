@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
           trial_ends_at:      sub.trialDates?.endsAt ?? null,
           current_period_end: sub.currentBillingPeriod?.endsAt ?? null,
           updated_at:         new Date().toISOString(),
-        }, { onConflict: 'paddle_sub_id' });
+        }, { onConflict: 'user_id' });
         break;
       }
 

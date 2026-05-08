@@ -10,10 +10,11 @@ import {
   type ReactNode,
 } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase, type UserProfile } from './supabase-client';
+import { supabase, type UserProfile, type Subscription } from './supabase-client';
 
-// 5-minute in-memory profile cache — avoids re-fetching on every navigation
+// 5-minute in-memory cache — avoids re-fetching on every navigation
 const profileCache = new Map<string, { profile: UserProfile; ts: number }>();
+const subCache     = new Map<string, { sub: Subscription | null; ts: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 // Nukes all Supabase auth data from localStorage. Call when the session is
@@ -33,32 +34,69 @@ export async function clearAuthStorage() {
 interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
+  subscription: Subscription | null;
   loading: boolean;
   profileLoading: boolean;
+  subscriptionLoading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshSubscription: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   profile: null,
+  subscription: null,
   loading: true,
   profileLoading: false,
+  subscriptionLoading: false,
   signOut: async () => {},
   refreshProfile: async () => {},
+  refreshSubscription: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user,           setUser]           = useState<User | null>(null);
-  const [profile,        setProfile]        = useState<UserProfile | null>(null);
-  const [loading,        setLoading]        = useState(true);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const inFlight   = useRef(false);
-  const isResolved = useRef(false); // tracks whether auth has resolved (for timeout)
+  const [user,                setUser]                = useState<User | null>(null);
+  const [profile,             setProfile]             = useState<UserProfile | null>(null);
+  const [subscription,        setSubscription]        = useState<Subscription | null>(null);
+  const [loading,             setLoading]             = useState(true);
+  const [profileLoading,      setProfileLoading]      = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const inFlight    = useRef(false);
+  const subInFlight = useRef(false);
+  const isResolved  = useRef(false);
 
   const markResolved = useCallback(() => {
     isResolved.current = true;
     setLoading(false);
+  }, []);
+
+  const fetchSubscription = useCallback(async (userId: string, force = false) => {
+    if (!force) {
+      const cached = subCache.get(userId);
+      if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+        setSubscription(cached.sub);
+        return;
+      }
+    }
+    if (subInFlight.current) return;
+    subInFlight.current = true;
+    setSubscriptionLoading(true);
+    try {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const sub = (data as Subscription | null) ?? null;
+      subCache.set(userId, { sub, ts: Date.now() });
+      setSubscription(sub);
+    } catch (err) {
+      console.error('[AUTH-FAIL] fetchSubscription threw:', err);
+    } finally {
+      subInFlight.current = false;
+      setSubscriptionLoading(false);
+    }
   }, []);
 
   const fetchProfile = useCallback(async (userId: string, force = false) => {
@@ -113,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = session?.user ?? null;
         setUser(u);
         markResolved(); // unblock UI immediately
-        if (u) void fetchProfile(u.id); // fire-and-forget
+        if (u) { void fetchProfile(u.id); void fetchSubscription(u.id); }
       })
       .catch(err => {
         console.error('[AUTH-FAIL] getSession() threw:', err);
@@ -129,10 +167,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(u);
           markResolved(); // unblock UI immediately
           if (u) {
-            void fetchProfile(u.id); // fire-and-forget
+            void fetchProfile(u.id);
+            void fetchSubscription(u.id);
           } else {
             setProfile(null);
+            setSubscription(null);
             profileCache.clear();
+            subCache.clear();
           }
         } catch (err) {
           console.error('[AUTH-FAIL] onAuthStateChange threw:', err);
@@ -149,18 +190,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     profileCache.clear();
-    // scope: 'local' — sign out only this device, keep other devices' sessions active.
+    subCache.clear();
     try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
     setUser(null);
     setProfile(null);
+    setSubscription(null);
   };
 
   const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user.id, true);
   }, [user, fetchProfile]);
 
+  const refreshSubscription = useCallback(async () => {
+    if (user) await fetchSubscription(user.id, true);
+  }, [user, fetchSubscription]);
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, profileLoading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{
+      user, profile, subscription, loading, profileLoading, subscriptionLoading,
+      signOut, refreshProfile, refreshSubscription,
+    }}>
       {children}
     </AuthContext.Provider>
   );

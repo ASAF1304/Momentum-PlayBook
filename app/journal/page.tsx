@@ -12,6 +12,7 @@ import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
 import { AddTradeModal } from '@/components/journal/add-trade-modal';
 import { ImportExcelModal } from '@/components/journal/import-excel-modal';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useAuth } from '@/lib/auth-context';
 import {
   supabase,
@@ -20,6 +21,7 @@ import {
   type TradeOutcome,
   type TradeStatus,
 } from '@/lib/supabase-client';
+import { getPartials, getSells, getBuys, computeAvgEntry, computeTotalInvested, getCurrentShares } from '@/lib/trade-utils';
 import { computeWinRate } from '@/lib/stats/win-rate';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
@@ -27,43 +29,6 @@ import Link from 'next/link';
 
 type StatusFilter = 'all' | TradeStatus;
 type ScaleTab     = 'sell' | 'buy';
-
-// ── Pure helpers (no side-effects, safe to call during render) ────────────────
-
-const getPartials  = (t: Trade): PartialExit[] => Array.isArray(t.partials) ? t.partials : [];
-const getSells     = (t: Trade) => getPartials(t).filter(p => (p.action ?? 'sell') === 'sell');
-const getBuys      = (t: Trade) => getPartials(t).filter(p => p.action === 'buy');
-
-/**
- * Weighted average entry price across the initial lot + all scale-in buys.
- * phase1_price and phase1_shares are the original entry — never mutated in DB.
- */
-const computeAvgEntry = (t: Trade): number => {
-  const buys = getBuys(t);
-  if (buys.length === 0) return t.phase1_price;
-  const extraShares   = buys.reduce((s, p) => s + p.shares, 0);
-  const totalShares   = t.phase1_shares + extraShares;
-  const totalInvested = t.phase1_price * t.phase1_shares
-                      + buys.reduce((s, p) => s + p.shares * p.price, 0);
-  return totalInvested / totalShares;
-};
-
-/**
- * Total capital deployed (initial lot + all scale-in buys).
- * Used as PnL% denominator so adding size doesn't distort returns.
- */
-const computeTotalInvested = (t: Trade): number => {
-  const buys = getBuys(t);
-  return t.phase1_price * t.phase1_shares
-       + buys.reduce((s, p) => s + p.shares * p.price, 0);
-};
-
-/** Current shares: always computed from first principles so DB default-0 can't corrupt it. */
-const getCurrentShares = (t: Trade): number => {
-  const sold  = getSells(t).reduce((s, p) => s + p.shares, 0);
-  const added = getBuys(t).reduce((s, p) => s + p.shares, 0);
-  return t.phase1_shares + added - sold;
-};
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -76,8 +41,9 @@ export default function JournalPage() {
   const [slowLoad,      setSlowLoad]      = useState(false);
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all');
   const [selectedTrade,  setSelectedTrade]  = useState<Trade | null>(null);
-  const [showAddModal,   setShowAddModal]   = useState(false);
-  const [showImport,     setShowImport]     = useState(false);
+  const [showAddModal,     setShowAddModal]     = useState(false);
+  const [showImport,       setShowImport]       = useState(false);
+  const [deleteConfirmId,  setDeleteConfirmId]  = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading) { setSlowLoad(false); return; }
@@ -93,16 +59,13 @@ export default function JournalPage() {
     const tid = setTimeout(() => controller.abort(), 15_000);
     let ok = false;
     try {
-      console.time(`[JOURNAL] fetchTrades (attempt ${attempt})`);
       const { data, error } = await supabase
         .from('trades').select('*').order('phase1_date', { ascending: false })
         .abortSignal(controller.signal);
-      console.timeEnd(`[JOURNAL] fetchTrades (attempt ${attempt})`);
       if (error) throw new Error(error.message);
       setTrades((data as Trade[]) ?? []);
       ok = true;
     } catch (err) {
-      console.timeEnd(`[JOURNAL] fetchTrades (attempt ${attempt})`);
       if (attempt === 0) { setTimeout(() => void fetchTrades(1), 2_000); return; }
       const isTimeout = (err as Error).name === 'AbortError';
       setFetchError(isTimeout ? 'Request timed out — check your connection.' : ((err as Error).message || 'Failed to load trades.'));
@@ -156,8 +119,14 @@ export default function JournalPage() {
     toast({ title: 'Trade added', body: `${trade.ticker} logged successfully`, variant: 'success' });
   };
 
-  const handleDeleteTrade = useCallback(async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this trade? This action cannot be undone.')) return;
+  const handleDeleteTrade = useCallback((id: string) => {
+    setDeleteConfirmId(id);
+  }, []);
+
+  const performDelete = useCallback(async () => {
+    if (!deleteConfirmId) return;
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
     const { error } = await supabase.from('trades').delete().eq('id', id);
     if (error) {
       toast({ title: 'Delete failed', body: error.message, variant: 'error' });
@@ -165,7 +134,7 @@ export default function JournalPage() {
     }
     setTrades(prev => prev.filter(t => t.id !== id));
     setSelectedTrade(null);
-  }, []);
+  }, [deleteConfirmId]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -294,6 +263,16 @@ export default function JournalPage() {
           onImported={() => { setShowImport(false); void fetchTrades(); }}
         />
       )}
+
+      {deleteConfirmId && (
+        <ConfirmModal
+          title="Delete trade"
+          message="This action cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={() => void performDelete()}
+          onCancel={() => setDeleteConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -346,7 +325,7 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
       <div className="flex items-center gap-1.5 min-w-[64px] flex-wrap">
         {trade.screenshot_url && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={trade.screenshot_url} alt="" className="w-8 h-5 rounded object-cover flex-shrink-0 opacity-60 border border-[var(--border-subtle)]" />
+          <img src={trade.screenshot_url} alt={`${trade.ticker} chart`} className="w-8 h-5 rounded object-cover flex-shrink-0 opacity-60 border border-[var(--border-subtle)]" />
         )}
         <span className="font-mono text-[15px] font-extrabold tracking-tight truncate">{trade.ticker}</span>
         {trade.setup_type && (

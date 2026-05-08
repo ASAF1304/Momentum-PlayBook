@@ -121,6 +121,17 @@ export interface Stage2Leader {
   rank: number | null;
 }
 
+// ── Asaf's Thoughts ────────────────────────────────────────────────────────────
+
+export interface AsafThought {
+  id:         string;
+  ticker:     string;
+  notes:      string | null;
+  image_url:  string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Watchlist ──────────────────────────────────────────────────────────────────
 
 export interface WatchlistItem {

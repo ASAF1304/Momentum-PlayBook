@@ -60,6 +60,11 @@ export default function WatchlistPage() {
     const sym = tickerInput.trim().toUpperCase();
     if (!sym || !user || adding) return;
 
+    if (!/^[A-Z.]{1,6}$/.test(sym)) {
+      toast({ title: 'Invalid ticker', body: 'Use 1–6 letters only (e.g. AAPL, BRK.B)', variant: 'warning' });
+      return;
+    }
+
     if (items.some(i => i.ticker === sym)) {
       toast({ title: `${sym} already on watchlist`, variant: 'warning' });
       return;
@@ -146,7 +151,7 @@ export default function WatchlistPage() {
         <form onSubmit={handleAdd} className="flex gap-2.5 mb-7">
           <input
             value={tickerInput}
-            onChange={e => setTickerInput(e.target.value.toUpperCase().slice(0, 10))}
+            onChange={e => setTickerInput(e.target.value.toUpperCase().replace(/[^A-Z.]/g, '').slice(0, 6))}
             placeholder="TICKER"
             className="flex-1 min-w-0 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[10px] px-4 py-3 font-mono text-[18px] font-bold uppercase text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
           />
@@ -257,14 +262,14 @@ function WatchlistRow({
       {/* Expanded content */}
       {expanded && (
         <div className="border-t border-[var(--border-subtle)]">
-          <div className="flex gap-0">
-            {/* Chart — 70% */}
+          <div className="flex flex-col lg:flex-row gap-0">
+            {/* Chart */}
             <div className="flex-[7] min-w-0">
               <TradingViewChart ticker={item.ticker} height={500} />
             </div>
 
-            {/* Validator panel — 30% */}
-            <div className="flex-[3] min-w-0 border-l border-[var(--border-subtle)] px-4 py-4 overflow-y-auto" style={{ maxHeight: 500 }}>
+            {/* Validator panel */}
+            <div className="flex-[3] min-w-0 border-t lg:border-t-0 lg:border-l border-[var(--border-subtle)] px-4 py-4 overflow-y-auto" style={{ maxHeight: 500 }}>
               {!snapshot || snapshot === 'loading' ? (
                 <div className="flex items-center gap-2 py-6 text-[var(--text-faint)] text-xs">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />

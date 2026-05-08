@@ -44,25 +44,11 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 };
 
 function BillingTab({ user }: { user: { id: string; email?: string } }) {
-  const { id: userId } = user;
-  const router   = useRouter();
+  const { subscription: sub, subscriptionLoading: fetching } = useAuth();
+  const router    = useRouter();
   const paddleRef = useRef<Paddle | null>(null);
-  const [sub,         setSub]         = useState<Subscription | null>(null);
-  const [fetching,    setFetching]    = useState(true);
   const [paddleReady, setPaddleReady] = useState(false);
   const [opening,     setOpening]     = useState(false);
-
-  useEffect(() => {
-    supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setSub(data as Subscription | null);
-        setFetching(false);
-      });
-  }, [userId]);
 
   // Initialise Paddle.js (only if env vars are set)
   useEffect(() => {
@@ -86,7 +72,7 @@ function BillingTab({ user }: { user: { id: string; email?: string } }) {
       customer:   sub?.paddle_customer_id
         ? { id: sub.paddle_customer_id }
         : { email: user.email ?? '' },
-      customData: { user_id: userId },
+      customData: { user_id: user.id },
       settings: {
         successUrl: `${window.location.origin}/settings?tab=billing`,
         allowLogout: false,

@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BookOpen, Layers, LineChart, List, LogOut, Moon, Settings, ShieldAlert, Sun, TrendingUp,
+  BookOpen, Brain, Layers, LineChart, List, LogOut, Moon, Settings, ShieldAlert, Sun, TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: '/journal',   label: 'Journal',   icon: BookOpen  },
   { href: '/watchlist', label: 'Watchlist', icon: List      },
   { href: '/playbook',  label: 'Playbook',  icon: Layers    },
+  { href: '/thoughts',  label: 'Thoughts',  icon: Brain     },
 ];
 
 export function AppNav() {

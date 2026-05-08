@@ -19,7 +19,7 @@
 // RLS policies on stage2_leaders must allow anon INSERT + DELETE.
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceClient } from '@/lib/supabase-service';
 import YahooFinance from 'yahoo-finance2';
 
 const yf = new YahooFinance();
@@ -221,15 +221,10 @@ export async function GET(request: Request) {
     log('Auth OK');
 
     // ── Env-var check ─────────────────────────────────────────────────────────
-    const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!supabaseUrl) {
       log('MISSING: NEXT_PUBLIC_SUPABASE_URL');
       return NextResponse.json({ ok: false, step: 'env', error: 'NEXT_PUBLIC_SUPABASE_URL not set', logs }, { status: 500 });
-    }
-    if (!supabaseAnon) {
-      log('MISSING: NEXT_PUBLIC_SUPABASE_ANON_KEY');
-      return NextResponse.json({ ok: false, step: 'env', error: 'NEXT_PUBLIC_SUPABASE_ANON_KEY not set', logs }, { status: 500 });
     }
     log('Env vars OK');
 
@@ -294,8 +289,8 @@ export async function GET(request: Request) {
     log(`${leaders.length} leaders ready (source: ${source})`);
 
     // ── Write to Supabase ──────────────────────────────────────────────────────
-    log('Creating Supabase client (anon key)…');
-    const supabase = createClient(supabaseUrl, supabaseAnon);
+    log('Creating Supabase client (service role)…');
+    const supabase = getServiceClient();
 
     log('Deleting old rows from stage2_leaders…');
     const { error: deleteError } = await supabase
@@ -320,7 +315,8 @@ export async function GET(request: Request) {
     log(`Inserting ${leaders.length} rows…`);
     const { error: insertError } = await supabase
       .from('stage2_leaders')
-      .insert(leaders);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(leaders as any);
 
     if (insertError) {
       log(`Insert error: ${insertError.message} (code: ${insertError.code})`);
