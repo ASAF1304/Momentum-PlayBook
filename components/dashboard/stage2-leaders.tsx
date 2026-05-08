@@ -39,13 +39,15 @@ export function Stage2Leaders({ onSelectTicker }: Stage2LeadersProps) {
     setLoading(false);
   }, []);
 
+  const userId = user?.id;
+
   const fetchWatchlist = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     const { data } = await supabase
       .from('watchlist_items')
       .select('ticker');
     if (data) setWatchlist(new Set((data as Pick<WatchlistItem, 'ticker'>[]).map(w => w.ticker)));
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     void fetchLeaders();

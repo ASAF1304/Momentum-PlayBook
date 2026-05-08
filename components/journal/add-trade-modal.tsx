@@ -242,7 +242,7 @@ export function AddTradeModal({
                 <input
                   value={ticker}
                   onChange={e => setTicker(e.target.value.toUpperCase().slice(0, 10))}
-                  placeholder="NVDA"
+                  placeholder="e.g. AAPL"
                   className={inputCls('cyan') + ' font-extrabold text-[16px] uppercase tracking-wide'}
                 />
               </FormField>

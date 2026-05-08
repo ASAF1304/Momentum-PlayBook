@@ -21,13 +21,26 @@ export interface WinRateStats {
   totalPnL:    number;
 }
 
+function retroR(t: Trade): number | null {
+  const exit  = t.exit_price;
+  const entry = t.phase1_price;
+  const stop  = t.initial_stop;
+  if (exit == null || entry == null || stop == null) return null;
+  const risk = entry - stop;
+  if (risk <= 0) return null;
+  return (exit - entry) / risk;
+}
+
 export function computeWinRate(trades: Trade[]): WinRateStats {
   const closed     = trades.filter(t => t.status !== 'open' && t.outcome !== null);
   const wins       = closed.filter(t => t.outcome === 'winner').length;
   const losses     = closed.filter(t => t.outcome === 'loser').length;
   const breakevens = closed.filter(t => t.outcome === 'breakeven').length;
-  const withR      = closed.filter(t => t.r_multiple !== null);
   const totalPnL   = closed.reduce((s, t) => s + (t.pnl_dollars ?? 0), 0);
+
+  const rValues = closed
+    .map(t => t.r_multiple ?? retroR(t))
+    .filter((r): r is number => r !== null);
 
   return {
     winRate:     closed.length > 0 ? (wins / closed.length) * 100 : null,
@@ -35,7 +48,7 @@ export function computeWinRate(trades: Trade[]): WinRateStats {
     losses,
     breakevens,
     closedCount: closed.length,
-    avgR:        withR.length > 0 ? withR.reduce((s, t) => s + (t.r_multiple ?? 0), 0) / withR.length : null,
+    avgR:        rValues.length > 0 ? rValues.reduce((s, r) => s + r, 0) / rValues.length : null,
     totalPnL,
   };
 }

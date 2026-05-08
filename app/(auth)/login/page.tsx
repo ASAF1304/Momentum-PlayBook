@@ -108,8 +108,8 @@ function LoginForm() {
             <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
               Password
             </label>
-            <Link href="/auth/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-              שכחתי סיסמה
+            <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+              Forgot password?
             </Link>
           </div>
           <input
@@ -156,17 +156,17 @@ function LoginForm() {
         <div className="flex items-start gap-2 text-[10px] text-zinc-700 leading-relaxed">
           <Info className="w-3 h-3 text-zinc-700 mt-0.5 shrink-0" />
           <span>
-            Momentum Playbook אינה מספקת ייעוץ השקעות.{' '}
+            Momentum Playbook does not provide investment advice.{' '}
             <Link href="/legal/disclaimer" className="underline hover:text-zinc-500 transition-colors">
-              כתב ויתור
+              Disclaimer
             </Link>
             {' · '}
             <Link href="/legal/terms" className="underline hover:text-zinc-500 transition-colors">
-              תנאי שימוש
+              Terms of Use
             </Link>
             {' · '}
             <Link href="/legal/privacy" className="underline hover:text-zinc-500 transition-colors">
-              פרטיות
+              Privacy
             </Link>
           </span>
         </div>

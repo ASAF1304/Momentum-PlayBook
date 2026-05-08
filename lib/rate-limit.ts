@@ -27,11 +27,11 @@ function makeLimiter(requests: number, windowSeconds: number): Ratelimit | null 
   });
 }
 
-// 30 requests per 60 s — used on the ticker data API (by IP)
+// 60 requests per 60 s — used on the ticker data API (by IP)
 let _tickerLimiter: Ratelimit | null | undefined = undefined;
 export function getTickerLimiter(): Ratelimit | null {
   if (_tickerLimiter !== undefined) return _tickerLimiter;
-  return (_tickerLimiter = makeLimiter(30, 60));
+  return (_tickerLimiter = makeLimiter(60, 60));
 }
 
 // 60 requests per 60 s — used on write / live-price routes (by user ID or IP)

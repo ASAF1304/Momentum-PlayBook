@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  BookmarkPlus, Check, ChevronDown, ChevronUp, Loader2,
+  AlertTriangle, BookmarkPlus, Check, ChevronDown, ChevronUp, Loader2,
   Plus, RefreshCw, TrendingDown, TrendingUp, X,
 } from 'lucide-react';
 import { AppNav } from '@/components/nav/app-nav';
@@ -27,27 +27,28 @@ export default function WatchlistPage() {
   const [items,          setItems]          = useState<WatchlistItem[]>([]);
   const [loadingList,    setLoadingList]    = useState(true);
   const [tickerInput,    setTickerInput]    = useState('');
+  const [tickerError,    setTickerError]    = useState<string | null>(null);
   const [adding,         setAdding]         = useState(false);
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   const [snapshots,      setSnapshots]      = useState<Record<string, SnapshotState>>({});
 
   // ── Fetch list ─────────────────────────────────────────────────────────────
 
+  const userId = user?.id;
+
   const fetchItems = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setLoadingList(false);
       return;
     }
     setLoadingList(true);
-    console.time('[WATCHLIST] fetchItems (watchlist_items select)');
     const { data, error } = await supabase
       .from('watchlist_items')
       .select('*')
       .order('added_at', { ascending: false });
-    console.timeEnd('[WATCHLIST] fetchItems (watchlist_items select)');
     if (!error) setItems((data as WatchlistItem[]) ?? []);
     setLoadingList(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (!authLoading) void fetchItems();
@@ -71,6 +72,21 @@ export default function WatchlistPage() {
     }
 
     setAdding(true);
+    setTickerError(null);
+
+    try {
+      const res = await fetch(`/api/ticker/${sym}`);
+      if (!res.ok) {
+        setTickerError('Ticker not found. Please enter a valid US stock symbol.');
+        setAdding(false);
+        return;
+      }
+    } catch {
+      toast({ title: 'Could not validate ticker', body: 'Check your connection and try again.', variant: 'warning' });
+      setAdding(false);
+      return;
+    }
+
     const { error } = await supabase.from('watchlist_items').insert({
       user_id: user.id,
       ticker: sym,
@@ -80,6 +96,7 @@ export default function WatchlistPage() {
       toast({ title: 'Failed to add ticker', body: error.message, variant: 'error' });
     } else {
       setTickerInput('');
+      setTickerError(null);
       await fetchItems();
       toast({ title: `${sym} added to watchlist`, variant: 'success' });
     }
@@ -148,27 +165,42 @@ export default function WatchlistPage() {
         </div>
 
         {/* Add form */}
-        <form onSubmit={handleAdd} className="flex gap-2.5 mb-7">
-          <input
-            value={tickerInput}
-            onChange={e => setTickerInput(e.target.value.toUpperCase().replace(/[^A-Z.]/g, '').slice(0, 6))}
-            placeholder="TICKER"
-            className="flex-1 min-w-0 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[10px] px-4 py-3 font-mono text-[18px] font-bold uppercase text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
-          />
-          <button
-            type="submit"
-            disabled={adding || !tickerInput.trim()}
-            className={cn(
-              'flex items-center gap-2 px-5 py-3 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all',
-              adding || !tickerInput.trim()
-                ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
-                : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.25)] hover:brightness-110 hover:-translate-y-px',
-            )}
-          >
-            {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Add
-          </button>
-        </form>
+        <div className="flex flex-col gap-1.5 mb-7">
+          <form onSubmit={handleAdd} className="flex gap-2.5">
+            <input
+              value={tickerInput}
+              onChange={e => {
+                setTickerInput(e.target.value.toUpperCase().replace(/[^A-Z.]/g, '').slice(0, 6));
+                if (tickerError) setTickerError(null);
+              }}
+              placeholder="TICKER"
+              className={cn(
+                'flex-1 min-w-0 bg-[var(--bg-input)] border rounded-[10px] px-4 py-3 font-mono text-[18px] font-bold uppercase text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:ring-[3px] transition',
+                tickerError
+                  ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
+                  : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
+              )}
+            />
+            <button
+              type="submit"
+              disabled={adding || !tickerInput.trim()}
+              className={cn(
+                'flex items-center gap-2 px-5 py-3 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all',
+                adding || !tickerInput.trim()
+                  ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
+                  : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.25)] hover:brightness-110 hover:-translate-y-px',
+              )}
+            >
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              Add
+            </button>
+          </form>
+          {tickerError && (
+            <p className="text-xs text-[#FF3B5C] flex items-center gap-1.5 px-1">
+              <X className="w-3 h-3 flex-shrink-0" />{tickerError}
+            </p>
+          )}
+        </div>
 
         {/* List */}
         {loadingList ? (
@@ -277,7 +309,10 @@ function WatchlistRow({
                 </div>
               ) : snapshot === 'error' ? (
                 <div className="py-3 flex flex-col gap-2">
-                  <p className="text-xs text-[#FF3B5C]">Failed to fetch data.</p>
+                  <p className="text-xs text-[#FF3B5C] flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                    Could not load chart data for {item.ticker}
+                  </p>
                   <button
                     type="button"
                     onClick={onRetry}

@@ -706,18 +706,26 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
 // ── Gate label map for retrospective ──────────────────────────────────────────
 
 const GATE_LABELS: Record<string, string> = {
-  stage2:           'Stage 2 uptrend not confirmed',
-  vcp_confirmed:    'VCP setup not confirmed',
-  clear_pivot:      'No clear breakout pivot',
-  earnings_safe:    'Earnings risk (imminent)',
-  above_emas:       'Price below key EMAs',
-  rs_above_80:      'RS Rating below 80',
-  market_uptrend:   'Market not in uptrend',
-  time_of_day:      'Suboptimal entry timing',
-  volume_spike:     'No volume spike on breakout',
-  stop_under_10pct: 'Stop distance exceeded cap',
-  manual_entry:     'Manually logged outside validator',
+  stage2:               'Stage 2 uptrend not confirmed',
+  vcp_confirmed:        'VCP setup not confirmed',
+  clear_pivot:          'No clear breakout pivot',
+  earnings_safe:        'Earnings risk (imminent)',
+  above_emas:           'Price below key EMAs',
+  rs_above_80:          'RS Rating below 80',
+  market_uptrend:       'Market not in uptrend',
+  time_of_day:          'Suboptimal entry timing',
+  volume_spike:         'No volume spike on breakout',
+  stop_under_10pct:     'Stop distance exceeded cap',
+  manual_entry:         'Manually logged outside validator',
+  imported_from_broker: 'Imported from broker — no system validation',
+  no_trend_template:    'Trend Template not met at entry',
+  manual_override:      'Manual override — entry outside system rules',
+  template_fail:        'Failed Trend Template check',
 };
+
+function gateLabel(g: string): string {
+  return GATE_LABELS[g] ?? `System flag: ${g}`;
+}
 
 // ── WhatIfTradeCard ────────────────────────────────────────────────────────────
 
@@ -800,7 +808,7 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
               {trade.failed_gates.map(g => (
                 <li key={g} className="flex items-start gap-1.5 text-xs text-[var(--text-dim)]">
                   <span className="w-1 h-1 rounded-full bg-[#EF4444]/60 flex-shrink-0 mt-[5px]" />
-                  {GATE_LABELS[g] ?? g}
+                  {gateLabel(g)}
                 </li>
               ))}
             </ul>

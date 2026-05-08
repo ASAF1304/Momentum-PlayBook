@@ -169,7 +169,7 @@ export function ValidatorProvider({
     try {
       const res  = await fetch(`/api/ticker/${sym}`, { signal: controller.signal });
       const body = await res.json();
-      if (!res.ok) { setError((body as TickerErrorResponse).error); setData(null); return; }
+      if (!res.ok) { setError((body as TickerErrorResponse).error); setData(null); setEntry(''); setStop(''); return; }
       const td = body as TickerResponse;
       setData(td);
       setEntry(td.price.last.toFixed(2));
@@ -602,9 +602,9 @@ export function SizerCard({ className }: { className?: string }) {
           />
         )}
 
-        <SizerOutput sizing={effectiveSizing} />
+        {data && <SizerOutput sizing={effectiveSizing} />}
 
-        {exceedsBudget && effectiveSizing.status === 'ok' && sizing.status === 'ok' && (
+        {data && exceedsBudget && effectiveSizing.status === 'ok' && sizing.status === 'ok' && (
           <div className="flex items-start gap-2 px-3 py-2 rounded-[8px] bg-amber-500/[0.07] border border-amber-500/25 text-xs text-amber-600">
             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
             <span>
@@ -619,23 +619,29 @@ export function SizerCard({ className }: { className?: string }) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <SectionLabel text="Amount Invested" />
-          {isCustomAmount && (
+          {sizing.status === 'ok' && isCustomAmount && (
             <button type="button" onClick={handleResetAmount} className="text-xs font-mono text-[#22D3EE] hover:underline">
               Reset to auto (${autoAmount!.toLocaleString()})
             </button>
           )}
         </div>
         <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[14px]">$</span>
-            <input
-              inputMode="decimal"
-              value={amountInvested}
-              onChange={e => onAmountChange(e.target.value)}
-              placeholder="0.00"
-              className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[14px] font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition"
-            />
-          </div>
+          {sizing.status !== 'ok' ? (
+            <div className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 font-mono text-[14px] font-semibold text-[var(--text-faint)]">
+              —
+            </div>
+          ) : (
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[14px]">$</span>
+              <input
+                inputMode="decimal"
+                value={amountInvested}
+                onChange={e => onAmountChange(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[14px] font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition"
+              />
+            </div>
+          )}
           <MaxLossChip sizing={effectiveSizing} invested={invested} />
         </div>
       </div>

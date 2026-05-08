@@ -9,53 +9,73 @@ import { Loader2, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
 
+interface FieldErrors {
+  email?: string;
+  password?: string;
+  confirm?: string;
+  terms?: string;
+}
+
+function isValidEmail(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [email,         setEmail]         = useState('');
   const [password,      setPassword]      = useState('');
   const [confirm,       setConfirm]       = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [error,         setError]         = useState<string | null>(null);
+  const [fieldErrors,   setFieldErrors]   = useState<FieldErrors>({});
+  const [serverError,   setServerError]   = useState<string | null>(null);
   const [message,       setMessage]       = useState<string | null>(null);
   const [submitting,    setSubmitting]    = useState(false);
+
+  const validate = (): FieldErrors => {
+    const errs: FieldErrors = {};
+    if (!isValidEmail(email)) errs.email = 'Please enter a valid email address.';
+    if (password.length < 6)  errs.password = 'Password must be at least 6 characters.';
+    if (confirm !== password)  errs.confirm = 'Passwords do not match.';
+    if (!termsAccepted)        errs.terms = 'Please accept the terms and conditions.';
+    return errs;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
 
-    if (!termsAccepted) {
-      setError('יש לאשר את תנאי השימוש ומדיניות הפרטיות כדי להמשיך.');
-      return;
-    }
-    if (password !== confirm) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
 
-    setError(null);
+    setFieldErrors({});
+    setServerError(null);
     setSubmitting(true);
 
-    const { data, error: authError } = await supabase.auth.signUp({ email, password });
+    const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password });
 
     if (authError) {
-      setError(authError.message);
+      setServerError(authError.message);
       setSubmitting(false);
       return;
     }
 
     if (data.session) {
-      // Email confirmation disabled — signed in immediately
       router.push('/onboarding');
     } else {
-      // Email confirmation required
       setMessage('Check your inbox to confirm your email, then sign in.');
       setSubmitting(false);
     }
   };
+
+  const inputClass = (hasError: boolean) => cn(
+    'bg-black/30 border rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:ring-[3px] transition w-full',
+    hasError
+      ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
+      : 'border-white/[0.06] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
+  );
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur p-8">
@@ -91,81 +111,95 @@ export default function SignupPage() {
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          <div className="flex flex-col gap-1.5">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
+          {/* Email */}
+          <div className="flex flex-col gap-1">
             <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
               Email
             </label>
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
+              onChange={e => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }}
               autoComplete="email"
               placeholder="you@example.com"
-              className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+              className={inputClass(!!fieldErrors.email)}
             />
+            {fieldErrors.email && (
+              <p className="text-[11px] text-[#FF3B5C] mt-0.5">{fieldErrors.email}</p>
+            )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          {/* Password */}
+          <div className="flex flex-col gap-1">
             <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
               Password
             </label>
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
+              onChange={e => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: undefined })); }}
               autoComplete="new-password"
               placeholder="6+ characters"
-              className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+              className={inputClass(!!fieldErrors.password)}
             />
+            {fieldErrors.password && (
+              <p className="text-[11px] text-[#FF3B5C] mt-0.5">{fieldErrors.password}</p>
+            )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          {/* Confirm Password */}
+          <div className="flex flex-col gap-1">
             <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
               Confirm Password
             </label>
             <input
               type="password"
               value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              required
+              onChange={e => { setConfirm(e.target.value); setFieldErrors(p => ({ ...p, confirm: undefined })); }}
               autoComplete="new-password"
               placeholder="••••••••"
-              className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+              className={inputClass(!!fieldErrors.confirm)}
             />
+            {fieldErrors.confirm && (
+              <p className="text-[11px] text-[#FF3B5C] mt-0.5">{fieldErrors.confirm}</p>
+            )}
           </div>
 
-          {/* Legal consent */}
-          <label className="flex items-start gap-2.5 cursor-pointer select-none" dir="rtl">
-            <input
-              type="checkbox"
-              checked={termsAccepted}
-              onChange={e => setTermsAccepted(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border border-white/20 bg-black/30 accent-[#22D3EE] cursor-pointer shrink-0"
-            />
-            <span className="text-xs text-zinc-400 leading-relaxed">
-              קראתי ואני מסכים/ה ל
-              <Link href="/legal/terms" target="_blank" className="text-[#22D3EE] hover:underline mx-1">תנאי השימוש</Link>
-              ול
-              <Link href="/legal/privacy" target="_blank" className="text-[#22D3EE] hover:underline mx-1">מדיניות הפרטיות</Link>
-              של Momentum Playbook.
-            </span>
-          </label>
+          {/* Terms */}
+          <div className="flex flex-col gap-1">
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={e => { setTermsAccepted(e.target.checked); setFieldErrors(p => ({ ...p, terms: undefined })); }}
+                className="mt-0.5 w-4 h-4 rounded border border-white/20 bg-black/30 accent-[#22D3EE] cursor-pointer shrink-0"
+              />
+              <span className="text-xs text-zinc-400 leading-relaxed">
+                I have read and agree to the{' '}
+                <Link href="/legal/terms" target="_blank" className="text-[#22D3EE] hover:underline">Terms of Use</Link>
+                {' '}and{' '}
+                <Link href="/legal/privacy" target="_blank" className="text-[#22D3EE] hover:underline">Privacy Policy</Link>
+                {' '}of Momentum Playbook.
+              </span>
+            </label>
+            {fieldErrors.terms && (
+              <p className="text-[11px] text-[#FF3B5C] mt-0.5 pl-6">{fieldErrors.terms}</p>
+            )}
+          </div>
 
-          {error && (
+          {serverError && (
             <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-xs text-[#FF3B5C]">
-              {error}
+              {serverError}
             </div>
           )}
 
           <button
             type="submit"
-            disabled={submitting || !termsAccepted}
+            disabled={submitting}
             className={cn(
               'mt-1 w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2',
-              submitting || !termsAccepted
+              submitting
                 ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
                 : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110',
             )}

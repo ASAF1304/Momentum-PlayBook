@@ -12,6 +12,7 @@ import { OnboardingModal }                                 from '@/components/on
 import { ValidatorProvider, ChecklistCard, SizerCard }    from '@/components/validator/pre-trade-validator';
 import { AddPositionModal }                                from '@/components/dashboard/add-position-modal';
 import { Stage2Leaders }                                   from '@/components/dashboard/stage2-leaders';
+import { OnboardingBanner }                                from '@/components/dashboard/onboarding-banner';
 import { supabase, type Trade }                            from '@/lib/supabase-client';
 import { useAuth }                                         from '@/lib/auth-context';
 import { useLivePrices, type LivePrice }                   from '@/lib/use-live-prices';
@@ -51,8 +52,10 @@ export default function Dashboard() {
 
   const showOnboarding = !authLoading && !!profile && !profile.dismissed_onboarding_at && !onboardingDone;
 
+  const userId = user?.id;
+
   const fetchTrades = useCallback(async (attempt = 0) => {
-    if (!user) return;
+    if (!userId) return;
     if (attempt === 0) { setTradesLoading(true); setTradesError(null); }
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 15_000);
@@ -72,7 +75,7 @@ export default function Dashboard() {
       clearTimeout(tid);
       if (ok || attempt > 0) setTradesLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => { void fetchTrades(); }, [fetchTrades]);
 
@@ -132,6 +135,19 @@ export default function Dashboard() {
         winRate: (d.wins + d.losses) > 0 ? (d.wins / (d.wins + d.losses)) * 100 : null,
       }));
   }, [trades, period]);
+
+  const equityCurveData = useMemo(() => {
+    const closed = trades
+      .filter(t => t.pnl_dollars !== null && t.exit_date)
+      .sort((a, b) => a.exit_date!.localeCompare(b.exit_date!));
+    let cum = 0;
+    const pts = [{ date: '', equity: accountSize, pnl: 0 }];
+    for (const t of closed) {
+      cum += t.pnl_dollars!;
+      pts.push({ date: t.exit_date!, equity: accountSize + cum, pnl: t.pnl_dollars! });
+    }
+    return pts;
+  }, [trades, accountSize]);
 
   const playbookCounts = useMemo(() => ({
     winners:    trades.filter(t => !t.is_what_if && t.outcome === 'winner').length,
@@ -201,6 +217,11 @@ export default function Dashboard() {
 
       <main className="max-w-[1440px] mx-auto px-6 py-7 relative">
 
+        {/* ── Onboarding banner (new users with no trades) ───────────────────── */}
+        {!tradesLoading && trades.length === 0 && (
+          <OnboardingBanner onAddTrade={() => setShowAddModal(true)} />
+        )}
+
         {/* ── Period filter tabs ─────────────────────────────────────────────── */}
         <div className="flex gap-1 mb-4 p-1 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] w-fit">
           {PERIODS.map(({ key, label }) => (
@@ -269,83 +290,100 @@ export default function Dashboard() {
 
         {/* ── Row 2: Realized / Unrealized / Win Rate / Avg R ────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-          <StatCard
-            label="Realized PnL"
-            value={dashStats.realizedPnL !== 0
-              ? `${dashStats.realizedPnL >= 0 ? '+' : '−'}$${Math.abs(Math.round(dashStats.realizedPnL)).toLocaleString('en-US')}`
-              : '$0'}
-            positive={dashStats.realizedPnL > 0}
-            negative={dashStats.realizedPnL < 0}
-          />
-          <StatCard
-            label="Unrealized PnL"
-            value={openTrades.length > 0
-              ? `${unrealizedPnL >= 0 ? '+' : '−'}$${Math.abs(Math.round(unrealizedPnL)).toLocaleString('en-US')}`
-              : '—'}
-            sublabel={openTrades.length > 0 ? 'live positions' : undefined}
-            positive={openTrades.length > 0 && unrealizedPnL > 0}
-            negative={openTrades.length > 0 && unrealizedPnL < 0}
-          />
-          <StatCard
-            label="Win Rate"
-            value={dashStats.wr.winRate !== null ? `${dashStats.wr.winRate.toFixed(1)}%` : '—'}
-            sublabel={dashStats.wr.closedCount > 0 ? `${dashStats.wr.closedCount} closed trades` : undefined}
-            positive={dashStats.wr.winRate !== null && dashStats.wr.winRate >= 50}
-          />
-          <StatCard
-            label="Avg R"
-            value={dashStats.wr.avgR !== null
-              ? `${dashStats.wr.avgR >= 0 ? '+' : ''}${dashStats.wr.avgR.toFixed(2)}R`
-              : '—'}
-            positive={dashStats.wr.avgR !== null && dashStats.wr.avgR > 0}
-            negative={dashStats.wr.avgR !== null && dashStats.wr.avgR < 0}
-          />
+          {tradesLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            <>
+              <StatCard
+                label="Realized PnL"
+                value={dashStats.realizedPnL !== 0
+                  ? `${dashStats.realizedPnL >= 0 ? '+' : '−'}$${Math.abs(Math.round(dashStats.realizedPnL)).toLocaleString('en-US')}`
+                  : '$0'}
+                positive={dashStats.realizedPnL > 0}
+                negative={dashStats.realizedPnL < 0}
+              />
+              <StatCard
+                label="Unrealized PnL"
+                value={openTrades.length > 0
+                  ? `${unrealizedPnL >= 0 ? '+' : '−'}$${Math.abs(Math.round(unrealizedPnL)).toLocaleString('en-US')}`
+                  : '—'}
+                sublabel={openTrades.length > 0 ? 'live positions' : undefined}
+                positive={openTrades.length > 0 && unrealizedPnL > 0}
+                negative={openTrades.length > 0 && unrealizedPnL < 0}
+              />
+              <StatCard
+                label="Win Rate"
+                value={dashStats.wr.winRate !== null ? `${dashStats.wr.winRate.toFixed(1)}%` : '—'}
+                sublabel={dashStats.wr.closedCount > 0 ? `${dashStats.wr.closedCount} closed trades` : undefined}
+                positive={dashStats.wr.winRate !== null && dashStats.wr.winRate >= 50}
+              />
+              <StatCard
+                label="Avg R"
+                value={dashStats.wr.avgR !== null
+                  ? `${dashStats.wr.avgR >= 0 ? '+' : ''}${dashStats.wr.avgR.toFixed(2)}R`
+                  : '—'}
+                positive={dashStats.wr.avgR !== null && dashStats.wr.avgR > 0}
+                negative={dashStats.wr.avgR !== null && dashStats.wr.avgR < 0}
+              />
+            </>
+          )}
         </div>
 
         {/* ── Row 3: Max DD / Avg Win / Avg Loss / Win:Loss ratio ────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-7">
-          <StatCard
-            label="Max Drawdown"
-            value={dashStats.maxDD ? `-${dashStats.maxDD.pct.toFixed(1)}%` : '—'}
-            sublabel={dashStats.maxDD
-              ? `$${Math.round(dashStats.maxDD.fromAmount).toLocaleString('en-US')} → $${Math.round(dashStats.maxDD.toAmount).toLocaleString('en-US')}`
-              : undefined}
-            negative={!!dashStats.maxDD}
-          />
-          <StatCard
-            label="Avg Win"
-            value={dashStats.winLoss.avgWin !== null
-              ? `$${Math.round(dashStats.winLoss.avgWin).toLocaleString('en-US')}`
-              : '—'}
-            sublabel={dashStats.winLoss.winCount > 0
-              ? `${dashStats.winLoss.winCount} winner${dashStats.winLoss.winCount !== 1 ? 's' : ''}`
-              : undefined}
-            positive={dashStats.winLoss.avgWin !== null}
-          />
-          <StatCard
-            label="Avg Loss"
-            value={dashStats.winLoss.avgLoss !== null
-              ? `$${Math.round(dashStats.winLoss.avgLoss).toLocaleString('en-US')}`
-              : '—'}
-            sublabel={dashStats.winLoss.lossCount > 0
-              ? `${dashStats.winLoss.lossCount} loser${dashStats.winLoss.lossCount !== 1 ? 's' : ''}`
-              : undefined}
-            negative={dashStats.winLoss.avgLoss !== null}
-          />
-          <StatCard
-            label="Win / Loss"
-            value={dashStats.winLoss.ratio !== null
-              ? `${dashStats.winLoss.ratio.toFixed(1)}:1`
-              : '—'}
-            sublabel="avg win ÷ avg loss"
-            positive={dashStats.winLoss.ratio !== null && dashStats.winLoss.ratio >= 1}
-            negative={dashStats.winLoss.ratio !== null && dashStats.winLoss.ratio < 1}
-          />
+          {tradesLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            <>
+              <StatCard
+                label="Max Drawdown"
+                value={dashStats.maxDD ? `-${dashStats.maxDD.pct.toFixed(1)}%` : '—'}
+                sublabel={dashStats.maxDD
+                  ? `$${Math.round(dashStats.maxDD.fromAmount).toLocaleString('en-US')} → $${Math.round(dashStats.maxDD.toAmount).toLocaleString('en-US')}`
+                  : undefined}
+                negative={!!dashStats.maxDD}
+              />
+              <StatCard
+                label="Avg Win"
+                value={dashStats.winLoss.avgWin !== null
+                  ? `$${Math.round(dashStats.winLoss.avgWin).toLocaleString('en-US')}`
+                  : '—'}
+                sublabel={dashStats.winLoss.winCount > 0
+                  ? `${dashStats.winLoss.winCount} winner${dashStats.winLoss.winCount !== 1 ? 's' : ''}`
+                  : undefined}
+                positive={dashStats.winLoss.avgWin !== null}
+              />
+              <StatCard
+                label="Avg Loss"
+                value={dashStats.winLoss.avgLoss !== null
+                  ? `$${Math.round(dashStats.winLoss.avgLoss).toLocaleString('en-US')}`
+                  : '—'}
+                sublabel={dashStats.winLoss.lossCount > 0
+                  ? `${dashStats.winLoss.lossCount} loser${dashStats.winLoss.lossCount !== 1 ? 's' : ''}`
+                  : undefined}
+                negative={dashStats.winLoss.avgLoss !== null}
+              />
+              <StatCard
+                label="Win / Loss"
+                value={dashStats.winLoss.ratio !== null
+                  ? `${dashStats.winLoss.ratio.toFixed(1)}:1`
+                  : '—'}
+                sublabel="avg win ÷ avg loss"
+                positive={dashStats.winLoss.ratio !== null && dashStats.winLoss.ratio >= 1}
+                negative={dashStats.winLoss.ratio !== null && dashStats.winLoss.ratio < 1}
+              />
+            </>
+          )}
         </div>
 
         {/* ── Monthly Performance ───────────────────────────────────────────── */}
         {monthlyStats.length > 0 && (
           <MonthlyPerformance data={monthlyStats} />
+        )}
+
+        {/* ── Equity Curve ─────────────────────────────────────────────────── */}
+        {equityCurveData.length > 2 && (
+          <EquityCurve data={equityCurveData} accountSize={accountSize} />
         )}
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
@@ -663,6 +701,19 @@ function PositionCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePric
   );
 }
 
+function SkeletonCard() {
+  return (
+    <div
+      className="p-4 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] animate-pulse"
+      style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
+    >
+      <div className="h-2.5 w-16 rounded bg-[var(--bg-elevated)] mb-3" />
+      <div className="h-7 w-24 rounded bg-[var(--bg-elevated)]" />
+      <div className="h-2 w-12 rounded bg-[var(--bg-elevated)] mt-2" />
+    </div>
+  );
+}
+
 function PositionsEmptyState() {
   return (
     <div className="py-8 flex flex-col items-center text-center">
@@ -776,6 +827,128 @@ function MonthlyPerformance({ data }: { data: MonthlyData[] }) {
         </tbody>
       </table>
       </div>
+    </div>
+  );
+}
+
+// ── EquityCurve ─────────────────────────────────────────────────────────────────
+
+function EquityCurve({ data, accountSize }: {
+  data: { date: string; equity: number; pnl: number }[];
+  accountSize: number;
+}) {
+  const W = 800, H = 160, PAD = { t: 16, b: 24, l: 56, r: 16 };
+  const innerW = W - PAD.l - PAD.r;
+  const innerH = H - PAD.t - PAD.b;
+
+  const equities = data.map(d => d.equity);
+  const minE = Math.min(...equities);
+  const maxE = Math.max(...equities);
+  const range = Math.max(maxE - minE, accountSize * 0.01); // min 1% range
+
+  const scaleX = (i: number) => PAD.l + (i / (data.length - 1)) * innerW;
+  const scaleY = (v: number) => PAD.t + innerH - ((v - minE) / range) * innerH;
+
+  const pts = data.map((d, i) => `${scaleX(i).toFixed(1)},${scaleY(d.equity).toFixed(1)}`).join(' ');
+  const fillPath = `M ${scaleX(0).toFixed(1)},${(PAD.t + innerH).toFixed(1)} ` +
+    data.map((d, i) => `L ${scaleX(i).toFixed(1)},${scaleY(d.equity).toFixed(1)}`).join(' ') +
+    ` L ${scaleX(data.length - 1).toFixed(1)},${(PAD.t + innerH).toFixed(1)} Z`;
+
+  const lastEquity = data[data.length - 1].equity;
+  const isPositive = lastEquity >= accountSize;
+
+  const labelIndices = data.length <= 12
+    ? data.map((_, i) => i)
+    : [0, Math.floor(data.length / 4), Math.floor(data.length / 2), Math.floor((3 * data.length) / 4), data.length - 1];
+
+  return (
+    <div
+      className="mb-7 p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+      style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-[13px] font-bold tracking-tight text-[var(--text-primary)]">Equity Curve</h2>
+        <span className={cn(
+          'font-mono text-xs font-semibold',
+          isPositive ? 'text-emerald-400' : 'text-red-400',
+        )}>
+          {isPositive ? '+' : '−'}${Math.abs(Math.round(lastEquity - accountSize)).toLocaleString('en-US')}
+          {' '}({isPositive ? '+' : ''}{(((lastEquity - accountSize) / accountSize) * 100).toFixed(1)}%)
+        </span>
+      </div>
+
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full overflow-visible"
+        style={{ height: 160 }}
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="eq-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={isPositive ? '#22D3EE' : '#FF3B5C'} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={isPositive ? '#10F088' : '#FF3B5C'} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+
+        {/* Zero/base line */}
+        <line
+          x1={PAD.l} y1={scaleY(accountSize).toFixed(1)}
+          x2={W - PAD.r} y2={scaleY(accountSize).toFixed(1)}
+          stroke="var(--border-subtle)" strokeWidth="1" strokeDasharray="4 3"
+        />
+
+        {/* Fill */}
+        <path d={fillPath} fill="url(#eq-fill)" />
+
+        {/* Line */}
+        <polyline
+          points={pts}
+          fill="none"
+          stroke={isPositive ? '#22D3EE' : '#FF3B5C'}
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+
+        {/* End dot */}
+        <circle
+          cx={scaleX(data.length - 1).toFixed(1)}
+          cy={scaleY(lastEquity).toFixed(1)}
+          r="4"
+          fill={isPositive ? '#22D3EE' : '#FF3B5C'}
+          style={{ filter: `drop-shadow(0 0 6px ${isPositive ? '#22D3EE' : '#FF3B5C'})` }}
+        />
+
+        {/* Y axis labels */}
+        {[minE, accountSize, maxE].filter((v, i, arr) => arr.indexOf(v) === i).map(v => (
+          <text
+            key={v}
+            x={PAD.l - 6}
+            y={scaleY(v) + 4}
+            fontSize="9"
+            textAnchor="end"
+            fill="var(--text-faint)"
+            fontFamily="monospace"
+          >
+            ${(v / 1000).toFixed(0)}k
+          </text>
+        ))}
+
+        {/* X axis date labels */}
+        {labelIndices.map(i => (
+          <text
+            key={i}
+            x={scaleX(i).toFixed(1)}
+            y={H - 4}
+            fontSize="8"
+            textAnchor="middle"
+            fill="var(--text-faint)"
+            fontFamily="monospace"
+          >
+            {data[i].date ? new Date(data[i].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Start'}
+          </text>
+        ))}
+      </svg>
     </div>
   );
 }

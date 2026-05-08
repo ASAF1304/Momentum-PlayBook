@@ -21,15 +21,15 @@ type Tab = 'account' | 'billing';
 // ── Billing sub-component ─────────────────────────────────────────────────────
 
 const STATUS_BANNER: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  grace:         { label: 'תקופת חסד — לא נדרש כרטיס אשראי', color: '#22D3EE', bg: '#22D3EE/10', border: '#22D3EE/30' },
-  trialing:      { label: 'תקופת ניסיון', color: '#22D3EE', bg: '#22D3EE/10', border: '#22D3EE/30' },
-  active:        { label: 'מנוי פעיל', color: '#10F088', bg: '#10F088/10', border: '#10F088/30' },
-  past_due:      { label: 'החיוב נכשל — נדרש לעדכן כרטיס', color: '#FF9F0A', bg: '#FF9F0A/10', border: '#FF9F0A/30' },
-  cancelled:     { label: 'המנוי בוטל', color: '#FF9F0A', bg: '#FF9F0A/10', border: '#FF9F0A/30' },
-  expired_grace: { label: 'תקופת החסד הסתיימה — נדרש להוסיף כרטיס', color: '#FF3B5C', bg: '#FF3B5C/10', border: '#FF3B5C/30' },
-  paused:        { label: 'המנוי מושהה', color: '#FF9F0A', bg: '#FF9F0A/10', border: '#FF9F0A/30' },
-  comp:          { label: 'גישה חינמית קבועה', color: '#10F088', bg: '#10F088/10', border: '#10F088/30' },
-  blocked:       { label: 'החשבון הושעה', color: '#FF3B5C', bg: '#FF3B5C/10', border: '#FF3B5C/30' },
+  grace:         { label: 'Grace Period — No credit card required', color: '#22D3EE', bg: '#22D3EE/10', border: '#22D3EE/30' },
+  trialing:      { label: 'Trial Period', color: '#22D3EE', bg: '#22D3EE/10', border: '#22D3EE/30' },
+  active:        { label: 'Active Subscription', color: '#10F088', bg: '#10F088/10', border: '#10F088/30' },
+  past_due:      { label: 'Payment Failed — Update your card', color: '#FF9F0A', bg: '#FF9F0A/10', border: '#FF9F0A/30' },
+  cancelled:     { label: 'Subscription Cancelled', color: '#FF9F0A', bg: '#FF9F0A/10', border: '#FF9F0A/30' },
+  expired_grace: { label: 'Grace Period Ended — Add a payment method', color: '#FF3B5C', bg: '#FF3B5C/10', border: '#FF3B5C/30' },
+  paused:        { label: 'Subscription Paused', color: '#FF9F0A', bg: '#FF9F0A/10', border: '#FF9F0A/30' },
+  comp:          { label: 'Complimentary Access', color: '#10F088', bg: '#10F088/10', border: '#10F088/30' },
+  blocked:       { label: 'Account Suspended', color: '#FF3B5C', bg: '#FF3B5C/10', border: '#FF3B5C/30' },
 };
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
@@ -126,51 +126,51 @@ function BillingTab({ user }: { user: { id: string; email?: string } }) {
       <div className="p-4 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] space-y-2 text-sm text-[var(--text-muted)]">
         {trialEnd && status === 'trialing' && (
           <div className="flex justify-between">
-            <span>חיוב יתחיל ב-</span>
+            <span>Billing starts</span>
             <span className="font-semibold text-[var(--text-primary)]">
-              {trialEnd.toLocaleDateString('he-IL')}
+              {trialEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
         )}
         {periodEnd && status === 'active' && (
           <div className="flex justify-between">
-            <span>חיוב הבא</span>
+            <span>Next billing</span>
             <span className="font-semibold text-[var(--text-primary)]">
-              {periodEnd.toLocaleDateString('he-IL')}
+              {periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
         )}
         {isGrace && trialEnd && (
           <div className="flex justify-between">
-            <span>גישה חינמית עד</span>
+            <span>Free access until</span>
             <span className="font-semibold text-[#22D3EE]">
-              {trialEnd.toLocaleDateString('he-IL')}
+              {trialEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               {graceDaysLeft !== null && (
-                <span className="ml-1 text-[var(--text-faint)]">({graceDaysLeft} ימים)</span>
+                <span className="ml-1 text-[var(--text-faint)]">({graceDaysLeft} days)</span>
               )}
             </span>
           </div>
         )}
         {periodEnd && status === 'cancelled' && (
           <div className="flex justify-between">
-            <span>גישה פעילה עד</span>
+            <span>Access until</span>
             <span className="font-semibold text-[var(--text-primary)]">
-              {periodEnd.toLocaleDateString('he-IL')}
+              {periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
         )}
         {isComp && (
-          <p>קיבלת גישה חינמית קבועה. אין צורך בכרטיס אשראי.</p>
+          <p>You have permanent free access. No credit card required.</p>
         )}
         {!isComp && !isGrace && !trialEnd && !periodEnd && (
-          <p className="text-[var(--text-faint)]">אין פרטי חיוב זמינים</p>
+          <p className="text-[var(--text-faint)]">No billing details available</p>
         )}
       </div>
 
       {/* CTA */}
       {needsCard && (
         <BillingBtn
-          label={status === 'expired_grace' ? 'הוסף כרטיס אשראי' : 'התחל ניסיון חינמי'}
+          label={status === 'expired_grace' ? 'Add Payment Method' : 'Start Free Trial'}
           loading={opening}
           onClick={() => openCheckout()}
           primary
@@ -178,7 +178,7 @@ function BillingTab({ user }: { user: { id: string; email?: string } }) {
       )}
       {isGrace && (
         <BillingBtn
-          label="הוסף כרטיס אשראי"
+          label="Add Payment Method"
           loading={opening}
           onClick={() => openCheckout()}
           primary
@@ -186,7 +186,7 @@ function BillingTab({ user }: { user: { id: string; email?: string } }) {
       )}
       {hasPaddle && (
         <BillingBtn
-          label="נהל מנוי ב-Paddle ↗"
+          label="Manage Subscription on Paddle ↗"
           loading={false}
           onClick={openPortal}
         />
@@ -315,13 +315,12 @@ export default function SettingsPage() {
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'account', label: 'חשבון' },
-    { id: 'billing', label: 'חיוב' },
+    { id: 'account', label: 'Account' },
+    { id: 'billing', label: 'Billing' },
   ];
 
   return (
     <div
-      dir="rtl"
       className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-[Manrope,ui-sans-serif,system-ui,sans-serif]"
     >
       <GridOverlay />
@@ -332,9 +331,9 @@ export default function SettingsPage() {
 
       <main className="max-w-[520px] mx-auto px-6 py-10 relative">
         <div className="mb-6">
-          <h1 className="text-[20px] font-extrabold tracking-tight mb-1">הגדרות</h1>
+          <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Settings</h1>
           <p className="text-xs text-[var(--text-muted)]">
-            פרמטרים לגודל פוזיציה ומנוי.
+            Position sizing parameters and subscription.
           </p>
         </div>
 
@@ -361,11 +360,11 @@ export default function SettingsPage() {
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             <div className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col gap-4">
               <div className="text-xs uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
-                פרופיל
+                Profile
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
-                  שם תצוגה
+                  Display Name
                 </label>
                 <input
                   type="text"
@@ -379,12 +378,12 @@ export default function SettingsPage() {
 
             <div className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col gap-4">
               <div className="text-xs uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
-                מנוע סיכון
+                Risk Engine
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
-                  גודל חשבון ($)
+                  Account Size ($)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] font-mono text-[14px]">$</span>
@@ -408,7 +407,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
-                    סיכון מקס׳ / עסקה
+                    Max Risk / Trade
                   </label>
                   <div className="relative">
                     <input
@@ -430,7 +429,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)]">
-                    מרחק סטופ מקס׳
+                    Max Stop Distance
                   </label>
                   <div className="relative">
                     <input
@@ -464,7 +463,7 @@ export default function SettingsPage() {
               )}
             >
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {saving ? 'שומר…' : 'שמור שינויים'}
+              {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </form>
         )}
@@ -473,6 +472,14 @@ export default function SettingsPage() {
         {activeTab === 'billing' && user && (
           <BillingTab user={user} />
         )}
+
+        {/* Support link */}
+        <p className="text-center text-xs text-[var(--text-faint)] mt-6">
+          Need help?{' '}
+          <a href="/contact" className="text-[#22D3EE] hover:underline font-semibold">
+            Contact support
+          </a>
+        </p>
       </main>
     </div>
   );

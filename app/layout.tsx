@@ -19,9 +19,26 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+const siteUrl = 'https://momentumplaybook.com';
+
 export const metadata: Metadata = {
-  title: 'Momentum Playbook',
-  description: 'Stage 2 trading journal — Minervini Trend Template + CAN SLIM',
+  title: 'Momentum Playbook — Stage 2 Trading Journal',
+  description: 'Track your trades with Minervini\'s Trend Template. Position sizing, journal, equity curve, and daily Stage 2 leaders — all in one place.',
+  metadataBase: new URL(siteUrl),
+  openGraph: {
+    type: 'website',
+    url: siteUrl,
+    siteName: 'Momentum Playbook',
+    title: 'Momentum Playbook — Stage 2 Trading Journal',
+    description: 'Track your trades with Minervini\'s Trend Template. Position sizing, journal, equity curve, and daily Stage 2 leaders — all in one place.',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Momentum Playbook' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Momentum Playbook — Stage 2 Trading Journal',
+    description: 'Track your trades with Minervini\'s Trend Template. Position sizing, journal, equity curve, and daily Stage 2 leaders.',
+    images: ['/opengraph-image'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

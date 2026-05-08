@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownLeft, ArrowUpRight, Check, ChevronRight,
-  Layers, Loader2, Plus, Trash2, TrendingDown, TrendingUp, UploadCloud, X,
+  Layers, Loader2, Plus, Search, Trash2, TrendingDown, TrendingUp, UploadCloud, X,
 } from 'lucide-react';
 import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
@@ -27,8 +27,9 @@ import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-type StatusFilter = 'all' | TradeStatus;
-type ScaleTab     = 'sell' | 'buy';
+type StatusFilter  = 'all' | TradeStatus;
+type OutcomeFilter = 'all' | 'winner' | 'loser' | 'breakeven';
+type ScaleTab      = 'sell' | 'buy';
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,10 @@ export default function JournalPage() {
   const [fetchError,    setFetchError]    = useState<string | null>(null);
   const [slowLoad,      setSlowLoad]      = useState(false);
   const [statusFilter,  setStatusFilter]  = useState<StatusFilter>('all');
+  const [tickerSearch,  setTickerSearch]  = useState('');
+  const [dateFrom,      setDateFrom]      = useState('');
+  const [dateTo,        setDateTo]        = useState('');
+  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
   const [selectedTrade,  setSelectedTrade]  = useState<Trade | null>(null);
   const [showAddModal,     setShowAddModal]     = useState(false);
   const [showImport,       setShowImport]       = useState(false);
@@ -86,9 +91,17 @@ export default function JournalPage() {
     stopped_out: trades.filter(t => t.status === 'stopped_out').length,
   }), [trades]);
 
-  const filteredTrades = useMemo(() =>
-    statusFilter === 'all' ? trades : trades.filter(t => t.status === statusFilter),
-  [trades, statusFilter]);
+  const filteredTrades = useMemo(() => {
+    let result = statusFilter === 'all' ? trades : trades.filter(t => t.status === statusFilter);
+    if (tickerSearch.trim()) {
+      const q = tickerSearch.trim().toUpperCase();
+      result = result.filter(t => t.ticker.includes(q));
+    }
+    if (dateFrom) result = result.filter(t => t.phase1_date >= dateFrom);
+    if (dateTo)   result = result.filter(t => t.phase1_date <= dateTo);
+    if (outcomeFilter !== 'all') result = result.filter(t => t.outcome === outcomeFilter);
+    return result;
+  }, [trades, statusFilter, tickerSearch, dateFrom, dateTo, outcomeFilter]);
 
   const stats = useMemo(() => {
     const wr = computeWinRate(trades);
@@ -221,6 +234,70 @@ export default function JournalPage() {
             </button>
           ))}
         </div>
+        </div>
+
+        {/* Search & Filter */}
+        <div className="flex flex-wrap gap-2 mb-5">
+          {/* Ticker search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-faint)]" />
+            <input
+              value={tickerSearch}
+              onChange={e => setTickerSearch(e.target.value.toUpperCase().replace(/[^A-Z.]/g, ''))}
+              placeholder="Search ticker…"
+              className="w-36 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-8 pr-3 py-2 text-xs font-mono font-bold text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition"
+            />
+          </div>
+
+          {/* Date from */}
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            title="From date"
+            className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2 text-xs text-[var(--text-muted)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition [color-scheme:dark]"
+          />
+          <span className="self-center text-[var(--text-faint)] text-xs">→</span>
+          {/* Date to */}
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            title="To date"
+            className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2 text-xs text-[var(--text-muted)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition [color-scheme:dark]"
+          />
+
+          {/* Outcome filter */}
+          <div className="flex items-center gap-1 p-0.5 rounded-[8px] bg-[var(--tab-strip-bg)] border border-[var(--border-subtle)]">
+            {(['all', 'winner', 'loser', 'breakeven'] as OutcomeFilter[]).map(opt => (
+              <button
+                key={opt}
+                onClick={() => setOutcomeFilter(opt)}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-[6px] text-xs font-semibold capitalize transition-all',
+                  outcomeFilter === opt
+                    ? opt === 'winner'    ? 'bg-[#10F088]/15 text-[#10F088]'
+                    : opt === 'loser'     ? 'bg-[#FF3B5C]/15 text-[#FF3B5C]'
+                    : opt === 'breakeven' ? 'bg-amber-400/15 text-amber-400'
+                    : 'bg-[var(--tab-active-bg)] text-[var(--text-primary)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                )}
+              >
+                {opt === 'all' ? 'All outcomes' : opt}
+              </button>
+            ))}
+          </div>
+
+          {/* Clear filters */}
+          {(tickerSearch || dateFrom || dateTo || outcomeFilter !== 'all') && (
+            <button
+              onClick={() => { setTickerSearch(''); setDateFrom(''); setDateTo(''); setOutcomeFilter('all'); }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] border border-[var(--border-subtle)] text-xs text-[var(--text-faint)] hover:text-[#FF3B5C] hover:border-[#FF3B5C]/30 transition-all"
+            >
+              <X className="w-3 h-3" />
+              Clear
+            </button>
+          )}
         </div>
 
         {/* Body */}

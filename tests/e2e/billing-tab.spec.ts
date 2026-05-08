@@ -75,32 +75,32 @@ async function setupSession(page: import('@playwright/test').Page, subStatus: st
 }
 
 // Case 1: grace user sees the grace banner
-test('grace user sees "תקופת חסד" banner in billing tab', async ({ page }) => {
+test('grace user sees "Grace Period" banner in billing tab', async ({ page }) => {
   const trialEnd = new Date(Date.now() + 20 * 86_400_000).toISOString();
   await setupSession(page, 'grace', trialEnd);
 
   await page.goto('/settings?tab=billing');
 
-  await expect(page.getByText('תקופת חסד')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Grace Period')).toBeVisible({ timeout: 15_000 });
 });
 
-// Case 2: active user sees "מנוי פעיל" banner
-test('active user sees "מנוי פעיל" banner in billing tab', async ({ page }) => {
+// Case 2: active user sees "Active Subscription" banner
+test('active user sees "Active Subscription" banner in billing tab', async ({ page }) => {
   await setupSession(page, 'active');
 
   await page.goto('/settings?tab=billing');
 
-  await expect(page.getByText('מנוי פעיל')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Active Subscription')).toBeVisible({ timeout: 15_000 });
 });
 
 // Case 3: expired_grace user sees add-card CTA
-test('expired_grace user sees "הוסף כרטיס" CTA in billing tab', async ({ page }) => {
+test('expired_grace user sees "Add Payment Method" CTA in billing tab', async ({ page }) => {
   await setupSession(page, 'expired_grace');
 
   await page.goto('/settings?tab=billing');
 
-  await expect(page.getByText('תקופת החסד הסתיימה')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole('button', { name: /הוסף כרטיס/i })).toBeVisible();
+  await expect(page.getByText('Grace Period Ended')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: /Add Payment Method/i })).toBeVisible();
 });
 
 // Case 4: billing tab accessible via ?tab=billing URL param
@@ -111,5 +111,5 @@ test('settings?tab=billing loads billing tab directly', async ({ page }) => {
   await page.goto('/settings?tab=billing');
 
   // Wait for auth to complete + billing tab content to appear
-  await expect(page.getByText('תקופת חסד')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Grace Period')).toBeVisible({ timeout: 15_000 });
 });

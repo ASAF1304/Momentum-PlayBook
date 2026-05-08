@@ -6,7 +6,7 @@
 'use client';
 
 import {
-  createContext, useCallback, useContext, useEffect, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode,
 } from 'react';
 import type { User } from '@supabase/supabase-js';
@@ -215,11 +215,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) await fetchSubscription(user.id, true);
   }, [user, fetchSubscription]);
 
+  const ctxValue = useMemo(() => ({
+    user, profile, subscription, loading, profileLoading, subscriptionLoading,
+    signOut, refreshProfile, refreshSubscription,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [user?.id, profile, subscription, loading, profileLoading, subscriptionLoading]);
+
   return (
-    <AuthContext.Provider value={{
-      user, profile, subscription, loading, profileLoading, subscriptionLoading,
-      signOut, refreshProfile, refreshSubscription,
-    }}>
+    <AuthContext.Provider value={ctxValue}>
       {children}
     </AuthContext.Provider>
   );
