@@ -142,16 +142,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 10_000);
 
-    // getSession() reads from localStorage — no network call.
-    // We call setLoading(false) immediately after learning the session state,
-    // BEFORE awaiting fetchProfile — so a slow/hung DB call never blocks the UI.
+    // getSession() reads from localStorage — no network call, so UI unblocks instantly.
+    // A background getUser() call then verifies the JWT with the server; if tampered,
+    // the user is signed out silently. This balances performance and security.
     supabase.auth.getSession()
       .then(({ data: { session }, error }) => {
         if (error) console.error('[AUTH-FAIL] getSession() error:', error.message);
         const u = session?.user ?? null;
         setUser(u);
         markResolved(); // unblock UI immediately
-        if (u) { void fetchProfile(u.id); void fetchSubscription(u.id); }
+        if (u) {
+          void fetchProfile(u.id);
+          void fetchSubscription(u.id);
+          // Background server-side verification — signs out if JWT is invalid/tampered
+          void supabase.auth.getUser().then(({ error: userErr }) => {
+            if (userErr) {
+              console.warn('[AUTH] getUser() failed — signing out:', userErr.message);
+              void supabase.auth.signOut();
+            }
+          });
+        }
       })
       .catch(err => {
         console.error('[AUTH-FAIL] getSession() threw:', err);

@@ -26,7 +26,7 @@ export function filterClosedByPeriod(trades: Trade[], period: Period): Trade[] {
   const closed = trades.filter(t => t.status !== 'open');
   const start  = getPeriodStart(period);
   if (!start) return closed;
-  return closed.filter(t => t.exit_date && t.exit_date >= start);
+  return closed.filter(t => t.exit_date && new Date(t.exit_date).getTime() >= new Date(start).getTime());
 }
 
 // ── Max Drawdown ───────────────────────────────────────────────────────────────

@@ -84,6 +84,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
   // Re-import (clean slate) state
   const [resetMode,             setResetMode]            = useState(false);
   const [showReimportConfirm,   setShowReimportConfirm]  = useState(false);
+  const [resetConfirmText,      setResetConfirmText]     = useState('');
 
   // Existing positions loaded from DB (for cross-file continuity)
   const existingPositionsRef  = useRef<Map<string, ExistingPosition>>(new Map());
@@ -104,11 +105,12 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
 
   useEffect(() => {
     async function loadExisting() {
+      // Load ALL open positions (what-if and manually logged) to prevent duplicates.
+      // Signature dedup stays restricted to is_what_if=true to avoid false positives.
       const { data } = await supabase
         .from('trades')
-        .select('id, ticker, phase1_date, phase1_price, phase1_shares, current_shares, partials, initial_stop, status, failed_gates')
-        .eq('user_id', userId)
-        .eq('is_what_if', true);
+        .select('id, ticker, phase1_date, phase1_price, phase1_shares, current_shares, partials, initial_stop, status, failed_gates, is_what_if')
+        .eq('user_id', userId);
 
       const positions = new Map<string, ExistingPosition>();
       const signatures = new Set<string>();
@@ -117,11 +119,12 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
         const buys   = ((t.partials ?? []) as PartialRecord[]).filter(p => p.action === 'buy');
         const sells  = ((t.partials ?? []) as PartialRecord[]).filter(p => p.action === 'sell');
 
-        // Signature for phase1 buy
-        signatures.add(`${t.ticker}|${(t.phase1_date as string).slice(0, 10)}|${Number(t.phase1_price).toFixed(2)}|${t.phase1_shares}|buy`);
-        // Signatures for all partials
-        for (const p of (t.partials ?? []) as PartialRecord[]) {
-          signatures.add(`${t.ticker}|${(p.date as string).slice(0, 10)}|${Number(p.price).toFixed(2)}|${p.shares}|${p.action}`);
+        // Only deduplicate what-if (broker-imported) rows — manual trades shouldn't block re-import
+        if (t.is_what_if) {
+          signatures.add(`${t.ticker}|${(t.phase1_date as string).slice(0, 10)}|${Number(t.phase1_price).toFixed(2)}|${t.phase1_shares}|buy`);
+          for (const p of (t.partials ?? []) as PartialRecord[]) {
+            signatures.add(`${t.ticker}|${(p.date as string).slice(0, 10)}|${Number(p.price).toFixed(2)}|${p.shares}|${p.action}`);
+          }
         }
 
         // Open positions for merge
@@ -291,11 +294,12 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
     setStep('importing');
     setImportProgress(0);
 
-    // Clean-slate re-import: delete all existing trades first
+    // Clean-slate re-import: delete all existing trades via server route (auth-verified)
     if (resetMode) {
-      const { error: delErr } = await supabase.from('trades').delete().eq('user_id', userId);
-      if (delErr) {
-        toast({ title: 'Delete failed', body: delErr.message, variant: 'error' });
+      const delRes = await fetch('/api/journal/reset', { method: 'POST' });
+      if (!delRes.ok) {
+        const body = await delRes.json().catch(() => ({}));
+        toast({ title: 'Delete failed', body: body?.error ?? 'Server error', variant: 'error' });
         setImporting(false);
         setStep('preview');
         return;
@@ -533,25 +537,41 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                       <strong>This will permanently delete ALL your existing trades</strong> — manually logged and imported — then re-import from the selected file. This cannot be undone.
                     </p>
                   </div>
+                  <p className="text-[11px] text-red-400/70">
+                    Type <strong className="text-red-400">DELETE MY TRADES</strong> to confirm:
+                  </p>
+                  <input
+                    type="text"
+                    value={resetConfirmText}
+                    onChange={e => setResetConfirmText(e.target.value)}
+                    placeholder="DELETE MY TRADES"
+                    className="bg-black/30 border border-red-500/40 rounded-[6px] px-2.5 py-1.5 text-xs text-red-300 placeholder:text-red-900 focus:outline-none focus:border-red-500/80 transition"
+                  />
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setShowReimportConfirm(false)}
+                      onClick={() => { setShowReimportConfirm(false); setResetConfirmText(''); }}
                       className="flex-1 py-2 rounded-[8px] border border-[var(--border-strong)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
+                      disabled={resetConfirmText !== 'DELETE MY TRADES'}
                       onClick={() => {
-                        // Clear existing positions — clean slate parse (no merging)
                         existingPositionsRef.current  = new Map();
                         existingSignaturesRef.current = new Set();
                         setResetMode(true);
                         setShowReimportConfirm(false);
+                        setResetConfirmText('');
                         fileRef.current?.click();
                       }}
-                      className="flex-[2] py-2 rounded-[8px] bg-red-500/20 border border-red-500/40 text-xs font-extrabold text-red-400 hover:bg-red-500/30 hover:border-red-500/60 transition-all uppercase tracking-wider"
+                      className={cn(
+                        'flex-[2] py-2 rounded-[8px] text-xs font-extrabold uppercase tracking-wider transition-all',
+                        resetConfirmText === 'DELETE MY TRADES'
+                          ? 'bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 hover:border-red-500/60'
+                          : 'bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-faint)] cursor-not-allowed',
+                      )}
                     >
                       Yes, delete all &amp; re-import
                     </button>
@@ -607,18 +627,18 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                   </span>
                   <span className="text-[var(--text-faint)]">·</span>
                   {newTrades.length > 0 && (
-                    <span className="text-[#10F088] font-semibold">📥 {newTrades.length} new trade{newTrades.length !== 1 ? 's' : ''}</span>
+                    <span className="text-[#10F088] font-semibold"><span role="img" aria-label="inbox">📥</span> {newTrades.length} new trade{newTrades.length !== 1 ? 's' : ''}</span>
                   )}
                   {updates.length > 0 && (
                     <>
                       {newTrades.length > 0 && <span className="text-[var(--text-faint)]">·</span>}
-                      <span className="text-[#22D3EE] font-semibold">🔄 {updates.length} position update{updates.length !== 1 ? 's' : ''}</span>
+                      <span className="text-[#22D3EE] font-semibold"><span role="img" aria-label="update">🔄</span> {updates.length} position update{updates.length !== 1 ? 's' : ''}</span>
                     </>
                   )}
                   {dupSkipped > 0 && (
                     <>
                       <span className="text-[var(--text-faint)]">·</span>
-                      <span className="text-[var(--text-muted)] text-xs">⏭ {dupSkipped} already imported</span>
+                      <span className="text-[var(--text-muted)] text-xs"><span role="img" aria-label="skip">⏭</span> {dupSkipped} already imported</span>
                     </>
                   )}
                   {skippedRows > 0 && (

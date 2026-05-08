@@ -98,6 +98,14 @@ test.beforeEach(async ({ page }) => {
       user: { id: FAKE_USER_ID, email: 'test@example.com' },
     }) }),
   );
+  await page.route('**/auth/v1/user', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      id: FAKE_USER_ID, aud: 'authenticated', role: 'authenticated',
+      email: 'test@example.com', email_confirmed_at: '2026-01-01T00:00:00.000Z',
+      app_metadata: { provider: 'email' }, user_metadata: {},
+      created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
+    }) }),
+  );
   await page.route('**/api/live-prices', route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(LIVE_PRICES) }),
   );

@@ -81,6 +81,15 @@ async function setupSession(
       user: { id: USER_ID },
     }),
   }));
+  await page.route('**/auth/v1/user', r => r.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({
+      id: USER_ID, aud: 'authenticated', role: 'authenticated',
+      email: `${USER_ID}@example.com`, email_confirmed_at: '2026-01-01T00:00:00.000Z',
+      app_metadata: { provider: 'email' }, user_metadata: {},
+      created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z',
+    }),
+  }));
 }
 
 // Case 1: non-admin → redirected to /

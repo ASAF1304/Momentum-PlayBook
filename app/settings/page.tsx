@@ -3,8 +3,8 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, Gift,
 } from 'lucide-react';
@@ -221,6 +221,15 @@ function BillingBtn({
   );
 }
 
+// Reads ?tab= from URL — must live inside a Suspense boundary
+function TabSync({ onBilling }: { onBilling: () => void }) {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('tab') === 'billing') onBilling();
+  }, [searchParams, onBilling]);
+  return null;
+}
+
 // ── Main settings page ────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -235,12 +244,7 @@ export default function SettingsPage() {
   const [saving,      setSaving]      = useState(false);
   const [errors, setErrors] = useState({ accountSize: '', maxRisk: '', maxStop: '' });
 
-  // Read ?tab= from URL on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab === 'billing') setActiveTab('billing');
-  }, []);
+  const switchToBilling = useCallback(() => setActiveTab('billing'), []);
 
   useEffect(() => {
     if (!loading && !profileLoading && !profile && user) {
@@ -322,6 +326,9 @@ export default function SettingsPage() {
     >
       <GridOverlay />
       <AppNav />
+      <Suspense fallback={null}>
+        <TabSync onBilling={switchToBilling} />
+      </Suspense>
 
       <main className="max-w-[520px] mx-auto px-6 py-10 relative">
         <div className="mb-6">

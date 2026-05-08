@@ -1,6 +1,8 @@
 // lib/supabase-server.ts
 //
 // Creates a Supabase server client configured for Next.js middleware.
+// Follows the canonical @supabase/ssr pattern: cookies are set on both
+// request (for Server Components) and response (persisted to browser).
 // Only import this file in middleware.ts — never in client components.
 
 import { createServerClient } from '@supabase/ssr';
@@ -14,9 +16,12 @@ export function createMiddlewareClient(request: NextRequest, response: NextRespo
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
+          // Update request cookies for downstream Server Components
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          // Persist to browser via response
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
         },
       },
     },

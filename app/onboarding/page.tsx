@@ -70,7 +70,13 @@ export default function OnboardingPage() {
     await refreshProfile();
 
     // Start 14-day free trial (no CC required). Idempotent — safe to call multiple times.
-    await fetch('/api/start-trial', { method: 'POST' });
+    const trialRes = await fetch('/api/start-trial', { method: 'POST' });
+    if (!trialRes.ok) {
+      const body = await trialRes.json().catch(() => ({}));
+      setError(body?.error ?? 'Failed to start trial — please try again.');
+      setSubmitting(false);
+      return;
+    }
 
     router.push('/');
   };

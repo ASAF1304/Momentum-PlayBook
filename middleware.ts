@@ -48,10 +48,11 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Single Supabase client per request — reused for both auth and subscription checks
+  const supabase = createMiddlewareClient(request, response);
   let user = null;
 
   try {
-    const supabase = createMiddlewareClient(request, response);
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) console.error('[MIDDLEWARE-FAIL] getSession() error:', error.message);
     user = session?.user ?? null;
@@ -72,7 +73,6 @@ export async function middleware(request: NextRequest) {
   // Subscription guard — only when Paddle is configured and path is not exempt
   if (PADDLE_ENABLED && !SUBSCRIPTION_EXEMPT.some(p => path === p || path.startsWith(p + '/'))) {
     try {
-      const supabase = createMiddlewareClient(request, response);
       const { data: sub } = await supabase
         .from('subscriptions')
         .select('status')

@@ -22,7 +22,7 @@ export interface WinRateStats {
 }
 
 export function computeWinRate(trades: Trade[]): WinRateStats {
-  const closed     = trades.filter(t => t.status !== 'open');
+  const closed     = trades.filter(t => t.status !== 'open' && t.outcome !== null);
   const wins       = closed.filter(t => t.outcome === 'winner').length;
   const losses     = closed.filter(t => t.outcome === 'loser').length;
   const breakevens = closed.filter(t => t.outcome === 'breakeven').length;

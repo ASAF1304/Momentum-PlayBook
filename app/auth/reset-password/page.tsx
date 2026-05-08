@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, TrendingUp } from 'lucide-react';
@@ -19,25 +19,29 @@ import { cn } from '@/lib/utils';
 export default function ResetPasswordPage() {
   const router = useRouter();
 
-  const [password,  setPassword]  = useState('');
-  const [confirm,   setConfirm]   = useState('');
-  const [error,     setError]     = useState<string | null>(null);
-  const [submitting,setSubmitting] = useState(false);
-  const [ready,     setReady]     = useState(false);
+  const [password,    setPassword]    = useState('');
+  const [confirm,     setConfirm]     = useState('');
+  const [error,       setError]       = useState<string | null>(null);
+  const [submitting,  setSubmitting]  = useState(false);
+  const [ready,       setReady]       = useState(false);
+  const readyRef = useRef(false);
 
-  // Wait for Supabase to exchange the recovery code. The auth state change to
-  // PASSWORD_RECOVERY signals that we have a valid recovery session.
+  const [linkInvalid, setLinkInvalid] = useState(false);
+
+  // Only the PASSWORD_RECOVERY event means a valid reset link was clicked.
+  // SIGNED_IN fires for any existing session — do not accept it here.
+  // If no PASSWORD_RECOVERY event fires within 5 seconds, the link is invalid/expired.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+      if (event === 'PASSWORD_RECOVERY') {
+        readyRef.current = true;
         setReady(true);
       }
     });
-    // Also check if there's already an active session (e.g., page reload after exchange).
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
-    });
-    return () => subscription.unsubscribe();
+    const timer = setTimeout(() => {
+      if (!readyRef.current) setLinkInvalid(true);
+    }, 5_000);
+    return () => { subscription.unsubscribe(); clearTimeout(timer); };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,7 +88,14 @@ export default function ResetPasswordPage() {
         בחר סיסמה חדשה לחשבון שלך.
       </p>
 
-      {!ready ? (
+      {linkInvalid && !ready ? (
+        <div className="px-3 py-2.5 rounded-[8px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-xs text-[#FF3B5C]">
+          הקישור לא תקין או שפג תוקפו.{' '}
+          <Link href="/auth/forgot-password" className="underline hover:no-underline">
+            בקש קישור חדש
+          </Link>
+        </div>
+      ) : !ready ? (
         <div className="flex items-center gap-2 py-6 text-zinc-500 text-xs">
           <Loader2 className="w-4 h-4 animate-spin" />
           מאמת את הקישור…

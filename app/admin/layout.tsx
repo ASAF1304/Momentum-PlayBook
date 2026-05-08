@@ -9,6 +9,10 @@ import { createServerClient } from '@supabase/ssr';
 import type { ReactNode } from 'react';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
+  // In e2e test mode the JWT is a fake token — server-side getUser() would reject it.
+  // Skip the server guard and rely on the client-side is_admin check in the page.
+  if (process.env.PLAYWRIGHT_AUTH_BYPASS === 'true') return <>{children}</>;
+
   const cookieStore = await cookies();
 
   const supabase = createServerClient(

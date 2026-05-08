@@ -59,8 +59,23 @@ export function AddTradeModal({
     return () => { if (chartPreview) URL.revokeObjectURL(chartPreview); };
   }, [chartPreview]);
 
+  async function checkImageMagicBytes(file: File): Promise<boolean> {
+    const buf   = await file.slice(0, 12).arrayBuffer();
+    const b     = new Uint8Array(buf);
+    const isPng  = b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47;
+    const isJpeg = b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF;
+    const isWebp = b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+                   b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50;
+    return isPng || isJpeg || isWebp;
+  }
+
   const handleFileSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    const validBytes = await checkImageMagicBytes(file);
+    if (!validBytes) {
+      setError('Invalid image file. Only PNG, JPEG, and WEBP are accepted.');
+      return;
+    }
     if (chartPreview) URL.revokeObjectURL(chartPreview);
     setChartFile(file);
     setChartPreview(URL.createObjectURL(file));

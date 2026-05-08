@@ -94,7 +94,7 @@ export default function Dashboard() {
   const dashStats = useMemo(() => {
     const periodClosed = filterClosedByPeriod(trades, period);
     const wr      = computeWinRate(periodClosed);
-    const maxDD   = computeMaxDrawdown(periodClosed, accountSize);
+    const maxDD   = accountSize > 0 ? computeMaxDrawdown(periodClosed, accountSize) : null;
     const winLoss = computeAvgWinLoss(periodClosed);
     return { wr, maxDD, winLoss, realizedPnL: wr.totalPnL };
   }, [trades, period, accountSize]);
