@@ -48,10 +48,10 @@ export default function ContactPage() {
                 Email
               </div>
               <a
-                href="mailto:support@momentumplaybook.com"
+                href="mailto:asaf.abllin@gmail.com"
                 className="text-[14px] font-semibold text-[var(--text-primary)] hover:text-[#22D3EE] transition-colors"
               >
-                support@momentumplaybook.com
+                asaf.abllin@gmail.com
               </a>
               <p className="text-xs text-[var(--text-faint)] mt-0.5">
                 We typically respond within 1 business day.
@@ -69,16 +69,16 @@ export default function ContactPage() {
                 Phone
               </div>
               <a
-                href="tel:+972501234567"
+                href="tel:+972529532231"
                 className="text-[14px] font-semibold text-[var(--text-primary)] hover:text-[#10F088] transition-colors block"
               >
-                +972 50-123-4567
+                052-9532231
               </a>
               <a
-                href="tel:+972521234567"
+                href="tel:+972506953888"
                 className="text-[14px] font-semibold text-[var(--text-primary)] hover:text-[#10F088] transition-colors block"
               >
-                +972 52-123-4567
+                050-6953888
               </a>
               <p className="text-xs text-[var(--text-faint)] mt-0.5">
                 Sun–Thu, 9:00–18:00 Israel time.
