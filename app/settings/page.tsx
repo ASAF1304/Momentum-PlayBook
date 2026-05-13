@@ -261,13 +261,13 @@ export default function SettingsPage() {
 
   const validateAccountSize = () => {
     const v = parseFloat(accountSize);
-    const msg = !Number.isFinite(v) || v <= 0 ? 'Enter a positive dollar amount' : '';
+    const msg = !Number.isFinite(v) || v < 1 ? 'Account size must be at least $1' : '';
     setErrors(prev => ({ ...prev, accountSize: msg }));
     return !msg;
   };
   const validateMaxRisk = () => {
     const v = parseFloat(maxRisk);
-    const msg = !Number.isFinite(v) || v <= 0 || v > 10 ? 'Must be between 0.1% and 10%' : '';
+    const msg = !Number.isFinite(v) || v <= 0 || v > 5 ? 'Must be between 0.1% and 5%' : '';
     setErrors(prev => ({ ...prev, maxRisk: msg }));
     return !msg;
   };
@@ -392,7 +392,7 @@ export default function SettingsPage() {
                     value={accountSize}
                     onChange={e => { setAccountSize(e.target.value); if (errors.accountSize) setErrors(p => ({ ...p, accountSize: '' })); }}
                     onBlur={validateAccountSize}
-                    min="100" max="50000000" step="100"
+                    min="1" max="50000000" step="1"
                     className={cn(
                       'w-full bg-[var(--bg-input)] border rounded-[8px] pl-7 pr-3 py-2.5 font-mono text-[15px] font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition',
                       errors.accountSize
@@ -415,7 +415,7 @@ export default function SettingsPage() {
                       value={maxRisk}
                       onChange={e => { setMaxRisk(e.target.value); if (errors.maxRisk) setErrors(p => ({ ...p, maxRisk: '' })); }}
                       onBlur={validateMaxRisk}
-                      min="0.1" max="10" step="0.1"
+                      min="0.1" max="5" step="0.1"
                       className={cn(
                         'w-full bg-[var(--bg-input)] border rounded-[8px] px-3 pr-7 py-2.5 font-mono text-[14px] text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition',
                         errors.maxRisk
@@ -452,19 +452,25 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className={cn(
-                'w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2',
-                saving
-                  ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
-                  : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110',
-              )}
-            >
-              {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {saving ? 'Saving…' : 'Save Changes'}
-            </button>
+            {(() => {
+              const hasErrors = Object.values(errors).some(Boolean);
+              const blocked = saving || hasErrors;
+              return (
+                <button
+                  type="submit"
+                  disabled={blocked}
+                  className={cn(
+                    'w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2',
+                    blocked
+                      ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
+                      : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110',
+                  )}
+                >
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              );
+            })()}
           </form>
         )}
 

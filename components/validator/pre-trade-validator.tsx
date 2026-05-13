@@ -91,6 +91,7 @@ interface ValidatorState {
   trendTemplatePassed: boolean;
   allGreen: boolean;
   canSubmit: boolean;
+  entryInvalid: boolean;
   afterClose: boolean;
   nowDisplay: string;
   mindsetQuote: { text: string; source: string };
@@ -251,7 +252,12 @@ export function ValidatorProvider({
   const failedGates        = (Object.keys(gates) as AllGateKey[]).filter(k => !gates[k]);
   const trendTemplatePassed = !!data && data.trendTemplate.passed;
   const allGreen            = trendTemplatePassed && sizing.status === 'ok';
-  const canSubmit           = !!data && sizing.status === 'ok';
+  const entryInvalid        = useMemo(() => {
+    if (entry === '') return false;
+    const v = parseFloat(entry);
+    return !Number.isFinite(v) || v <= 0;
+  }, [entry]);
+  const canSubmit           = !!data && sizing.status === 'ok' && !entryInvalid;
 
   const quoteSeed    = now.getDate();
   const mindsetQuote = useMemo(() => getMindsetQuote(quoteSeed), [quoteSeed]);
@@ -289,7 +295,7 @@ export function ValidatorProvider({
       stopDistPct, stopExceedsMax, exceedsBudget, maxPortfolioRisk,
       failedGates, trendTemplatePassed, allGreen, canSubmit,
       afterClose, nowDisplay, mindsetQuote, greenLight,
-      handleSubmit, handleResetAmount, accountSize,
+      handleSubmit, handleResetAmount, accountSize, entryInvalid,
     }}>
       {children}
     </ValidatorCtx.Provider>
@@ -524,7 +530,7 @@ export function SizerCard({ className }: { className?: string }) {
     data, loading, error,
     sizing, effectiveSizing, stopExceedsMax, stopDistPct,
     exceedsBudget, maxPortfolioRisk,
-    canSubmit, allGreen, handleSubmit, accountSize,
+    canSubmit, allGreen, handleSubmit, accountSize, entryInvalid,
   } = useValidator();
 
   const autoAmount = sizing.status === 'ok' ? sizing.totalNotional : null;
@@ -581,9 +587,13 @@ export function SizerCard({ className }: { className?: string }) {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <PriceField label="Entry" accent="cyan" value={entry} onChange={setEntry} />
+          <PriceField label="Entry" accent="cyan" value={entry} onChange={setEntry} hasError={entryInvalid} />
           <PriceField label="Stop"  accent="red"  value={stop}  onChange={setStop}  />
         </div>
+
+        {entryInvalid && (
+          <p className="text-[11px] text-[#FF3B5C] -mt-2">Entry price must be a positive number.</p>
+        )}
 
         {stopExceedsMax && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-[8px] bg-red-500/10 border border-red-500/35 text-red-500">
@@ -983,19 +993,21 @@ function StopCandidatesPanel({ stops, selected, onSelect }: {
   );
 }
 
-function PriceField({ label, accent, value, onChange }: {
-  label: string; accent: 'cyan' | 'red'; value: string; onChange: (s: string) => void;
+function PriceField({ label, accent, value, onChange, hasError }: {
+  label: string; accent: 'cyan' | 'red'; value: string; onChange: (s: string) => void; hasError?: boolean;
 }) {
   const palette = accent === 'cyan'
-    ? { label: 'text-[var(--text-muted)]', ring: 'focus:border-[#22D3EE] focus:ring-[#22D3EE]/15', text: 'text-[var(--text-primary)]' }
-    : { label: 'text-[var(--text-muted)]', ring: 'focus:border-red-500/60 focus:ring-red-500/10',   text: 'text-red-500' };
+    ? { ring: 'focus:border-[#22D3EE] focus:ring-[#22D3EE]/15', text: 'text-[var(--text-primary)]' }
+    : { ring: 'focus:border-red-500/60 focus:ring-red-500/10',   text: 'text-red-500' };
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)] opacity-70">{label}</label>
       <input inputMode="decimal" value={value} onChange={e => onChange(e.target.value)}
         className={cn(
-          'bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 font-mono text-[14px] font-semibold transition focus:outline-none focus:ring-[2px]',
-          palette.ring, palette.text,
+          'bg-[var(--bg-input)] border rounded-[8px] px-3 py-2.5 font-mono text-[14px] font-semibold transition focus:outline-none focus:ring-[2px]',
+          hasError
+            ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15 text-[#FF3B5C]'
+            : cn('border-[var(--border-subtle)]', palette.ring, palette.text),
         )}
       />
     </div>
