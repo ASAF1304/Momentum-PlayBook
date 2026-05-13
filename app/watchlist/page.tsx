@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/auth-context';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import type { TickerResponse, TickerErrorResponse } from '@/app/api/ticker/[symbol]/route';
+import { isValidTicker, TICKER_ERROR } from '@/lib/ticker-validation';
 
 type SnapshotState = TickerResponse | 'loading' | 'error';
 
@@ -61,8 +62,8 @@ export default function WatchlistPage() {
     const sym = tickerInput.trim().toUpperCase();
     if (!sym || !user || adding) return;
 
-    if (!/^[A-Z.]{1,6}$/.test(sym)) {
-      toast({ title: 'Invalid ticker', body: 'Use 1–6 letters only (e.g. AAPL, BRK.B)', variant: 'warning' });
+    if (!isValidTicker(sym)) {
+      setTickerError(TICKER_ERROR);
       return;
     }
 
@@ -170,8 +171,12 @@ export default function WatchlistPage() {
             <input
               value={tickerInput}
               onChange={e => {
-                setTickerInput(e.target.value.toUpperCase().replace(/[^A-Z.]/g, '').slice(0, 6));
+                setTickerInput(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5));
                 if (tickerError) setTickerError(null);
+              }}
+              onBlur={() => {
+                const sym = tickerInput.trim();
+                if (sym && !isValidTicker(sym)) setTickerError(TICKER_ERROR);
               }}
               placeholder="TICKER"
               className={cn(
@@ -183,10 +188,10 @@ export default function WatchlistPage() {
             />
             <button
               type="submit"
-              disabled={adding || !tickerInput.trim()}
+              disabled={adding || !tickerInput.trim() || !!tickerError}
               className={cn(
                 'flex items-center gap-2 px-5 py-3 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all',
-                adding || !tickerInput.trim()
+                adding || !tickerInput.trim() || !!tickerError
                   ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                   : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.25)] hover:brightness-110 hover:-translate-y-px',
               )}

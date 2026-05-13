@@ -27,6 +27,7 @@ import {
   GATE_FAILURES, getMindsetQuote, getGreenLightMessage, type GateKey,
 } from '@/lib/mindset-engine';
 import { cn } from '@/lib/utils';
+import { isValidTicker, TICKER_ERROR } from '@/lib/ticker-validation';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ interface ValidatorState {
   allGreen: boolean;
   canSubmit: boolean;
   entryInvalid: boolean;
+  tickerInvalid: boolean;
   afterClose: boolean;
   nowDisplay: string;
   mindsetQuote: { text: string; source: string };
@@ -257,7 +259,8 @@ export function ValidatorProvider({
     const v = parseFloat(entry);
     return !Number.isFinite(v) || v <= 0;
   }, [entry]);
-  const canSubmit           = !!data && sizing.status === 'ok' && !entryInvalid;
+  const tickerInvalid       = ticker.length > 0 && !isValidTicker(ticker);
+  const canSubmit           = !!data && sizing.status === 'ok' && !entryInvalid && !tickerInvalid;
 
   const quoteSeed    = now.getDate();
   const mindsetQuote = useMemo(() => getMindsetQuote(quoteSeed), [quoteSeed]);
@@ -295,7 +298,7 @@ export function ValidatorProvider({
       stopDistPct, stopExceedsMax, exceedsBudget, maxPortfolioRisk,
       failedGates, trendTemplatePassed, allGreen, canSubmit,
       afterClose, nowDisplay, mindsetQuote, greenLight,
-      handleSubmit, handleResetAmount, accountSize, entryInvalid,
+      handleSubmit, handleResetAmount, accountSize, entryInvalid, tickerInvalid,
     }}>
       {children}
     </ValidatorCtx.Provider>
@@ -530,8 +533,10 @@ export function SizerCard({ className }: { className?: string }) {
     data, loading, error,
     sizing, effectiveSizing, stopExceedsMax, stopDistPct,
     exceedsBudget, maxPortfolioRisk,
-    canSubmit, allGreen, handleSubmit, accountSize, entryInvalid,
+    canSubmit, allGreen, handleSubmit, accountSize, entryInvalid, tickerInvalid,
   } = useValidator();
+
+  const [tickerTouched, setTickerTouched] = useState(false);
 
   const autoAmount = sizing.status === 'ok' ? sizing.totalNotional : null;
   const invested   = parseFloat(amountInvested);
@@ -556,17 +561,31 @@ export function SizerCard({ className }: { className?: string }) {
       </div>
 
       {/* Ticker input */}
-      <div className="relative">
-        <input
-          value={ticker}
-          onChange={e => setTicker(e.target.value.toUpperCase().slice(0, 10))}
-          placeholder="TICKER"
-          className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[10px] px-4 py-[13px] font-mono text-[22px] font-bold tracking-tight uppercase text-[var(--text-primary)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition"
-        />
-        <span className="absolute top-2 right-3 text-[9px] text-[var(--text-faint)] tracking-[0.18em] font-semibold flex items-center gap-1.5 uppercase">
-          {loading && <Loader2 className="w-3 h-3 animate-spin text-[#22D3EE]" />}
-          Ticker
-        </span>
+      <div className="flex flex-col gap-1">
+        <div className="relative">
+          <input
+            value={ticker}
+            onChange={e => {
+              setTickerTouched(false);
+              setTicker(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5));
+            }}
+            onBlur={() => setTickerTouched(true)}
+            placeholder="TICKER"
+            className={cn(
+              'w-full bg-[var(--bg-input)] border rounded-[10px] px-4 py-[13px] font-mono text-[22px] font-bold tracking-tight uppercase text-[var(--text-primary)] focus:outline-none focus:ring-[2px] transition',
+              tickerTouched && tickerInvalid
+                ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
+                : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
+            )}
+          />
+          <span className="absolute top-2 right-3 text-[9px] text-[var(--text-faint)] tracking-[0.18em] font-semibold flex items-center gap-1.5 uppercase">
+            {loading && <Loader2 className="w-3 h-3 animate-spin text-[#22D3EE]" />}
+            Ticker
+          </span>
+        </div>
+        {tickerTouched && tickerInvalid && (
+          <p className="text-[11px] text-[#FF3B5C]">{TICKER_ERROR}</p>
+        )}
       </div>
 
       {error && (

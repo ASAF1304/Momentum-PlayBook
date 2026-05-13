@@ -12,6 +12,7 @@ import { Check, Loader2, Plus, UploadCloud, X } from 'lucide-react';
 import { supabase, type SetupType, type Trade } from '@/lib/supabase-client';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+import { isValidTicker, TICKER_ERROR } from '@/lib/ticker-validation';
 
 const SETUP_TYPES: SetupType[] = [
   'VCP', 'HTF', 'Cup & Handle', 'Gap-up', 'Flat Base', 'Confluence', 'Other',
@@ -40,6 +41,7 @@ export function AddTradeModal({
   const [stopPrice,    setStopPrice]    = useState('');   // Stop loss $ per share
   const [saving,       setSaving]       = useState(false);
   const [error,        setError]        = useState<string | null>(null);
+  const [tickerError,  setTickerError]  = useState<string | null>(null);
 
   // ── Chart image ──────────────────────────────────────────────────────────
   const [chartFile,     setChartFile]     = useState<File | null>(null);
@@ -146,7 +148,9 @@ export function AddTradeModal({
     const ep = parseFloat(entryPrice);
     const sp = parseFloat(stopPrice);
 
-    if (!ticker.trim())  { setError('Ticker is required.'); return; }
+    const sym = ticker.trim().toUpperCase();
+    if (!sym) { setError('Ticker is required.'); return; }
+    if (!isValidTicker(sym)) { setTickerError(TICKER_ERROR); return; }
     if (!calc)           { setError('Enter a valid position size and entry price.'); return; }
     if (!calc.stopReady) { setError('Stop price must be a valid value below entry price.'); return; }
 
@@ -238,12 +242,22 @@ export function AddTradeModal({
 
             {/* ── Trade Info ─────────────────────────────────── */}
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Ticker" accent="cyan">
+              <FormField label="Ticker" accent="cyan" error={tickerError ?? undefined}>
                 <input
                   value={ticker}
-                  onChange={e => setTicker(e.target.value.toUpperCase().slice(0, 10))}
+                  onChange={e => {
+                    setTicker(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5));
+                    if (tickerError) setTickerError(null);
+                  }}
+                  onBlur={() => {
+                    const sym = ticker.trim();
+                    if (sym && !isValidTicker(sym)) setTickerError(TICKER_ERROR);
+                  }}
                   placeholder="e.g. AAPL"
-                  className={inputCls('cyan') + ' font-extrabold text-[16px] uppercase tracking-wide'}
+                  className={cn(
+                    inputCls(tickerError ? 'red' : 'cyan'),
+                    'font-extrabold text-[16px] uppercase tracking-wide',
+                  )}
                 />
               </FormField>
               <FormField label="Setup Type">
@@ -490,8 +504,8 @@ function SectionLabel({ color, label }: { color: 'cyan' | 'red'; label: string }
 }
 
 function FormField({
-  label, accent, children,
-}: { label: string; accent?: 'cyan' | 'red'; children: React.ReactNode }) {
+  label, accent, error, children,
+}: { label: string; accent?: 'cyan' | 'red'; error?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className={cn(
@@ -502,6 +516,7 @@ function FormField({
         {label}
       </label>
       {children}
+      {error && <p className="text-[11px] text-[#FF3B5C] -mt-0.5">{error}</p>}
     </div>
   );
 }
