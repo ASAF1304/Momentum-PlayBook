@@ -159,7 +159,14 @@ export default function WatchlistPage() {
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 relative">
 
         <div className="mb-7">
-          <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Watchlist</h1>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h1 className="text-[20px] font-extrabold tracking-tight">Watchlist</h1>
+            {!loadingList && items.length > 0 && (
+              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#22D3EE]/15 text-[#22D3EE] border border-[#22D3EE]/25">
+                {items.length} {items.length === 1 ? 'ticker' : 'tickers'}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-[var(--text-muted)]">
             Add tickers to track. Click a row to see a live chart, EMA status, and Trend Template.
           </p>
@@ -214,13 +221,19 @@ export default function WatchlistPage() {
             Loading watchlist…
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center rounded-[14px] border border-dashed border-[var(--border-hover)] bg-[var(--bg-surface)]">
-            <div className="w-12 h-12 rounded-full border-2 border-dashed border-[var(--border-hover)] flex items-center justify-center mb-4">
-              <BookmarkPlus className="w-5 h-5 text-[var(--text-faint)]" />
+          <div
+            className="flex flex-col items-center justify-center py-20 text-center rounded-[14px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+            style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 border"
+              style={{ background: '#22D3EE14', borderColor: '#22D3EE33' }}
+            >
+              <BookmarkPlus className="w-7 h-7" style={{ color: '#22D3EE' }} strokeWidth={1.8} />
             </div>
-            <p className="text-[15px] font-bold text-[var(--text-secondary)] mb-1">Watchlist is empty</p>
-            <p className="text-xs text-[var(--text-muted)] max-w-[220px]">
-              Add a ticker above to track it with a live chart and Trend Template snapshot.
+            <h3 className="text-[16px] font-extrabold text-[var(--text-primary)] mb-2">Your watchlist is empty</h3>
+            <p className="text-[13px] text-[var(--text-muted)] max-w-[280px] leading-relaxed mb-1">
+              Add a ticker above to track it with a live chart, EMA status, and Trend Template snapshot.
             </p>
           </div>
         ) : (

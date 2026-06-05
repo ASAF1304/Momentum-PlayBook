@@ -355,10 +355,10 @@ export function ChecklistCard({ className }: { className?: string }) {
         </div>
       )}
       {data && trendTemplatePassed && allGreen && allOptionalGreen && (
-        <div className="p-4 rounded-[10px] border border-[#10F088]/30 bg-[#10F088]/[0.06]">
+        <div className="p-4 rounded-[10px] border border-[#10F088]/40 bg-[#10F088]/[0.06] animate-validator-glow">
           <div className="flex items-start gap-3">
-            <div className="w-7 h-7 rounded-full bg-[#10F088]/20 border border-[#10F088]/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Check className="w-3.5 h-3.5 text-[#10F088]" strokeWidth={3} />
+            <div className="w-8 h-8 rounded-full bg-[#10F088]/25 border border-[#10F088]/50 flex items-center justify-center flex-shrink-0 mt-0.5 animate-shimmer-glow">
+              <Check className="w-4 h-4 text-[#10F088]" strokeWidth={3.5} />
             </div>
             <div>
               <h3 className="text-[13px] font-bold text-[#10F088] mb-0.5 uppercase tracking-wider">
