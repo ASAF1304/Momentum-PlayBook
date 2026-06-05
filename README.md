@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Momentum Playbook
 
-## Getting Started
+A professional stock-trading journal and playbook for momentum traders.
 
-First, run the development server:
+**Live app:** [momentum-playbook.vercel.app](https://momentum-playbook.vercel.app)
+
+---
+
+## Stack
+
+- **Framework:** Next.js (App Router) + TypeScript
+- **Styling:** Tailwind CSS v4
+- **Database:** Supabase (PostgreSQL + Auth + Storage)
+- **Payments:** Grow (Meshulam)
+- **Deployment:** Vercel
+
+---
+
+## Local Setup
+
+### 1. Clone & install
+
+```bash
+git clone https://github.com/ASAF1304/Momentum-PlayBook.git
+cd Momentum-PlayBook
+npm install
+```
+
+### 2. Environment variables
+
+Get the `.env.local` file from Asaf (via WhatsApp — never commit this file), then place it in the project root:
+
+```
+Momentum-PlayBook/
+├── .env.local        ← put here
+├── .env.local.example
+├── ...
+```
+
+All required keys are listed in `.env.local.example`.
+
+### 3. Run dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+app/
+├── (legal-en)/       # Terms, Privacy, Cookies, Accessibility pages
+├── (auth)/           # Login, signup, forgot password
+├── api/              # API routes (live prices, Grow webhooks, etc.)
+├── journal/          # Trade journal
+├── playbook/         # Visual trade archive
+├── watchlist/        # Stock watchlist with live charts
+├── thoughts/         # Asaf's market analysis (admin-only posts)
+├── settings/         # User profile & preferences
+└── page.tsx          # Dashboard
 
-To learn more about Next.js, take a look at the following resources:
+components/
+├── dashboard/        # Stats cards, position sizer, active positions
+├── journal/          # Trade modals, import, review setup
+├── nav/              # App navigation
+├── ui/               # Shared UI primitives
+└── validator/        # Pre-trade checklist
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+lib/
+├── supabase-client.ts  # Supabase singleton + all shared types
+├── use-live-prices.ts  # Hook: polls /api/live-prices every 10s
+├── auth-context.tsx    # User + profile context
+└── stats/             # PnL, win-rate, dashboard stats helpers
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Database Migrations
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+When adding new DB columns, run these in the Supabase dashboard SQL editor:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```sql
+-- Step 3: Non-System review
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS system_status text CHECK (system_status IN ('system','partial','non_system'));
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS trend_checks boolean[];
+
+-- Step 4: Monthly loss limit
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS monthly_loss_limit_usd numeric;
+
+-- Step 5: Post-mortem
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS post_mortem jsonb;
+```
+
+---
+
+## Deploy
+
+```bash
+npx tsc --noEmit   # must be zero errors
+npx vercel --prod
+```
+
+---
+
+## Workflow Rules
+
+- **Before every change** — read the relevant file first
+- **After every change** — run `npx tsc --noEmit`
+- **Before deploy** — ensure zero TypeScript errors
