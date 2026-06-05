@@ -768,7 +768,8 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
               {formatDate(trade.phase1_date)} · {trade.status === 'open' ? `${daysIn}d in trade` : 'closed'}
             </div>
           </div>
-          <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-[6px] bg-red-100 text-red-700 flex-shrink-0">
+          <span className="flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-[6px] bg-amber-500/15 text-amber-600 border border-amber-500/25 flex-shrink-0">
+            <AlertTriangle className="w-2.5 h-2.5" strokeWidth={3} />
             Non-System
           </span>
         </div>
@@ -892,27 +893,32 @@ function ChartCard({ trade }: { trade: Trade }) {
 // ── EmptyState ─────────────────────────────────────────────────────────────────
 
 function EmptyState({ filter }: { filter: TabFilter }) {
-  const config: Record<TabFilter, { icon: typeof Layers; title: string; body: string }> = {
-    all:       { icon: Layers,  title: 'No closed trades yet',      body: 'Close a trade in the Journal and it will appear here.' },
-    live:      { icon: Radar,   title: 'No open positions',         body: 'Log a trade in the Journal to see it here.' },
-    winner:    { icon: Trophy,  title: 'No winners yet',            body: 'Keep executing your system. They\'ll come.' },
-    loser:     { icon: Layers,  title: 'No losses logged',          body: 'Good — but closed losers will show here.' },
-    breakeven: { icon: Layers,  title: 'No breakevens logged',      body: 'Breakeven trades will appear here.' },
-    'what-if': { icon: Layers,  title: 'No What-If trades',         body: 'Trades logged outside the system rules appear here for reference.' },
-    charts:    { icon: Layers,  title: 'No chart screenshots yet',  body: 'Upload a chart screenshot when logging a trade.' },
+  const config: Record<TabFilter, { icon: typeof Layers; tint: string; title: string; body: string }> = {
+    all:       { icon: Layers,         tint: '#22D3EE', title: 'No closed trades yet',      body: 'Close a trade in the Journal and it will appear here.' },
+    live:      { icon: Radar,          tint: '#F59E0B', title: 'No open positions',         body: 'Log a trade in the Journal to see it here.' },
+    winner:    { icon: Trophy,         tint: '#10F088', title: 'No winners yet',            body: 'Keep executing your system. They\'ll come.' },
+    loser:     { icon: TrendingDown,   tint: '#EF4444', title: 'No losses logged',          body: 'Good — but closed losers will show here.' },
+    breakeven: { icon: Layers,         tint: '#22D3EE', title: 'No breakevens logged',      body: 'Breakeven trades will appear here.' },
+    'what-if': { icon: AlertTriangle,  tint: '#F59E0B', title: 'No What-If trades',         body: 'Trades logged outside the system rules appear here for reference.' },
+    charts:    { icon: Layers,         tint: '#A78BFA', title: 'No chart screenshots yet',  body: 'Upload a chart screenshot when logging a trade.' },
   };
-  const { icon: Icon, title, body } = config[filter];
+  const { icon: Icon, tint, title, body } = config[filter];
 
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <Icon className="w-12 h-12 text-[var(--text-faint)] mb-5" strokeWidth={1.2} />
+      <div
+        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 border"
+        style={{ background: `${tint}14`, borderColor: `${tint}33` }}
+      >
+        <Icon className="w-7 h-7" style={{ color: tint }} strokeWidth={1.8} />
+      </div>
       <h3 className="text-[16px] font-extrabold text-[var(--text-primary)] mb-2">{title}</h3>
       <p className="text-[13px] text-[var(--text-muted)] mb-6 max-w-[280px] leading-relaxed">{body}</p>
       <Link
         href="/journal"
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-[0.08em] hover:opacity-90 transition bg-[var(--text-primary)] text-[var(--bg-primary)]"
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-[0.08em] hover:brightness-110 transition bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.25)]"
       >
-        Go to Journal
+        Go to Journal →
       </Link>
     </div>
   );

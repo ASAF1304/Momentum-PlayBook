@@ -1765,20 +1765,21 @@ function SetupBreakdown({ groups }: { groups: SetupGroup[] }) {
 function StatCard({ label, value, accent }: {
   label: string; value: string; accent: 'cyan' | 'green' | 'red' | 'amber';
 }) {
-  const dots = { cyan: 'bg-[#22D3EE]', green: 'bg-[#10F088]', red: 'bg-[#EF4444]', amber: 'bg-amber-400' };
+  const dotColor = { cyan: '#22D3EE', green: '#10F088', red: '#EF4444', amber: '#F59E0B' }[accent];
   const valueColor = value === '—' ? 'text-[var(--text-primary)]'
     : accent === 'green' ? 'text-emerald-400'
     : accent === 'red'   ? 'text-red-400'
     : 'text-[var(--text-primary)]';
   return (
     <div
-      className="p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden"
-      style={{ boxShadow: 'var(--shadow-card)' }}
+      className="relative p-5 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden"
+      style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
     >
+      <div className="absolute inset-y-0 left-0 w-[3px] rounded-l-[12px]" style={{ background: dotColor }} />
       <div className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)] mb-2 opacity-70">{label}</div>
       <div className="flex items-center gap-2">
         <span className={cn('font-mono text-[22px] font-extrabold tracking-tight tabular-nums', valueColor)}>{value}</span>
-        {value !== '—' && <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', dots[accent])} />}
+        {value !== '—' && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dotColor }} />}
       </div>
     </div>
   );
@@ -1815,11 +1816,21 @@ function EmptyState({ filter, onAdd }: { filter: StatusFilter | 'filtered'; onAd
   const isFiltered = filter === 'filtered';
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-2">
-        {isFiltered ? 'אין טריידים התואמים את הסינון' : 'No trades logged yet'}
+      <div
+        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 border"
+        style={{ background: isFiltered ? '#F59E0B14' : '#22D3EE14', borderColor: isFiltered ? '#F59E0B33' : '#22D3EE33' }}
+      >
+        {isFiltered
+          ? <Search className="w-7 h-7" style={{ color: '#F59E0B' }} strokeWidth={1.8} />
+          : <ClipboardCheck className="w-7 h-7" style={{ color: '#22D3EE' }} strokeWidth={1.8} />}
       </div>
-      <p className="text-xs text-[var(--text-faint)] mb-6">
-        {isFiltered ? 'נסה לשנות את הסינון או נקה אותו.' : 'Log your first trade using the button above.'}
+      <h3 className="text-[16px] font-extrabold text-[var(--text-primary)] mb-2">
+        {isFiltered ? 'No matching trades' : 'No trades logged yet'}
+      </h3>
+      <p className="text-[13px] text-[var(--text-muted)] mb-6 max-w-[300px] leading-relaxed">
+        {isFiltered
+          ? 'Try adjusting your filters, or clear them to see everything.'
+          : 'Start logging your trades to build your edge. The Playbook will populate automatically.'}
       </p>
       {isFiltered ? (
         <button
@@ -1828,7 +1839,7 @@ function EmptyState({ filter, onAdd }: { filter: StatusFilter | 'filtered'; onAd
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[var(--border-strong)] text-[var(--text-secondary)] font-bold text-xs uppercase tracking-[0.08em] hover:bg-[var(--bg-elevated)] transition"
         >
           <X className="w-3.5 h-3.5" />
-          נקה סינון
+          Clear filters
         </button>
       ) : (
         <button

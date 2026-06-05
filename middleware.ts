@@ -8,6 +8,7 @@ import { createMiddlewareClient } from '@/lib/supabase-server';
 
 // Unauthenticated access is allowed on these paths.
 const PUBLIC_PATHS = [
+  '/welcome',
   '/login',
   '/signup',
   '/auth/forgot-password',
@@ -61,9 +62,9 @@ export async function middleware(request: NextRequest) {
     console.error('[MIDDLEWARE-FAIL] getSession() threw:', err);
   }
 
-  // Unauthenticated + protected route → send to /login
+  // Unauthenticated + protected route → send to the public landing page
   if (!user) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL('/welcome', request.url));
   }
 
   // Authenticated + auth page → send to dashboard

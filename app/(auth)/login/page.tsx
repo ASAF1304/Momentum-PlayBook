@@ -46,17 +46,19 @@ function LoginForm() {
   };
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur p-8">
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] backdrop-blur p-8"
+      style={{ boxShadow: '0 0 0 1px rgba(34,211,238,0.04), 0 16px 48px rgba(0,0,0,0.18)' }}
+    >
       {/* Logo */}
       <div className="flex items-center gap-2.5 mb-8">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#22D3EE] to-[#10F088] flex items-center justify-center">
           <TrendingUp className="w-4 h-4 text-black" strokeWidth={3.5} />
         </div>
         <div className="flex flex-col leading-none">
-          <span className="text-[15px] font-extrabold tracking-tight text-zinc-100">
+          <span className="text-[15px] font-extrabold tracking-tight text-[var(--text-primary)]">
             Momentum Playbook
           </span>
-          <span className="text-[9px] text-zinc-600 tracking-[0.22em] uppercase font-semibold mt-0.5">
+          <span className="text-[9px] text-[var(--text-faint)] tracking-[0.22em] uppercase font-semibold mt-0.5">
             Stage 2 only
           </span>
         </div>
@@ -80,16 +82,16 @@ function LoginForm() {
         </div>
       )}
 
-      <h1 className="text-[20px] font-extrabold tracking-tight text-zinc-100 mb-1">
+      <h1 className="text-[20px] font-extrabold tracking-tight text-[var(--text-primary)] mb-1">
         Sign in
       </h1>
-      <p className="text-xs text-zinc-500 mb-6">
+      <p className="text-xs text-[var(--text-muted)] mb-6">
         Your trades, your rules. No sharing.
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
+          <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)]">
             Email
           </label>
           <input
@@ -99,16 +101,16 @@ function LoginForm() {
             required
             autoComplete="email"
             placeholder="you@example.com"
-            className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+            className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-faint)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-zinc-400">
+            <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-muted)]">
               Password
             </label>
-            <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+            <Link href="/forgot-password" className="text-xs text-[var(--text-faint)] hover:text-[var(--text-secondary)] transition-colors">
               Forgot password?
             </Link>
           </div>
@@ -119,7 +121,7 @@ function LoginForm() {
             required
             autoComplete="current-password"
             placeholder="••••••••"
-            className="bg-black/30 border border-white/[0.06] rounded-[8px] px-3 py-2.5 text-[14px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
+            className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2.5 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-faint)] focus:outline-none focus:border-[#22D3EE] focus:ring-[3px] focus:ring-[#22D3EE]/15 transition"
           />
         </div>
 
@@ -135,7 +137,7 @@ function LoginForm() {
           className={cn(
             'mt-1 w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] transition-all flex items-center justify-center gap-2',
             submitting
-              ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
+              ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
               : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110',
           )}
         >
@@ -144,7 +146,7 @@ function LoginForm() {
         </button>
       </form>
 
-      <p className="mt-5 text-center text-xs text-zinc-500">
+      <p className="mt-5 text-center text-xs text-[var(--text-muted)]">
         No account?{' '}
         <Link href="/signup" className="text-[#22D3EE] hover:underline font-semibold">
           Sign up
@@ -152,20 +154,20 @@ function LoginForm() {
       </p>
 
       {/* Legal disclaimer */}
-      <div className="mt-6 pt-5 border-t border-white/[0.05]">
-        <div className="flex items-start gap-2 text-[10px] text-zinc-700 leading-relaxed">
-          <Info className="w-3 h-3 text-zinc-700 mt-0.5 shrink-0" />
+      <div className="mt-6 pt-5 border-t border-[var(--border-subtle)]">
+        <div className="flex items-start gap-2 text-[10px] text-[var(--text-faint)] leading-relaxed">
+          <Info className="w-3 h-3 text-[var(--text-faint)] mt-0.5 shrink-0" />
           <span>
             Momentum Playbook does not provide investment advice.{' '}
-            <Link href="/legal/disclaimer" className="underline hover:text-zinc-500 transition-colors">
+            <Link href="/legal/disclaimer" className="underline hover:text-[var(--text-muted)] transition-colors">
               Disclaimer
             </Link>
             {' · '}
-            <Link href="/legal/terms" className="underline hover:text-zinc-500 transition-colors">
+            <Link href="/legal/terms" className="underline hover:text-[var(--text-muted)] transition-colors">
               Terms of Use
             </Link>
             {' · '}
-            <Link href="/legal/privacy" className="underline hover:text-zinc-500 transition-colors">
+            <Link href="/legal/privacy" className="underline hover:text-[var(--text-muted)] transition-colors">
               Privacy
             </Link>
           </span>
@@ -173,13 +175,13 @@ function LoginForm() {
       </div>
 
       {/* Escape hatch for stuck/corrupted sessions */}
-      <div className="mt-4 pt-4 border-t border-white/[0.05]">
-        <p className="text-xs text-zinc-700 text-center mb-2.5">Having trouble loading the app?</p>
+      <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
+        <p className="text-xs text-[var(--text-faint)] text-center mb-2.5">Having trouble loading the app?</p>
         <button
           type="button"
           onClick={handleClearSession}
           disabled={clearing}
-          className="w-full py-2 rounded-[8px] border border-white/[0.06] text-xs text-zinc-600 hover:text-zinc-400 hover:border-white/10 transition-colors flex items-center justify-center gap-1.5"
+          className="w-full py-2 rounded-[8px] border border-[var(--border-subtle)] text-xs text-[var(--text-faint)] hover:text-[var(--text-muted)] hover:border-[var(--border-strong)] transition-colors flex items-center justify-center gap-1.5"
         >
           {clearing && <Loader2 className="w-3 h-3 animate-spin" />}
           {clearing ? 'Clearing…' : 'Clear session data'}
