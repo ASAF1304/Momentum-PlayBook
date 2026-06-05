@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase, type Subscription, type SubscriptionStatus } from '@/lib/supabase-client';
+import { TRIAL_DAYS } from '@/lib/trial-config';
 
 const STATUS_LABEL: Record<SubscriptionStatus, string> = {
   trialing:      'ניסיון חינמי',
@@ -164,11 +165,11 @@ export default function BillingPage() {
             </span>
           </div>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/onboarding/checkout')}
             className="flex items-center gap-1 text-xs text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-colors"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
-            חזרה
+            להמשיך לתשלום
           </button>
         </header>
 
@@ -197,13 +198,7 @@ export default function BillingPage() {
                 onClick={() => router.push('/onboarding/checkout')}
                 className="w-full sm:w-auto px-8 py-3.5 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.06em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_30px_rgba(34,211,238,0.25)] hover:brightness-110 transition-all"
               >
-                התחל חינם — 14 יום ניסיון
-              </button>
-              <button
-                onClick={() => router.push('/')}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-[10px] text-[13px] font-semibold border border-[var(--border-strong)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] transition-all"
-              >
-                כניסה לאפליקציה
+                התחל חינם — {TRIAL_DAYS} יום ניסיון
               </button>
             </div>
 
@@ -227,7 +222,7 @@ export default function BillingPage() {
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
                     style={{ background: `${color}18` }}
                   >
-                    <Icon className="w-4.5 h-4.5" style={{ color }} strokeWidth={2} />
+                    <Icon className="w-5 h-5" style={{ color }} strokeWidth={2} />
                   </div>
                   <div>
                     <p className="font-extrabold text-[var(--text-primary)] text-sm mb-1">{title}</p>
@@ -248,7 +243,7 @@ export default function BillingPage() {
                   Momentum Playbook
                 </p>
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#10F088]/10 text-[#10F088] border border-[#10F088]/20">
-                  14 יום חינם
+                  {TRIAL_DAYS} יום חינם
                 </span>
               </div>
 
@@ -323,9 +318,9 @@ export default function BillingPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {noSub ? <Clock className="w-5 h-5 text-[var(--text-faint)]" /> : STATUS_ICON[status]}
+              {STATUS_ICON[status]}
               <span className="text-sm font-semibold text-[var(--text-secondary)]">
-                {noSub ? 'אין מנוי' : STATUS_LABEL[status]}
+                {STATUS_LABEL[status]}
               </span>
             </div>
           </div>
