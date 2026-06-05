@@ -313,6 +313,7 @@ export default function Dashboard() {
                   : '$0'}
                 positive={dashStats.realizedPnL > 0}
                 negative={dashStats.realizedPnL < 0}
+                accent={dashStats.realizedPnL > 0 ? '#10F088' : dashStats.realizedPnL < 0 ? '#FF3B5C' : undefined}
               />
               <StatCard
                 label="Unrealized PnL"
@@ -322,12 +323,14 @@ export default function Dashboard() {
                 sublabel={openTrades.length > 0 ? 'live positions' : undefined}
                 positive={openTrades.length > 0 && unrealizedPnL > 0}
                 negative={openTrades.length > 0 && unrealizedPnL < 0}
+                accent={openTrades.length > 0 ? '#22D3EE' : undefined}
               />
               <StatCard
                 label="Win Rate"
                 value={dashStats.wr.winRate !== null ? `${dashStats.wr.winRate.toFixed(1)}%` : '—'}
                 sublabel={dashStats.wr.closedCount > 0 ? `${dashStats.wr.closedCount} closed trades` : undefined}
                 positive={dashStats.wr.winRate !== null && dashStats.wr.winRate >= 50}
+                accent={dashStats.wr.winRate !== null ? (dashStats.wr.winRate >= 50 ? '#10F088' : '#FF3B5C') : undefined}
               />
               <StatCard
                 label="Avg R"
@@ -336,6 +339,7 @@ export default function Dashboard() {
                   : '—'}
                 positive={dashStats.wr.avgR !== null && dashStats.wr.avgR > 0}
                 negative={dashStats.wr.avgR !== null && dashStats.wr.avgR < 0}
+                accent={dashStats.wr.avgR !== null ? (dashStats.wr.avgR > 0 ? '#10F088' : '#FF3B5C') : undefined}
               />
             </>
           )}
@@ -550,20 +554,27 @@ export { fmtAccountSize };
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function StatCard({
-  label, value, sublabel, positive, negative,
+  label, value, sublabel, positive, negative, accent,
 }: {
   label: string; value: string; sublabel?: string;
   positive?: boolean; negative?: boolean;
+  accent?: string;
 }) {
-  const hasValue  = value !== '—';
+  const hasValue   = value !== '—';
   const isPositive = positive === true;
   const isNegative = negative === true;
 
   return (
     <div
-      className="p-4 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+      className="relative p-4 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden"
       style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
     >
+      {accent && (
+        <div
+          className="absolute inset-y-0 left-0 w-[3px] rounded-l-[10px]"
+          style={{ background: accent }}
+        />
+      )}
       <div className="text-xs uppercase tracking-[0.18em] font-semibold text-[var(--text-muted)] opacity-60 mb-2">
         {label}
       </div>
@@ -766,35 +777,41 @@ function MonthlyPerformance({ data }: { data: MonthlyData[] }) {
       </h2>
 
       {/* Bar chart */}
-      <div className="flex gap-[3px] overflow-x-auto pb-1 mb-4" style={{ minHeight: 100 }}>
+      <div className="flex gap-[4px] overflow-x-auto pb-1 mb-4" style={{ minHeight: 120 }}>
         {data.map(m => {
           const frac = Math.abs(m.pnl) / maxAbs;
           const isPos = m.pnl >= 0;
-          const barPct = Math.max(frac * 100, 2);
+          const barPx = Math.max(frac * 56, 4);
           return (
             <div
               key={m.month}
-              className="flex flex-col items-center gap-0 flex-shrink-0"
-              style={{ minWidth: 28 }}
+              className="flex flex-col items-center flex-shrink-0"
+              style={{ minWidth: 30 }}
               title={`${m.label}: ${isPos ? '+' : ''}$${Math.round(m.pnl).toLocaleString('en-US')} (${m.wins}W / ${m.losses}L)`}
             >
               {/* Top half — positive bars grow upward from center */}
-              <div className="flex items-end justify-center w-full" style={{ height: 48 }}>
+              <div className="flex items-end justify-center w-full" style={{ height: 60 }}>
                 {isPos && (
                   <div
-                    className="w-4 rounded-t-sm bg-emerald-400/80"
-                    style={{ height: `${barPct}%` }}
+                    className="w-[18px] rounded-t-[3px]"
+                    style={{
+                      height: barPx,
+                      background: m.winRate !== null && m.winRate >= 60
+                        ? 'linear-gradient(to top, #10F088, #22D3EE)'
+                        : '#10F088',
+                      opacity: 0.85,
+                    }}
                   />
                 )}
               </div>
               {/* Zero line */}
               <div className="w-full h-px bg-[var(--border-subtle)]" />
               {/* Bottom half — negative bars grow downward from center */}
-              <div className="flex items-start justify-center w-full" style={{ height: 48 }}>
+              <div className="flex items-start justify-center w-full" style={{ height: 60 }}>
                 {!isPos && (
                   <div
-                    className="w-4 rounded-b-sm bg-red-400/80"
-                    style={{ height: `${barPct}%` }}
+                    className="w-[18px] rounded-b-[3px] bg-red-400/80"
+                    style={{ height: barPx, opacity: 0.85 }}
                   />
                 )}
               </div>

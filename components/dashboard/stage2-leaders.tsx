@@ -173,7 +173,7 @@ function LeaderRow({
           {leader.ticker}
         </div>
         {leader.company && (
-          <div className="text-xs text-[var(--text-faint)] truncate">{leader.company}</div>
+          <div className="text-xs text-[var(--text-faint)] truncate" title={leader.company}>{leader.company}</div>
         )}
       </button>
 
