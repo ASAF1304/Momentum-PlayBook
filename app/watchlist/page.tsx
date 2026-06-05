@@ -165,8 +165,8 @@ export default function WatchlistPage() {
           </p>
         </div>
 
-        {/* Add form */}
-        <div className="flex flex-col gap-1.5 mb-7">
+        {/* Add form — sticky on mobile so it stays visible while scrolling */}
+        <div className="sticky top-[56px] z-20 bg-[var(--bg-primary)] pt-1 pb-3 -mx-4 px-4 sm:static sm:top-auto sm:z-auto sm:bg-transparent sm:pt-0 sm:pb-0 sm:mx-0 sm:px-0 sm:mb-7 flex flex-col gap-1.5 mb-3">
           <form onSubmit={handleAdd} className="flex gap-2.5">
             <input
               value={tickerInput}
