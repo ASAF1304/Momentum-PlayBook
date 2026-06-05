@@ -6,6 +6,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Check, TrendingUp } from 'lucide-react';
+import { TRIAL_DAYS } from '@/lib/trial-config';
 
 export const metadata: Metadata = { title: 'תמחור — Momentum Playbook' };
 
@@ -60,7 +61,7 @@ export default function PricingPage() {
             </div>
             <div className="text-right">
               <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-[#10F088]/10 text-[#10F088] border border-[#10F088]/20">
-                30 יום ניסיון חינמי
+                {TRIAL_DAYS} יום ניסיון חינמי
               </span>
             </div>
           </div>
@@ -95,10 +96,10 @@ export default function PricingPage() {
             {[
               {
                 q: 'האם אני צריך להזין כרטיס אשראי לתקופת הניסיון?',
-                a: 'לא. תקופת הניסיון של 30 יום אינה מחייבת פרטי כרטיס אשראי.',
+                a: `לא. תקופת הניסיון של ${TRIAL_DAYS} יום אינה מחייבת פרטי כרטיס אשראי.`,
               },
               {
-                q: 'מה קורה אחרי 30 יום?',
+                q: `מה קורה אחרי ${TRIAL_DAYS} יום?`,
                 a: 'תקבלו התראה לפני סיום הניסיון. תוכלו להזין כרטיס אשראי ולעבור למנוי, או לא — הבחירה שלכם.',
               },
               {
@@ -123,7 +124,7 @@ export default function PricingPage() {
           <p>
             בהצטרפות אתם מסכימים ל
             <Link href="/legal/terms" className="underline hover:text-zinc-500 mx-1">תנאי השימוש</Link>
-            ול
+            {' '}ול{' '}
             <Link href="/legal/privacy" className="underline hover:text-zinc-500 mx-1">מדיניות הפרטיות</Link>
             שלנו.
           </p>

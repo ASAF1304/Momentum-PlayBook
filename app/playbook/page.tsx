@@ -20,6 +20,7 @@ import { computeWinRate } from '@/lib/stats/win-rate';
 import { computeUnrealizedPnL, computeCurrentR } from '@/lib/stats/dashboard-stats';
 import { useAuth } from '@/lib/auth-context';
 import { useLivePrices, type LivePrice } from '@/lib/use-live-prices';
+import { StopAlertBanner } from '@/components/stop-alert-banner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -194,7 +195,10 @@ function PlaybookInner() {
       <GridOverlay />
       <AppNav />
 
-      <main className="max-w-[1200px] mx-auto px-6 py-10 relative">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-10 relative">
+
+        {/* Stop-loss alerts */}
+        <StopAlertBanner openTrades={openTrades} livePrices={livePrices} />
 
         <div className="flex items-start justify-between mb-7">
           <div>
@@ -647,7 +651,14 @@ function LiveTradeCard({ trade, livePrice }: { trade: Trade; livePrice?: LivePri
           </div>
           <div>
             <div className="text-[var(--text-faint)] mb-0.5 uppercase tracking-wider text-[9px]">Risk $</div>
-            <div className="text-[var(--text-secondary)] font-semibold">${trade.risk_dollars.toFixed(0)}</div>
+            <div className="text-[var(--text-secondary)] font-semibold">
+              {(() => {
+                const r = trade.risk_dollars && trade.risk_dollars > 0
+                  ? trade.risk_dollars
+                  : trade.phase1_shares * (trade.phase1_price - trade.initial_stop);
+                return r > 0 ? `$${r.toFixed(0)}` : '—';
+              })()}
+            </div>
           </div>
         </div>
 
@@ -778,7 +789,14 @@ function WhatIfTradeCard({ trade }: { trade: Trade }) {
           </div>
           <div>
             <div className="text-[var(--text-faint)] mb-0.5 uppercase tracking-wider text-[9px]">Risk $</div>
-            <div className="text-[var(--text-secondary)] font-semibold">${trade.risk_dollars.toFixed(0)}</div>
+            <div className="text-[var(--text-secondary)] font-semibold">
+              {(() => {
+                const r = trade.risk_dollars && trade.risk_dollars > 0
+                  ? trade.risk_dollars
+                  : trade.phase1_shares * (trade.phase1_price - trade.initial_stop);
+                return r > 0 ? `$${r.toFixed(0)}` : '—';
+              })()}
+            </div>
           </div>
         </div>
 

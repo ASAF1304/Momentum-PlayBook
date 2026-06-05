@@ -31,8 +31,6 @@ import { isValidTicker, TICKER_ERROR } from '@/lib/ticker-validation';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const MAX_STOP_PCT = 8;
-
 type AutoGateKey = 'above_ath_avwap' | 'near_52wh' | 'above_52wl';
 type AllGateKey  = Exclude<GateKey, AutoGateKey> | 'clear_pivot' | 'earnings_safe';
 
@@ -101,6 +99,7 @@ interface ValidatorState {
   handleSubmit: () => void;
   handleResetAmount: () => void;
   accountSize: number;
+  maxStopDistancePct: number;
 }
 
 const ValidatorCtx = createContext<ValidatorState | null>(null);
@@ -244,8 +243,9 @@ export function ValidatorProvider({
   const afterClose = now.getHours() >= 20;
   useEffect(() => { setGates(g => ({ ...g, time_of_day: afterClose })); }, [afterClose]);
 
-  const stopDistPct    = sizing.status === 'ok' ? Math.abs(sizing.stopDistancePct) : null;
-  const stopExceedsMax = stopDistPct !== null && stopDistPct > MAX_STOP_PCT;
+  const stopDistPct      = sizing.status === 'ok' ? Math.abs(sizing.stopDistancePct) : null;
+  const effectiveMaxStop = maxStopDistancePct ?? 10;
+  const stopExceedsMax   = stopDistPct !== null && stopDistPct > effectiveMaxStop;
   const maxPortfolioRisk = maxPortfolioRiskPct ?? 2.5;
   const exceedsBudget = effectiveSizing.status === 'ok' && sizing.status === 'ok' &&
     effectiveSizing.portfolioRiskPct > maxPortfolioRisk &&
@@ -299,6 +299,7 @@ export function ValidatorProvider({
       failedGates, trendTemplatePassed, allGreen, canSubmit,
       afterClose, nowDisplay, mindsetQuote, greenLight,
       handleSubmit, handleResetAmount, accountSize, entryInvalid, tickerInvalid,
+      maxStopDistancePct: effectiveMaxStop,
     }}>
       {children}
     </ValidatorCtx.Provider>
@@ -532,7 +533,7 @@ export function SizerCard({ className }: { className?: string }) {
     amountInvested, onAmountChange, handleResetAmount,
     data, loading, error,
     sizing, effectiveSizing, stopExceedsMax, stopDistPct,
-    exceedsBudget, maxPortfolioRisk,
+    exceedsBudget, maxPortfolioRisk, maxStopDistancePct,
     canSubmit, allGreen, handleSubmit, accountSize, entryInvalid, tickerInvalid,
   } = useValidator();
 
@@ -556,7 +557,7 @@ export function SizerCard({ className }: { className?: string }) {
           Position Sizer
         </h2>
         <p className="text-xs text-[var(--text-muted)] leading-[1.55]">
-          Stop loss capped at {MAX_STOP_PCT}%. Enter account size in Settings.
+          Stop loss capped at {maxStopDistancePct}%. Enter account size in Settings.
         </p>
       </div>
 
@@ -618,7 +619,7 @@ export function SizerCard({ className }: { className?: string }) {
           <div className="flex items-center gap-2 px-3 py-2 rounded-[8px] bg-red-500/10 border border-red-500/35 text-red-500">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span className="text-xs font-bold uppercase tracking-wider">
-              Stop exceeds {MAX_STOP_PCT}% cap ({stopDistPct?.toFixed(2)}%)
+              Stop exceeds {maxStopDistancePct}% cap ({stopDistPct?.toFixed(2)}%)
             </span>
           </div>
         )}
@@ -628,6 +629,7 @@ export function SizerCard({ className }: { className?: string }) {
             stops={data.stops.candidates}
             selected={parseFloat(stop)}
             onSelect={price => setStop(price.toFixed(2))}
+            maxStopPct={maxStopDistancePct}
           />
         )}
 
@@ -886,11 +888,12 @@ function EMAPanel({ data }: { data: TickerResponse }) {
   );
 }
 
-function BlockersPanel({ gates, failedGates, stopExceedsMax, stopDistPct }: {
+function BlockersPanel({ gates, failedGates, stopExceedsMax, stopDistPct, maxStopPct }: {
   gates: Record<AllGateKey, boolean>;
   failedGates: AllGateKey[];
   stopExceedsMax: boolean;
   stopDistPct: number | null;
+  maxStopPct: number;
 }) {
   const isGateKey = (k: AllGateKey): k is Exclude<GateKey, AutoGateKey> => k in GATE_FAILURES;
   const manualFailed = MANUAL_GATES.filter(g => !gates[g.key]);
@@ -912,7 +915,7 @@ function BlockersPanel({ gates, failedGates, stopExceedsMax, stopDistPct }: {
       <div className="flex flex-col gap-2">
         {stopExceedsMax && (
           <BlockerItem label="Stop too wide"
-            detail={`${stopDistPct?.toFixed(2)}% — exceeds ${MAX_STOP_PCT}% hard cap.`} critical />
+            detail={`${stopDistPct?.toFixed(2)}% — exceeds ${maxStopPct}% hard cap.`} critical />
         )}
         {manualFailed.map(gate => (
           <BlockerItem key={gate.key} label={gate.label}
@@ -963,8 +966,8 @@ function LiveSnapshot({ data }: { data: TickerResponse }) {
   );
 }
 
-function StopCandidatesPanel({ stops, selected, onSelect }: {
-  stops: StopCandidate[]; selected: number; onSelect: (p: number) => void;
+function StopCandidatesPanel({ stops, selected, onSelect, maxStopPct }: {
+  stops: StopCandidate[]; selected: number; onSelect: (p: number) => void; maxStopPct: number;
 }) {
   return (
     <div>
@@ -976,7 +979,7 @@ function StopCandidatesPanel({ stops, selected, onSelect }: {
       <div className="flex flex-col gap-1">
         {stops.map(c => {
           const isSelected  = Math.abs(c.price - selected) < 0.01;
-          const exceeds8Pct = Math.abs(c.distancePct) > MAX_STOP_PCT;
+          const exceeds8Pct = Math.abs(c.distancePct) > maxStopPct;
           const label       = STOP_LABEL[c.type] ?? c.label;
           const isGrayed    = !c.valid || exceeds8Pct;
           return (

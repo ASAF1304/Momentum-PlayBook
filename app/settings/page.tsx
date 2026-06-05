@@ -3,12 +3,11 @@
 
 'use client';
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, Gift,
 } from 'lucide-react';
-import { initializePaddle, type Paddle } from '@paddle/paddle-js';
 import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
 import { supabase, type Subscription, type SubscriptionStatus } from '@/lib/supabase-client';
@@ -43,46 +42,13 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   expired_grace: <XCircle       className="w-4 h-4" />,
 };
 
-function BillingTab({ user }: { user: { id: string; email?: string } }) {
+function BillingTab({ user: _user }: { user: { id: string; email?: string } }) {
   const { subscription: sub, subscriptionLoading: fetching } = useAuth();
-  const router    = useRouter();
-  const paddleRef = useRef<Paddle | null>(null);
-  const [paddleReady, setPaddleReady] = useState(false);
-  const [opening,     setOpening]     = useState(false);
-
-  // Initialise Paddle.js (only if env vars are set)
-  useEffect(() => {
-    const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-    if (!token) return;
-    const env = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === 'sandbox' ? 'sandbox' : 'production';
-    initializePaddle({ environment: env, token })
-      .then(p => { paddleRef.current = p ?? null; setPaddleReady(true); })
-      .catch(err => console.error('[BILLING-TAB] Paddle init failed:', err));
-  }, []);
+  const router  = useRouter();
+  const opening = false;
 
   function openCheckout() {
-    const priceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID;
-    if (!paddleReady || !priceId) {
-      router.push('/onboarding/checkout');
-      return;
-    }
-    setOpening(true);
-    paddleRef.current?.Checkout.open({
-      items:      [{ priceId, quantity: 1 }],
-      customer:   sub?.paddle_customer_id
-        ? { id: sub.paddle_customer_id }
-        : { email: user.email ?? '' },
-      customData: { user_id: user.id },
-      settings: {
-        successUrl: `${window.location.origin}/settings?tab=billing`,
-        allowLogout: false,
-      },
-    });
-    setOpening(false);
-  }
-
-  function openPortal() {
-    window.open('https://customer.paddle.com/subscriptions', '_blank');
+    router.push('/onboarding/checkout');
   }
 
   if (fetching) {
@@ -186,9 +152,9 @@ function BillingTab({ user }: { user: { id: string; email?: string } }) {
       )}
       {hasPaddle && (
         <BillingBtn
-          label="Manage Subscription on Paddle ↗"
+          label="Contact Support to Manage Subscription"
           loading={false}
-          onClick={openPortal}
+          onClick={() => router.push('/contact')}
         />
       )}
     </div>

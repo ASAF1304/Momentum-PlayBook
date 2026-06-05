@@ -2,7 +2,7 @@
 //
 // Shows the user's current subscription status and options to manage it.
 // grace / comp users see their free-access details.
-// Active subscribers can open the Paddle customer portal.
+// Active subscribers can manage via Grow (Meshulam).
 
 'use client';
 
@@ -37,8 +37,8 @@ const STATUS_ICON: Record<SubscriptionStatus, React.ReactNode> = {
   expired_grace: <XCircle      className="w-5 h-5 text-[#FF3B5C]" />,
 };
 
-// Statuses that have a real Paddle subscription to manage
-const HAS_PADDLE_SUB: SubscriptionStatus[] = ['trialing', 'active', 'past_due', 'paused', 'cancelled'];
+// Statuses that have a real payment subscription to manage
+const HAS_ACTIVE_SUB: SubscriptionStatus[] = ['trialing', 'active', 'past_due', 'paused', 'cancelled'];
 
 export default function BillingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -72,7 +72,7 @@ export default function BillingPage() {
   const status     = (sub?.status ?? 'cancelled') as SubscriptionStatus;
   const trialEnd   = sub?.trial_ends_at      ? new Date(sub.trial_ends_at)      : null;
   const periodEnd  = sub?.current_period_end ? new Date(sub.current_period_end) : null;
-  const hasPaddle  = HAS_PADDLE_SUB.includes(status);
+  const hasActiveSub = HAS_ACTIVE_SUB.includes(status);
   const isGrace    = status === 'grace';
   const isComp     = status === 'comp';
   const noSub      = !sub;
@@ -110,7 +110,7 @@ export default function BillingPage() {
               <p className="text-base font-bold text-[var(--text-primary)]">
                 {isComp
                   ? 'Momentum Playbook — גישה חינמית'
-                  : 'Momentum Playbook — 50 ₪ / חודש'}
+                  : <span style={{ whiteSpace: 'nowrap' }}>Momentum Playbook — <span style={{ whiteSpace: 'nowrap' }}>50 ₪ / חודש</span></span>}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -181,15 +181,13 @@ export default function BillingPage() {
                 חודש ניסיון חינמי, לאחר מכן 50 ₪ / חודש. ביטול בכל עת.
               </p>
             </div>
-          ) : isComp ? null : hasPaddle ? (
-            <a
-              href="https://customer.paddle.com/subscriptions"
-              target="_blank"
-              rel="noopener noreferrer"
+          ) : isComp ? null : hasActiveSub ? (
+            <button
+              onClick={() => router.push('/settings?tab=billing')}
               className="block w-full py-3 rounded-[10px] text-center text-[13px] font-extrabold uppercase tracking-[0.05em] border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-all"
             >
-              ניהול מנוי ב-Paddle ↗
-            </a>
+              ניהול מנוי ← הגדרות
+            </button>
           ) : null}
 
           <button

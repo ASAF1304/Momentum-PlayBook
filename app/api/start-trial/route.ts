@@ -47,11 +47,10 @@ export async function POST(req: NextRequest) {
     .from('subscriptions')
     .upsert(
       {
-        user_id:            user.id,
-        paddle_customer_id: '',
-        status:             'grace',
+        user_id:       user.id,
+        status:        'grace',
         trial_ends_at,
-        updated_at:         new Date().toISOString(),
+        updated_at:    new Date().toISOString(),
       },
       { onConflict: 'user_id', ignoreDuplicates: true },
     );

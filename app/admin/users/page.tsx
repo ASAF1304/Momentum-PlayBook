@@ -293,18 +293,6 @@ export default function AdminUsersPage() {
                             onClick={() => doAction(user.id, 'revoke')}
                           />
                         )}
-                        {/* Paddle customer link */}
-                        {sub?.paddle_customer_id && (
-                          <a
-                            href={`https://vendors.paddle.com/customers/${sub.paddle_customer_id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold border border-[var(--border-strong)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] transition-all"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Paddle
-                          </a>
-                        )}
                       </div>
                     </td>
                   </tr>

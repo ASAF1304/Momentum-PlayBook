@@ -156,7 +156,7 @@ export default function WatchlistPage() {
       <GridOverlay />
       <AppNav />
 
-      <main className="max-w-[1100px] mx-auto px-6 py-10 relative">
+      <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 relative">
 
         <div className="mb-7">
           <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Watchlist</h1>
@@ -256,6 +256,9 @@ function WatchlistRow({
   onRetry: () => void;
 }) {
   const removeRef = useRef<HTMLButtonElement>(null);
+  const [chartH] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 640 ? 300 : 500,
+  );
 
   return (
     <div className={cn(
@@ -289,7 +292,7 @@ function WatchlistRow({
           ref={removeRef}
           type="button"
           onClick={onRemove}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-faint)] hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/[0.08] transition-colors flex-shrink-0"
+          className="w-10 h-10 flex items-center justify-center rounded-md text-[var(--text-faint)] hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/[0.08] transition-colors flex-shrink-0"
           aria-label={`Remove ${item.ticker}`}
         >
           <X className="w-3.5 h-3.5" />
@@ -302,11 +305,11 @@ function WatchlistRow({
           <div className="flex flex-col lg:flex-row gap-0">
             {/* Chart */}
             <div className="flex-[7] min-w-0">
-              <TradingViewChart ticker={item.ticker} height={500} />
+              <TradingViewChart ticker={item.ticker} height={chartH} />
             </div>
 
             {/* Validator panel */}
-            <div className="flex-[3] min-w-0 border-t lg:border-t-0 lg:border-l border-[var(--border-subtle)] px-4 py-4 overflow-y-auto" style={{ maxHeight: 500 }}>
+            <div className="flex-[3] min-w-0 border-t lg:border-t-0 lg:border-l border-[var(--border-subtle)] px-4 py-4 overflow-y-auto" style={{ maxHeight: 'min(500px, 60vh)' }}>
               {!snapshot || snapshot === 'loading' ? (
                 <div className="flex items-center gap-2 py-6 text-[var(--text-faint)] text-xs">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />

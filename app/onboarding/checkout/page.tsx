@@ -1,71 +1,65 @@
 // app/onboarding/checkout/page.tsx
 //
-// Step 2 of signup: opens the Paddle checkout overlay.
+// Step 2 of signup: opens the Grow (Meshulam) checkout iframe.
 // User arrives here after creating their account and completing the profile form.
-// Paddle collects card details and starts the 30-day free trial.
-// On checkout success Paddle redirects to /dashboard (/).
+// Grow collects card details and starts the free trial.
+// On checkout success we redirect to / (dashboard).
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, TrendingUp, CreditCard, ShieldCheck } from 'lucide-react';
-import { initializePaddle, type Paddle } from '@paddle/paddle-js';
 import { useAuth } from '@/lib/auth-context';
 
 export default function CheckoutPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const paddleRef = useRef<Paddle | null>(null);
-  const [paddleReady, setPaddleReady] = useState(false);
-  const [opened, setOpened] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('loading');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
+  const [devMode,   setDevMode]   = useState(false);
+  const [status, setStatus]   = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorMsg,  setErrorMsg]  = useState('');
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
-      router.replace('/login');
-      return;
-    }
+    if (!user) { router.replace('/login'); return; }
 
-    const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-    if (!clientToken) {
-      // Paddle not configured — skip straight to dashboard (dev / test mode)
-      router.replace('/');
-      return;
-    }
-
-    const env = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === 'sandbox' ? 'sandbox' : 'production';
-    initializePaddle({ environment: env, token: clientToken })
-      .then(instance => {
-        paddleRef.current = instance ?? null;
-        setPaddleReady(true);
-        setStatus('idle');
+    fetch('/api/grow/create-checkout-session', { method: 'POST' })
+      .then(async res => {
+        const json = await res.json() as { iframeUrl?: string; sessionId?: string; dev?: boolean; error?: string };
+        if (!res.ok || json.error) throw new Error(json.error ?? 'Failed to create session');
+        if (json.dev) { setDevMode(true); setStatus('ready'); return; }
+        setIframeUrl(json.iframeUrl ?? null);
+        setStatus('ready');
       })
       .catch(err => {
-        console.error('[CHECKOUT] Paddle init failed:', err);
+        console.error('[CHECKOUT] session fetch failed:', err);
+        setErrorMsg((err as Error).message || 'Failed to load payment provider. Please refresh.');
         setStatus('error');
-        setErrorMsg('Failed to load payment provider. Please refresh.');
       });
   }, [user, loading, router]);
 
-  useEffect(() => {
-    if (!paddleReady || opened || !user) return;
-    const priceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID;
-    if (!priceId) return;
+  // Dev-mode: simulate payment success
+  async function simulateSuccess() {
+    setStatus('loading');
+    await fetch('/api/grow/dev-activate', { method: 'POST' }).catch(() => null);
+    router.replace('/');
+  }
 
-    setOpened(true);
-    paddleRef.current?.Checkout.open({
-      items: [{ priceId, quantity: 1 }],
-      customer: { email: user.email ?? '' },
-      customData: { user_id: user.id },
-      settings: {
-        successUrl: `${window.location.origin}/`,
-        allowLogout: false,
-      },
-    });
-  }, [paddleReady, opened, user]);
+  // Listen for postMessage from Grow iframe
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (typeof e.data !== 'object' || !e.data) return;
+      const { type } = e.data as { type?: string };
+      if (type === 'grow:success' || type === 'payment:success') router.replace('/');
+      if (type === 'grow:failure' || type === 'payment:failure') {
+        setErrorMsg('Payment failed. Please try again or contact support.');
+        setStatus('error');
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [router]);
 
   if (loading || status === 'loading') {
     return (
@@ -77,7 +71,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4 font-[Manrope,ui-sans-serif,system-ui,sans-serif]">
-      <div className="w-full max-w-[440px] space-y-6">
+      <div className="w-full max-w-[520px] space-y-6">
 
         {/* Logo */}
         <div className="flex items-center gap-2.5">
@@ -98,9 +92,35 @@ export default function CheckoutPage() {
           </p>
 
           {status === 'error' ? (
-            <div className="px-4 py-3 rounded-[10px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-sm text-[#FF3B5C]">
-              {errorMsg}
+            <div className="space-y-4">
+              <div className="px-4 py-3 rounded-[10px] bg-[#FF3B5C]/[0.06] border border-[#FF3B5C]/30 text-sm text-[#FF3B5C]">
+                {errorMsg}
+              </div>
+              <button
+                onClick={() => { setErrorMsg(''); setStatus('loading'); router.refresh(); }}
+                className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] border border-[var(--border-strong)] text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-all"
+              >
+                נסה שוב
+              </button>
             </div>
+          ) : devMode ? (
+            <div className="space-y-4">
+              <div className="px-4 py-3 rounded-[10px] bg-[#FF9F0A]/[0.08] border border-[#FF9F0A]/30 text-sm text-[#FF9F0A]">
+                ⚠️ Dev mode — GROW_API_KEY not configured. Simulate payment below.
+              </div>
+              <button
+                onClick={() => void simulateSuccess()}
+                className="w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
+              >
+                Simulate Payment Success
+              </button>
+            </div>
+          ) : iframeUrl ? (
+            <iframe
+              src={iframeUrl}
+              className="w-full h-[560px] border-0 rounded-xl"
+              title="Checkout"
+            />
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
@@ -109,20 +129,7 @@ export default function CheckoutPage() {
               </div>
               <div className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
                 <ShieldCheck className="w-4 h-4 text-[#10F088] shrink-0" />
-                <span>תשלום מאובטח דרך Paddle — לא מאחסנים פרטי כרטיס</span>
-              </div>
-              <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
-                <p className="text-xs text-[var(--text-faint)] leading-relaxed">
-                  חלון התשלום אמור להיפתח אוטומטית. אם לא, לחץ על הכפתור למטה.
-                </p>
-                <button
-                  onClick={() => {
-                    setOpened(false);
-                  }}
-                  className="mt-3 w-full py-3 rounded-[10px] text-[13px] font-extrabold uppercase tracking-[0.05em] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:brightness-110 transition-all"
-                >
-                  פתח חלון תשלום
-                </button>
+                <span>תשלום מאובטח — לא מאחסנים פרטי כרטיס</span>
               </div>
             </div>
           )}

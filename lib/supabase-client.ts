@@ -32,8 +32,7 @@ export type SubscriptionStatus =
 export interface Subscription {
   id: string;
   user_id: string;
-  paddle_customer_id: string;
-  paddle_sub_id: string | null;
+  grow_subscription_id?: string | null;
   status: SubscriptionStatus;
   trial_ends_at: string | null;
   current_period_end: string | null;
@@ -104,6 +103,10 @@ export interface Trade {
   // Retrospective — gates that failed at entry time
   failed_gates: string[] | null;
   what_if_reason: string | null;
+
+  // Non-System review (Step 3)
+  system_status: 'system' | 'partial' | 'non_system' | null;
+  trend_checks: boolean[] | null; // 8 Minervini conditions, index 0-7
 }
 
 // ── Stage 2 Leaders ────────────────────────────────────────────────────────────

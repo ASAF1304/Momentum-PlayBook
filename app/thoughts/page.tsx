@@ -68,7 +68,7 @@ export default function ThoughtsPage() {
       <AppNav />
       <GridOverlay />
 
-      <main className="relative z-10 max-w-[1400px] mx-auto px-6 py-10">
+      <main className="relative z-10 max-w-[1400px] mx-auto px-4 sm:px-6 py-10">
 
         {/* Page header */}
         <div className="flex items-center justify-between mb-8">
@@ -240,17 +240,17 @@ function ThoughtCard({ thought, isAdmin, onEdit, onDelete, onImageClick }: Thoug
 
       {/* Admin controls */}
       {isAdmin && (
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button
             onClick={e => { e.stopPropagation(); onEdit(thought); }}
-            className="w-7 h-7 rounded-lg bg-[var(--bg-modal)]/90 border border-[var(--border-strong)] flex items-center justify-center text-[var(--text-muted)] hover:text-[#22D3EE] transition-colors backdrop-blur-sm"
+            className="w-9 h-9 rounded-lg bg-[var(--bg-modal)]/90 border border-[var(--border-strong)] flex items-center justify-center text-[var(--text-muted)] hover:text-[#22D3EE] transition-colors backdrop-blur-sm"
             aria-label={`Edit ${thought.ticker}`}
           >
             <Edit2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onDelete(thought); }}
-            className="w-7 h-7 rounded-lg bg-[var(--bg-modal)]/90 border border-[var(--border-strong)] flex items-center justify-center text-[var(--text-muted)] hover:text-[#FF3B5C] transition-colors backdrop-blur-sm"
+            className="w-9 h-9 rounded-lg bg-[var(--bg-modal)]/90 border border-[var(--border-strong)] flex items-center justify-center text-[var(--text-muted)] hover:text-[#FF3B5C] transition-colors backdrop-blur-sm"
             aria-label={`Delete ${thought.ticker}`}
           >
             <Trash2 className="w-3.5 h-3.5" />

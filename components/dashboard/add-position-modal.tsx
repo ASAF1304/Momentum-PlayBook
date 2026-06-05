@@ -180,7 +180,7 @@ export function AddPositionModal({
               <select
                 value={setupType}
                 onChange={e => setSetupType(e.target.value as SetupType | '')}
-                className={cn(inputCls, 'text-[13px] appearance-none')}
+                className={cn(inputCls, 'text-[16px] appearance-none')}
               >
                 <option value="">— optional —</option>
                 {SETUP_TYPES.map(t => (
@@ -199,12 +199,12 @@ export function AddPositionModal({
               type="date"
               value={entryDate}
               onChange={e => setEntryDate(e.target.value)}
-              className={cn(inputCls, 'text-[13px]')}
+              className={cn(inputCls, 'text-[16px]')}
             />
           </div>
 
           {/* Entry price + shares + stop */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 min-[400px]:grid-cols-3 gap-3 [&>*]:min-w-0">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[#22D3EE]">
                 Entry $
@@ -214,7 +214,7 @@ export function AddPositionModal({
                 value={entryPrice}
                 onChange={e => setEntryPrice(e.target.value)}
                 placeholder="0.00"
-                className={cn(inputCls, 'font-mono text-[14px]')}
+                className={cn(inputCls, 'font-mono text-[16px]')}
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -226,7 +226,7 @@ export function AddPositionModal({
                 value={shares}
                 onChange={e => setShares(e.target.value)}
                 placeholder="0"
-                className={cn(inputCls, 'font-mono text-[14px]')}
+                className={cn(inputCls, 'font-mono text-[16px]')}
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -238,7 +238,7 @@ export function AddPositionModal({
                 value={stopPrice}
                 onChange={e => setStopPrice(e.target.value)}
                 placeholder="0.00"
-                className={cn(inputCls, 'font-mono text-[14px] text-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]/15')}
+                className={cn(inputCls, 'font-mono text-[16px] text-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]/15')}
               />
             </div>
           </div>

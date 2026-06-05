@@ -346,6 +346,8 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
         is_what_if:            true,
         failed_gates:          is_short ? ['imported_from_broker', 'short_position'] : ['imported_from_broker'],
         what_if_reason:        `Imported from ${brokerLabel}${is_short ? ' (Short)' : ''}`,
+        system_status:         null,
+        trend_checks:          null,
       };
       const { error } = await supabase.from('trades').insert(row);
       if (!error) succeeded++;

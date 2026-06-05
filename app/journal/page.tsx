@@ -5,13 +5,14 @@
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownLeft, ArrowUpRight, Check, ChevronRight,
+  ArrowDownLeft, ArrowUpRight, Check, ChevronRight, ClipboardCheck,
   Layers, Loader2, Plus, Search, Trash2, TrendingDown, TrendingUp, UploadCloud, X,
 } from 'lucide-react';
 import { AppNav } from '@/components/nav/app-nav';
 import { GridOverlay } from '@/components/ui/grid-overlay';
 import { AddTradeModal } from '@/components/journal/add-trade-modal';
 import { ImportExcelModal } from '@/components/journal/import-excel-modal';
+import { ReviewSetupModal } from '@/components/journal/review-setup-modal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -21,8 +22,11 @@ import {
   type TradeOutcome,
   type TradeStatus,
 } from '@/lib/supabase-client';
+type SystemFilter = 'all' | 'system' | 'partial' | 'non_system' | 'unreviewed';
 import { getPartials, getSells, getBuys, computeAvgEntry, computeTotalInvested, getCurrentShares } from '@/lib/trade-utils';
 import { computeWinRate } from '@/lib/stats/win-rate';
+import { useLivePrices } from '@/lib/use-live-prices';
+import { StopAlertBanner } from '@/components/stop-alert-banner';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -30,6 +34,7 @@ import Link from 'next/link';
 type StatusFilter  = 'all' | TradeStatus;
 type OutcomeFilter = 'all' | 'winner' | 'loser' | 'breakeven';
 type ScaleTab      = 'sell' | 'buy';
+
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -49,6 +54,8 @@ export default function JournalPage() {
   const [showAddModal,     setShowAddModal]     = useState(false);
   const [showImport,       setShowImport]       = useState(false);
   const [deleteConfirmId,  setDeleteConfirmId]  = useState<string | null>(null);
+  const [systemFilter,     setSystemFilter]     = useState<SystemFilter>('all');
+  const [reviewTarget,     setReviewTarget]     = useState<Trade | null>(null);
 
   useEffect(() => {
     if (!loading) { setSlowLoad(false); return; }
@@ -100,8 +107,10 @@ export default function JournalPage() {
     if (dateFrom) result = result.filter(t => t.phase1_date >= dateFrom);
     if (dateTo)   result = result.filter(t => t.phase1_date <= dateTo);
     if (outcomeFilter !== 'all') result = result.filter(t => t.outcome === outcomeFilter);
+    if (systemFilter === 'unreviewed') result = result.filter(t => t.system_status === null);
+    else if (systemFilter !== 'all')   result = result.filter(t => t.system_status === systemFilter);
     return result;
-  }, [trades, statusFilter, tickerSearch, dateFrom, dateTo, outcomeFilter]);
+  }, [trades, statusFilter, tickerSearch, dateFrom, dateTo, outcomeFilter, systemFilter]);
 
   const stats = useMemo(() => {
     const wr = computeWinRate(trades);
@@ -113,6 +122,40 @@ export default function JournalPage() {
       totalPnL: wr.totalPnL,
     };
   }, [trades, counts.open]);
+
+  const setupBreakdown = useMemo(() => {
+    const closed = trades.filter(t =>
+      (t.status === 'closed' || t.status === 'stopped_out') && t.setup_type,
+    );
+    if (closed.length === 0) return [];
+
+    const groups = new Map<string, { count: number; wins: number; totalPnL: number; totalR: number }>();
+    for (const t of closed) {
+      const key = t.setup_type!;
+      const g = groups.get(key) ?? { count: 0, wins: 0, totalPnL: 0, totalR: 0 };
+      g.count++;
+      if (t.outcome === 'winner') g.wins++;
+      g.totalPnL += t.pnl_dollars ?? 0;
+      g.totalR   += t.r_multiple ?? 0;
+      groups.set(key, g);
+    }
+
+    return Array.from(groups.entries())
+      .map(([setup, g]) => ({
+        setup,
+        count:    g.count,
+        winRate:  g.count > 0 ? (g.wins / g.count) * 100 : 0,
+        totalPnL: g.totalPnL,
+        avgR:     g.count > 0 ? g.totalR / g.count : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [trades]);
+
+  // ── Stop-loss live prices ──────────────────────────────────────────────────
+
+  const openTrades  = useMemo(() => trades.filter(t => t.status === 'open'), [trades]);
+  const openTickers = useMemo(() => openTrades.map(t => t.ticker), [openTrades]);
+  const { prices: livePrices } = useLivePrices(openTickers);
 
   // ── Callbacks ──────────────────────────────────────────────────────────────
 
@@ -156,15 +199,18 @@ export default function JournalPage() {
       <GridOverlay />
       <AppNav />
 
-      <main className="max-w-[1200px] mx-auto px-6 py-10 relative">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-10 relative">
+
+        {/* Stop-loss alerts */}
+        <StopAlertBanner openTrades={openTrades} livePrices={livePrices} />
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-7">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-7">
           <div>
             <h1 className="text-[20px] font-extrabold tracking-tight mb-1">Trade Journal</h1>
             <p className="text-xs text-[var(--text-muted)]">Every trade logged. Every lesson earned.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => setShowImport(true)}
@@ -201,6 +247,9 @@ export default function JournalPage() {
             accent={stats.avgR !== null && stats.avgR >= 0 ? 'green' : 'red'}
           />
         </div>
+
+        {/* P&L by Setup Type */}
+        <SetupBreakdown groups={setupBreakdown} />
 
         {/* Segmented control filter tabs */}
         <div className="overflow-x-auto mb-5">
@@ -245,7 +294,7 @@ export default function JournalPage() {
               value={tickerSearch}
               onChange={e => setTickerSearch(e.target.value.toUpperCase().replace(/[^A-Z.]/g, ''))}
               placeholder="Search ticker…"
-              className="w-36 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-8 pr-3 py-2 text-xs font-mono font-bold text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition"
+              className="w-36 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] pl-8 pr-3 py-2 text-[16px] sm:text-xs font-mono font-bold text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition"
             />
           </div>
 
@@ -253,18 +302,21 @@ export default function JournalPage() {
           <input
             type="date"
             value={dateFrom}
-            onChange={e => setDateFrom(e.target.value)}
+            max={todayIso()}
+            onChange={e => { const v = e.target.value; if (!v || v <= todayIso()) setDateFrom(v); }}
             title="From date"
-            className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2 text-xs text-[var(--text-muted)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition [color-scheme:dark]"
+            className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2 text-[16px] sm:text-xs text-[var(--text-muted)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition [color-scheme:dark]"
           />
           <span className="self-center text-[var(--text-faint)] text-xs">→</span>
           {/* Date to */}
           <input
             type="date"
             value={dateTo}
-            onChange={e => setDateTo(e.target.value)}
+            min={dateFrom || undefined}
+            max={todayIso()}
+            onChange={e => { const v = e.target.value; if (!v || v <= todayIso()) setDateTo(v); }}
             title="To date"
-            className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2 text-xs text-[var(--text-muted)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition [color-scheme:dark]"
+            className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-[8px] px-3 py-2 text-[16px] sm:text-xs text-[var(--text-muted)] focus:outline-none focus:border-[#22D3EE] focus:ring-[2px] focus:ring-[#22D3EE]/15 transition [color-scheme:dark]"
           />
 
           {/* Outcome filter */}
@@ -288,10 +340,34 @@ export default function JournalPage() {
             ))}
           </div>
 
+          {/* System / Non-System filter */}
+          <div className="flex items-center gap-1 p-0.5 rounded-[8px] bg-[var(--tab-strip-bg)] border border-[var(--border-subtle)]">
+            {([
+              { key: 'all',        label: 'All setups'  },
+              { key: 'system',     label: '✅ System'    },
+              { key: 'partial',    label: '🟡 Partial'   },
+              { key: 'non_system', label: '❌ Non-System' },
+              { key: 'unreviewed', label: '— Unreviewed' },
+            ] as { key: SystemFilter; label: string }[]).map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setSystemFilter(opt.key)}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-[6px] text-xs font-semibold transition-all whitespace-nowrap',
+                  systemFilter === opt.key
+                    ? 'bg-[var(--tab-active-bg)] text-[var(--text-primary)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           {/* Clear filters */}
-          {(tickerSearch || dateFrom || dateTo || outcomeFilter !== 'all') && (
+          {(tickerSearch || dateFrom || dateTo || outcomeFilter !== 'all' || statusFilter !== 'all' || systemFilter !== 'all') && (
             <button
-              onClick={() => { setTickerSearch(''); setDateFrom(''); setDateTo(''); setOutcomeFilter('all'); }}
+              onClick={() => { setTickerSearch(''); setDateFrom(''); setDateTo(''); setOutcomeFilter('all'); setStatusFilter('all'); setSystemFilter('all'); }}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] border border-[var(--border-subtle)] text-xs text-[var(--text-faint)] hover:text-[#FF3B5C] hover:border-[#FF3B5C]/30 transition-all"
             >
               <X className="w-3 h-3" />
@@ -303,12 +379,20 @@ export default function JournalPage() {
         {/* Body */}
         {loading && <LoadingState slow={slowLoad} />}
         {!loading && fetchError && <ErrorState message={fetchError} onRetry={fetchTrades} />}
-        {!loading && !fetchError && filteredTrades.length === 0 && (
-          <EmptyState filter={statusFilter} onAdd={() => setShowAddModal(true)} />
+        {!loading && !fetchError && filteredTrades.length === 0 && trades.length === 0 && (
+          <EmptyState filter="all" onAdd={() => setShowAddModal(true)} />
+        )}
+        {!loading && !fetchError && filteredTrades.length === 0 && trades.length > 0 && (
+          <EmptyState filter="filtered" onAdd={() => { setTickerSearch(''); setDateFrom(''); setDateTo(''); setOutcomeFilter('all'); setStatusFilter('all'); }} />
         )}
         {!loading && !fetchError && filteredTrades.length > 0 && (
           <div className="overflow-x-auto">
-            <TradeTable trades={filteredTrades} onRowClick={setSelectedTrade} onDelete={id => void handleDeleteTrade(id)} />
+            <TradeTable
+              trades={filteredTrades}
+              onRowClick={setSelectedTrade}
+              onDelete={id => void handleDeleteTrade(id)}
+              onReview={t => setReviewTarget(t)}
+            />
           </div>
         )}
       </main>
@@ -350,6 +434,17 @@ export default function JournalPage() {
           onCancel={() => setDeleteConfirmId(null)}
         />
       )}
+
+      {reviewTarget && (
+        <ReviewSetupModal
+          trade={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onSaved={updated => {
+            setTrades(prev => prev.map(t => t.id === updated.id ? updated : t));
+            setReviewTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -357,22 +452,23 @@ export default function JournalPage() {
 // ── TradeTable ─────────────────────────────────────────────────────────────────
 
 function TradeTable({
-  trades, onRowClick, onDelete,
+  trades, onRowClick, onDelete, onReview,
 }: {
   trades: Trade[];
   onRowClick: (t: Trade) => void;
   onDelete: (id: string) => void;
+  onReview: (t: Trade) => void;
 }) {
   return (
     <div className="rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
-      <div className="grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6rem] gap-x-3 px-4 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)]">
+      <div className="grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6.5rem] gap-x-3 px-4 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)]">
         {['Date', 'Ticker', 'Avg Entry', 'Stop', 'Shares', 'Template', 'Status', 'PnL%', 'PnL$'].map(h => (
           <span key={h} className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-faint)]">{h}</span>
         ))}
       </div>
       <div className="divide-y divide-[var(--divider)]">
         {trades.map(t => (
-          <TradeRow key={t.id} trade={t} onClick={() => onRowClick(t)} onDelete={() => onDelete(t.id)} />
+          <TradeRow key={t.id} trade={t} onClick={() => onRowClick(t)} onDelete={() => onDelete(t.id)} onReview={() => onReview(t)} />
         ))}
       </div>
     </div>
@@ -381,7 +477,7 @@ function TradeTable({
 
 // ── TradeRow ───────────────────────────────────────────────────────────────────
 
-function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => void; onDelete: () => void }) {
+function TradeRow({ trade, onClick, onDelete, onReview }: { trade: Trade; onClick: () => void; onDelete: () => void; onReview: () => void }) {
   const pnlPositive = trade.pnl_pct !== null && trade.pnl_pct >= 0;
   const sells       = getSells(trade);
   const buys        = getBuys(trade);
@@ -391,7 +487,7 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
   return (
     <div
       onClick={onClick}
-      className="relative w-full grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6rem] gap-x-3 px-4 py-3.5 items-center text-left hover:bg-[var(--bg-elevated)] transition-colors group cursor-pointer"
+      className="relative w-full grid grid-cols-[5rem_1fr_5rem_5rem_4rem_4.5rem_5.5rem_5rem_6.5rem] gap-x-3 px-4 py-3.5 items-center text-left hover:bg-[var(--bg-elevated)] transition-colors group cursor-pointer"
     >
       <span className="absolute left-0 top-2 bottom-2 w-[2px] rounded-r-full bg-gradient-to-b from-[#22D3EE] to-[#10F088] opacity-0 group-hover:opacity-100 transition-opacity" />
 
@@ -410,6 +506,9 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
             {trade.setup_type}
           </span>
         )}
+        {trade.system_status === 'system'     && <span className="text-[9px] flex-shrink-0" title="System Trade">✅</span>}
+        {trade.system_status === 'partial'    && <span className="text-[9px] flex-shrink-0" title="Partial System">🟡</span>}
+        {trade.system_status === 'non_system' && <span className="text-[9px] flex-shrink-0" title="Non-System">❌</span>}
         {sells.length > 0 && (
           <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#A78BFA]/10 text-[#A78BFA] flex-shrink-0">
             <ArrowDownLeft className="w-2.5 h-2.5" />
@@ -459,6 +558,15 @@ function TradeRow({ trade, onClick, onDelete }: { trade: Trade; onClick: () => v
         )}>
           {trade.pnl_dollars === null ? '—' : `${pnlPositive ? '+' : ''}$${Math.abs(trade.pnl_dollars).toFixed(0)}`}
         </span>
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onReview(); }}
+          className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-[var(--text-faint)] hover:text-[#22D3EE] hover:bg-[#22D3EE]/10 transition-all"
+          aria-label="Review setup"
+          title="Review Setup"
+        >
+          <ClipboardCheck className="w-3 h-3" />
+        </button>
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onDelete(); }}
@@ -1586,6 +1694,74 @@ function ActionButton({
 
 // ── Page-level supporting components ──────────────────────────────────────────
 
+type SetupGroup = { setup: string; count: number; winRate: number; totalPnL: number; avgR: number };
+
+function SetupBreakdown({ groups }: { groups: SetupGroup[] }) {
+  const [open, setOpen] = useState(true);
+
+  if (groups.length === 0) return null;
+
+  const maxAbs = Math.max(...groups.map(g => Math.abs(g.totalPnL)), 1);
+
+  return (
+    <div
+      className="mb-7 rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-elevated)] transition-colors"
+      >
+        <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-[var(--text-muted)]">
+          Breakdown by Setup
+        </span>
+        <ChevronRight className={cn('w-3.5 h-3.5 text-[var(--text-faint)] transition-transform', open && 'rotate-90')} />
+      </button>
+
+      {open && (
+        <div className="border-t border-[var(--border-subtle)]">
+          <div className="grid grid-cols-[1fr_4rem_4rem_5.5rem_4rem] gap-x-4 px-4 py-2 bg-[var(--bg-subtle)]">
+            {['Setup', 'Trades', 'Win%', 'Total P&L', 'Avg R'].map(h => (
+              <span key={h} className="text-[9px] uppercase tracking-[0.18em] font-bold text-[var(--text-faint)]">{h}</span>
+            ))}
+          </div>
+          <div className="divide-y divide-[var(--divider)]">
+            {groups.map(g => {
+              const barPct = (Math.abs(g.totalPnL) / maxAbs) * 100;
+              const pnlPos = g.totalPnL >= 0;
+              const rPos   = g.avgR >= 0;
+              return (
+                <div key={g.setup} className="grid grid-cols-[1fr_4rem_4rem_5.5rem_4rem] gap-x-4 px-4 py-2.5 items-center">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="text-xs font-bold text-[var(--text-primary)] truncate">{g.setup}</span>
+                    <div className="h-1 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full', pnlPos ? 'bg-[#10F088]/70' : 'bg-[#FF3B5C]/70')}
+                        style={{ width: `${barPct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-xs font-mono tabular-nums text-[var(--text-secondary)]">{g.count}</span>
+                  <span className={cn('text-xs font-mono tabular-nums font-semibold', g.winRate >= 50 ? 'text-emerald-400' : 'text-[var(--text-secondary)]')}>
+                    {g.winRate.toFixed(0)}%
+                  </span>
+                  <span className={cn('text-xs font-mono tabular-nums font-semibold', pnlPos ? 'text-emerald-400' : 'text-red-400')}>
+                    {pnlPos ? '+' : ''}{g.totalPnL.toFixed(0)}
+                  </span>
+                  <span className={cn('text-xs font-mono tabular-nums font-semibold', rPos ? 'text-emerald-400' : 'text-red-400')}>
+                    {rPos ? '+' : ''}{g.avgR.toFixed(2)}R
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatCard({ label, value, accent }: {
   label: string; value: string; accent: 'cyan' | 'green' | 'red' | 'amber';
 }) {
@@ -1635,16 +1811,26 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-function EmptyState({ filter, onAdd }: { filter: StatusFilter; onAdd: () => void }) {
+function EmptyState({ filter, onAdd }: { filter: StatusFilter | 'filtered'; onAdd: () => void }) {
+  const isFiltered = filter === 'filtered';
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="text-[13px] font-semibold text-[var(--text-muted)] mb-2">
-        {filter === 'all' ? 'No trades logged yet' : `No ${filter.replace('_', ' ')} trades`}
+        {isFiltered ? 'אין טריידים התואמים את הסינון' : 'No trades logged yet'}
       </div>
       <p className="text-xs text-[var(--text-faint)] mb-6">
-        {filter === 'all' ? 'Log your first trade using the button above.' : 'Switch to "All" to see all trades.'}
+        {isFiltered ? 'נסה לשנות את הסינון או נקה אותו.' : 'Log your first trade using the button above.'}
       </p>
-      {filter === 'all' && (
+      {isFiltered ? (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[var(--border-strong)] text-[var(--text-secondary)] font-bold text-xs uppercase tracking-[0.08em] hover:bg-[var(--bg-elevated)] transition"
+        >
+          <X className="w-3.5 h-3.5" />
+          נקה סינון
+        </button>
+      ) : (
         <button
           type="button"
           onClick={onAdd}

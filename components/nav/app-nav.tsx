@@ -117,7 +117,8 @@ export function AppNav() {
                     ? 'text-[#FF9F0A] bg-[#FF9F0A]/10'
                     : 'text-[var(--text-muted)] hover:text-[#FF9F0A] hover:bg-[#FF9F0A]/10',
                 )}
-                aria-label="Admin"
+                aria-label="Admin Panel"
+                title="Admin Panel"
               >
                 <ShieldAlert className="w-4 h-4" />
               </Link>
@@ -131,7 +132,8 @@ export function AppNav() {
                   ? 'text-[#22D3EE] bg-[#22D3EE]/10'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-dim)] hover:bg-[var(--bg-elevated)]',
               )}
-              aria-label="Settings"
+              aria-label="הגדרות"
+              title="הגדרות"
             >
               <Settings className="w-4 h-4" />
             </Link>
@@ -140,7 +142,8 @@ export function AppNav() {
               type="button"
               onClick={toggleTheme}
               className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-dim)] hover:bg-[var(--bg-elevated)] transition-all"
-              aria-label={effectiveTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="החלף ערכת נושא"
+              title="החלף ערכת נושא"
             >
               <span className="relative block w-4 h-4">
                 <Sun className={cn('absolute inset-0 w-4 h-4 transition-all duration-300', effectiveTheme === 'dark' ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 rotate-90 scale-75')} />
@@ -152,7 +155,8 @@ export function AppNav() {
               type="button"
               onClick={handleLogout}
               className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[#FF3B5C] hover:bg-[#FF3B5C]/[0.06] transition-colors"
-              aria-label="Sign out"
+              aria-label="התנתקות"
+              title="התנתקות"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -193,7 +197,7 @@ export function AppNav() {
           {/* Drawer panel */}
           <div
             ref={drawerRef}
-            className="absolute right-0 top-0 bottom-0 w-[280px] flex flex-col"
+            className="absolute right-0 top-0 bottom-0 w-[min(280px,85vw)] flex flex-col"
             style={{
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--border-subtle)',
@@ -211,7 +215,7 @@ export function AppNav() {
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
                 aria-label="Close menu"
               >
                 <X className="w-4 h-4" />

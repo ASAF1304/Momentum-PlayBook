@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Mail, Phone, TrendingUp } from 'lucide-react';
 import type { Metadata } from 'next';
+import { LegalFooter } from '@/components/legal-footer';
 
 export const metadata: Metadata = {
   title: 'Contact — Momentum Playbook',
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col items-center px-4 py-16">
 
       {/* Logo */}
       <div className="flex items-center gap-2.5 mb-10">
@@ -93,17 +94,13 @@ export default function ContactPage() {
             <Link href="/settings?tab=billing" className="text-[#22D3EE] hover:underline">
               Billing tab in Settings
             </Link>
-            {' '}to manage your subscription directly on Paddle.
+            {' '}to manage your subscription.
           </p>
         </div>
       </div>
 
-      <div className="mt-8 flex items-center gap-4 text-xs text-[var(--text-faint)]">
-        <Link href="/" className="hover:text-[var(--text-muted)] transition-colors">Dashboard</Link>
-        <span>·</span>
-        <Link href="/legal/terms" className="hover:text-[var(--text-muted)] transition-colors">Terms</Link>
-        <span>·</span>
-        <Link href="/legal/privacy" className="hover:text-[var(--text-muted)] transition-colors">Privacy</Link>
+      <div className="w-full mt-8">
+        <LegalFooter />
       </div>
     </div>
   );

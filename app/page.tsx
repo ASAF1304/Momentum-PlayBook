@@ -157,6 +157,16 @@ export default function Dashboard() {
     all:        trades.filter(t => !t.is_what_if).length,
   }), [trades]);
 
+  // All-time realized PnL (period-independent) for position sizing
+  const allTimeRealizedPnL = useMemo(
+    () => trades.reduce((sum, t) => sum + (t.pnl_dollars ?? 0), 0),
+    [trades],
+  );
+  // Use current equity (base + all-time realized) for position sizing once trades are loaded
+  const sizerAccountSize = !tradesLoading && accountSize > 0
+    ? Math.round(accountSize + allTimeRealizedPnL)
+    : (profile?.account_size ?? 10_000);
+
   const handleLogPhase1 = async (payload: {
     ticker: string; entry: number; stop: number;
     sizing: Extract<PositionSizerResult, { status: 'ok' }>;
@@ -215,7 +225,7 @@ export default function Dashboard() {
       <GridOverlay />
       <AppNav />
 
-      <main className="max-w-[1440px] mx-auto px-6 py-7 relative">
+      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 py-7 relative">
 
         {/* ── Onboarding banner (new users with no trades) ───────────────────── */}
         {!tradesLoading && trades.length === 0 && (
@@ -223,13 +233,14 @@ export default function Dashboard() {
         )}
 
         {/* ── Period filter tabs ─────────────────────────────────────────────── */}
-        <div className="flex gap-1 mb-4 p-1 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] w-fit">
+        <div className="overflow-x-auto mb-4 -mx-1 px-1">
+        <div className="flex gap-1 p-1 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] w-fit min-w-max">
           {PERIODS.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setPeriod(key)}
               className={cn(
-                'px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all',
+                'px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all whitespace-nowrap',
                 period === key
                   ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
@@ -238,6 +249,7 @@ export default function Dashboard() {
               {label}
             </button>
           ))}
+        </div>
         </div>
 
         {/* ── Row 1: Account Equity hero ─────────────────────────────────────── */}
@@ -388,7 +400,7 @@ export default function Dashboard() {
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
         <ValidatorProvider
-          accountSize={profile?.account_size ?? 10_000}
+          accountSize={sizerAccountSize}
           maxStopDistancePct={profile?.max_stop_distance_pct ?? 10}
           maxPortfolioRiskPct={profile?.max_risk_per_trade_pct ?? 2.5}
           initialTicker={prefilledTicker}
@@ -501,7 +513,9 @@ export default function Dashboard() {
             </div>
 
             {/* Col 2 — Sizer */}
-            <SizerCard className="lg:col-start-1 lg:row-start-2 xl:col-start-2 xl:row-start-1" />
+            <div className="lg:col-start-1 lg:row-start-2 xl:col-start-2 xl:row-start-1 xl:sticky xl:top-[80px] xl:self-start">
+              <SizerCard />
+            </div>
 
           </div>
         </ValidatorProvider>

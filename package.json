@@ -11,8 +11,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@paddle/paddle-js": "^1.6.4",
-    "@paddle/paddle-node-sdk": "^3.8.0",
+    "@anthropic-ai/sdk": "^0.95.2",
     "@sentry/nextjs": "^10.50.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",

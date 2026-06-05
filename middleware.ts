@@ -34,8 +34,9 @@ const SUBSCRIPTION_EXEMPT = [
 // on the test dev-server process only — never set in production.
 const E2E_BYPASS = process.env.PLAYWRIGHT_AUTH_BYPASS === 'true';
 
-// Subscription guard only activates when Paddle is configured.
-const PADDLE_ENABLED = !!process.env.NEXT_PUBLIC_PADDLE_PRICE_ID;
+// Informational — does not gate access, just indicates payment provider is wired up.
+const GROW_ENABLED = !!process.env.GROW_API_KEY;
+void GROW_ENABLED; // referenced at runtime only
 
 export async function middleware(request: NextRequest) {
   if (E2E_BYPASS) return NextResponse.next({ request: { headers: request.headers } });
@@ -70,8 +71,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Subscription guard — only when Paddle is configured and path is not exempt
-  if (PADDLE_ENABLED && !SUBSCRIPTION_EXEMPT.some(p => path === p || path.startsWith(p + '/'))) {
+  // Subscription guard — always active; exempt paths skip this check
+  if (!SUBSCRIPTION_EXEMPT.some(p => path === p || path.startsWith(p + '/'))) {
     try {
       const { data: sub } = await supabase
         .from('subscriptions')

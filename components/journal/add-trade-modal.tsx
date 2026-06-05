@@ -39,9 +39,9 @@ export function AddTradeModal({
   const [positionSize, setPositionSize] = useState('');   // Total $ to invest
   const [entryPrice,   setEntryPrice]   = useState('');   // $ per share
   const [stopPrice,    setStopPrice]    = useState('');   // Stop loss $ per share
-  const [saving,       setSaving]       = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
-  const [tickerError,  setTickerError]  = useState<string | null>(null);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState<string | null>(null); // non-field errors (upload, DB)
+  const [fieldErrors, setFieldErrors] = useState<{ ticker?: string; positionSize?: string; entryPrice?: string; stopPrice?: string }>({});
 
   // ── Chart image ──────────────────────────────────────────────────────────
   const [chartFile,     setChartFile]     = useState<File | null>(null);
@@ -145,14 +145,30 @@ export function AddTradeModal({
     e.preventDefault();
     setError(null);
 
-    const ep = parseFloat(entryPrice);
-    const sp = parseFloat(stopPrice);
-
+    const ep  = parseFloat(entryPrice);
+    const sp  = parseFloat(stopPrice);
     const sym = ticker.trim().toUpperCase();
-    if (!sym) { setError('Ticker is required.'); return; }
-    if (!isValidTicker(sym)) { setTickerError(TICKER_ERROR); return; }
-    if (!calc)           { setError('Enter a valid position size and entry price.'); return; }
-    if (!calc.stopReady) { setError('Stop price must be a valid value below entry price.'); return; }
+
+    const fe: typeof fieldErrors = {};
+    if (!sym) fe.ticker = 'Ticker is required.';
+    else if (!isValidTicker(sym)) fe.ticker = TICKER_ERROR;
+    if (!positionSize || !Number.isFinite(parseFloat(positionSize)) || parseFloat(positionSize) <= 0)
+      fe.positionSize = 'Enter a valid position size greater than $0.';
+    if (!entryPrice || !Number.isFinite(ep) || ep <= 0)
+      fe.entryPrice = 'Entry price must be a positive number.';
+    if (!stopPrice || !Number.isFinite(sp) || sp <= 0)
+      fe.stopPrice = 'Stop price must be a positive number.';
+    else if (Number.isFinite(ep) && ep > 0 && sp >= ep)
+      fe.stopPrice = 'Stop must be below entry price for a long position.';
+
+    if (Object.keys(fe).length > 0) { setFieldErrors(fe); return; }
+    setFieldErrors({});
+
+    // After field validation passes, calc is guaranteed non-null and stopReady
+    if (!calc || !calc.stopReady) {
+      setError('Calculation error — please check your inputs.');
+      return;
+    }
 
     if (chartFile && uploading) {
       setError('Chart is still uploading — wait a moment then try again.');
@@ -242,20 +258,20 @@ export function AddTradeModal({
 
             {/* ── Trade Info ─────────────────────────────────── */}
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Ticker" accent="cyan" error={tickerError ?? undefined}>
+              <FormField label="Ticker" accent="cyan" error={fieldErrors.ticker}>
                 <input
                   value={ticker}
                   onChange={e => {
                     setTicker(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5));
-                    if (tickerError) setTickerError(null);
+                    if (fieldErrors.ticker) setFieldErrors(p => ({ ...p, ticker: undefined }));
                   }}
                   onBlur={() => {
                     const sym = ticker.trim();
-                    if (sym && !isValidTicker(sym)) setTickerError(TICKER_ERROR);
+                    if (sym && !isValidTicker(sym)) setFieldErrors(p => ({ ...p, ticker: TICKER_ERROR }));
                   }}
                   placeholder="e.g. AAPL"
                   className={cn(
-                    inputCls(tickerError ? 'red' : 'cyan'),
+                    inputCls(fieldErrors.ticker ? 'red' : 'cyan'),
                     'font-extrabold text-[16px] uppercase tracking-wide',
                   )}
                 />
@@ -360,20 +376,20 @@ export function AddTradeModal({
               <SectionLabel color="cyan" label="Position Engine" />
 
               <div className="grid grid-cols-2 gap-3">
-                <FormField label="Total Position Size" accent="cyan">
+                <FormField label="Total Position Size" accent="cyan" error={fieldErrors.positionSize}>
                   <DollarInput
                     value={positionSize}
-                    onChange={setPositionSize}
+                    onChange={v => { setPositionSize(v); if (fieldErrors.positionSize) setFieldErrors(p => ({ ...p, positionSize: undefined })); }}
                     placeholder="5,000.00"
-                    accent="cyan"
+                    accent={fieldErrors.positionSize ? 'red' : 'cyan'}
                   />
                 </FormField>
-                <FormField label="Entry Price" accent="cyan">
+                <FormField label="Entry Price" accent="cyan" error={fieldErrors.entryPrice}>
                   <DollarInput
                     value={entryPrice}
-                    onChange={setEntryPrice}
+                    onChange={v => { setEntryPrice(v); if (fieldErrors.entryPrice) setFieldErrors(p => ({ ...p, entryPrice: undefined })); }}
                     placeholder="0.00"
-                    accent="cyan"
+                    accent={fieldErrors.entryPrice ? 'red' : 'cyan'}
                   />
                 </FormField>
               </div>
@@ -406,10 +422,10 @@ export function AddTradeModal({
             <div className="rounded-[12px] border border-[#FF3B5C]/20 bg-[#FF3B5C]/[0.025] p-4 flex flex-col gap-3">
               <SectionLabel color="red" label="Risk Engine" />
 
-              <FormField label="Stop Loss Price" accent="red">
+              <FormField label="Stop Loss Price" accent="red" error={fieldErrors.stopPrice}>
                 <DollarInput
                   value={stopPrice}
-                  onChange={setStopPrice}
+                  onChange={v => { setStopPrice(v); if (fieldErrors.stopPrice) setFieldErrors(p => ({ ...p, stopPrice: undefined })); }}
                   placeholder="0.00"
                   accent="red"
                 />
