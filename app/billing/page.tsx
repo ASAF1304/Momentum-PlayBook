@@ -69,10 +69,10 @@ export default function BillingPage() {
     );
   }
 
-  const status     = (sub?.status ?? null) as SubscriptionStatus | null;
+  const status     = (sub?.status ?? 'cancelled') as SubscriptionStatus;
   const trialEnd   = sub?.trial_ends_at      ? new Date(sub.trial_ends_at)      : null;
   const periodEnd  = sub?.current_period_end ? new Date(sub.current_period_end) : null;
-  const hasActiveSub = status !== null && HAS_ACTIVE_SUB.includes(status);
+  const hasActiveSub = HAS_ACTIVE_SUB.includes(status);
   const isGrace    = status === 'grace';
   const isComp     = status === 'comp';
   const noSub      = !sub;
@@ -114,9 +114,9 @@ export default function BillingPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {status ? STATUS_ICON[status] : <Clock className="w-5 h-5 text-[var(--text-faint)]" />}
+              {noSub ? <Clock className="w-5 h-5 text-[var(--text-faint)]" /> : STATUS_ICON[status]}
               <span className="text-sm font-semibold text-[var(--text-secondary)]">
-                {status ? STATUS_LABEL[status] : 'אין מנוי'}
+                {noSub ? 'אין מנוי' : STATUS_LABEL[status]}
               </span>
             </div>
           </div>
