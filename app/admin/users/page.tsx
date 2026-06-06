@@ -20,6 +20,7 @@ interface AdminUser {
   created_at:   string;
   sub: {
     status:             string;
+    tier:               'starter' | 'pro' | 'elite' | null;
     trial_ends_at:      string | null;
     current_period_end: string | null;
     paddle_customer_id: string | null;
@@ -95,6 +96,21 @@ export default function AdminUsersPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
+      });
+      await loadUsers();
+    } finally {
+      setActing(null);
+    }
+  }
+
+  async function setTier(userId: string, tier: 'starter' | 'pro' | 'elite') {
+    const key = `${userId}:tier:${tier}`;
+    setActing(key);
+    try {
+      await fetch(`/api/admin/users/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setTier', tier }),
       });
       await loadUsers();
     } finally {
@@ -198,6 +214,7 @@ export default function AdminUsersPage() {
               <tr>
                 <th className="px-4 py-3 text-right font-semibold whitespace-nowrap">משתמש</th>
                 <th className="px-4 py-3 text-right font-semibold whitespace-nowrap">סטטוס</th>
+                <th className="px-4 py-3 text-right font-semibold whitespace-nowrap">שכבה</th>
                 <th className="px-4 py-3 text-right font-semibold whitespace-nowrap">תפוגה</th>
                 <th className="px-4 py-3 text-right font-semibold whitespace-nowrap">פעולות</th>
               </tr>
@@ -232,6 +249,33 @@ export default function AdminUsersPage() {
                       )}>
                         {status}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="inline-flex items-center gap-0.5 p-0.5 rounded-[7px] border border-[var(--border-subtle)] bg-[var(--bg-elevated)]">
+                        {(['starter', 'pro', 'elite'] as const).map(t => {
+                          const active = sub?.tier === t;
+                          const isActing = acting === `${user.id}:tier:${t}`;
+                          const accent = t === 'starter' ? '#22D3EE' : t === 'pro' ? '#10F088' : '#A78BFA';
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => void setTier(user.id, t)}
+                              disabled={isActing || acting !== null}
+                              title={`Set tier to ${t}`}
+                              className={cn(
+                                'px-2 py-1 rounded-[5px] text-[10px] font-extrabold uppercase tracking-wider transition-all disabled:cursor-not-allowed disabled:opacity-50',
+                                active
+                                  ? 'text-black'
+                                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                              )}
+                              style={active ? { background: accent } : undefined}
+                            >
+                              {isActing ? '…' : t === 'starter' ? 'S' : t === 'pro' ? 'P' : 'E'}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-[var(--text-muted)]">
                       {expiry ? new Date(expiry).toLocaleDateString('he-IL') : '—'}

@@ -1072,15 +1072,19 @@ export function TickerSearchBar({ className }: { className?: string }) {
   const { ticker, setTicker, data, loading, tickerInvalid } = useValidator();
   const [touched, setTouched] = useState(false);
 
+  const up = data && data.price.dayChangePct >= 0;
+  const changeColor = up ? '#10F088' : '#FF3B5C';
+
   return (
     <div
       className={cn(
-        'rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5',
+        'rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden',
         className,
       )}
       style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+      {/* Top row — input */}
+      <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <div className="flex-shrink-0">
           <div className="text-[9.5px] uppercase tracking-[0.2em] font-extrabold text-[#22D3EE] mb-0.5">
             Validator
@@ -1101,46 +1105,124 @@ export function TickerSearchBar({ className }: { className?: string }) {
               onBlur={() => setTouched(true)}
               placeholder="TICKER"
               className={cn(
-                'w-full bg-[var(--bg-input)] border rounded-[10px] px-4 py-3 sm:py-3.5 pr-20 font-mono text-[20px] sm:text-[22px] font-bold tracking-tight uppercase text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition placeholder:text-[var(--text-faint)]',
+                'w-full bg-[var(--bg-input)] border rounded-[10px] px-4 py-3 sm:py-3.5 pr-12 font-mono text-[22px] sm:text-[24px] font-bold tracking-tight uppercase text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition placeholder:text-[var(--text-faint)]',
                 touched && tickerInvalid
                   ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
                   : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
               )}
             />
-            <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-1.5">
-              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />}
-              {!loading && data && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
-                  <span className="text-[9px] font-mono text-[var(--text-faint)]">$</span>
-                  <span className="text-[11px] font-mono font-extrabold text-[var(--text-primary)] tabular-nums">
-                    {data.price.last.toFixed(2)}
-                  </span>
-                </span>
-              )}
-            </div>
+            {loading && (
+              <Loader2 className="absolute top-1/2 right-3.5 -translate-y-1/2 w-4 h-4 animate-spin text-[#22D3EE]" />
+            )}
           </div>
           {touched && tickerInvalid && (
             <p className="text-[11px] text-[#FF3B5C] mt-1.5">{TICKER_ERROR}</p>
           )}
         </div>
-
-        {data && (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[9.5px] font-extrabold uppercase tracking-[0.16em] border',
-                data.trendTemplate.passed
-                  ? 'bg-[#10F088]/15 text-[#10F088] border-[#10F088]/30'
-                  : 'bg-[#FF3B5C]/15 text-[#FF3B5C] border-[#FF3B5C]/30',
-              )}
-            >
-              {data.trendTemplate.passed
-                ? <><Check className="w-2.5 h-2.5" strokeWidth={3.5} />Trend Template</>
-                : <><X className="w-2.5 h-2.5" strokeWidth={3.5} />Fails Template</>}
-            </span>
-          </div>
-        )}
       </div>
+
+      {/* Bottom row — beautiful live quote panel */}
+      {data && (
+        <div
+          className="border-t border-[var(--border-subtle)] px-4 sm:px-5 py-3.5"
+          style={{ background: `linear-gradient(90deg, ${changeColor}06 0%, transparent 60%)` }}
+        >
+          <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+            {/* Main price block */}
+            <div className="flex items-baseline gap-2.5">
+              <span className="font-mono text-[var(--text-faint)] text-[14px] sm:text-[15px] font-bold">$</span>
+              <span
+                className="font-mono text-[28px] sm:text-[36px] font-extrabold tracking-tight tabular-nums leading-none"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {data.price.last.toFixed(2)}
+              </span>
+              <div className="flex items-center gap-1 ml-1">
+                {up
+                  ? <TrendingUp   className="w-3.5 h-3.5" style={{ color: changeColor }} strokeWidth={2.5} />
+                  : <TrendingDown className="w-3.5 h-3.5" style={{ color: changeColor }} strokeWidth={2.5} />}
+                <span
+                  className="font-mono text-[14px] sm:text-[16px] font-extrabold tabular-nums leading-none"
+                  style={{ color: changeColor }}
+                >
+                  {up ? '+' : ''}{data.price.dayChangePct.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-9 bg-[var(--border-subtle)]" />
+
+            {/* Stat tiles */}
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap text-[11px] sm:text-[12px]">
+              <StatTileSm label="Prev close" value={`$${data.price.previousClose.toFixed(2)}`} />
+              {data.range52w && (
+                <>
+                  <StatTileSm
+                    label="52W high"
+                    value={`$${data.range52w.high.toFixed(2)}`}
+                    sub={`${data.range52w.distanceFromHigh.toFixed(1)}%`}
+                    subColor={data.range52w.distanceFromHigh >= -25 ? '#10F088' : '#FF3B5C'}
+                  />
+                  <StatTileSm
+                    label="52W low"
+                    value={`$${data.range52w.low.toFixed(2)}`}
+                  />
+                </>
+              )}
+              {data.volume && (
+                <StatTileSm
+                  label="Vol vs 50d"
+                  value={`${data.volume.ratio.toFixed(2)}×`}
+                  subColor={data.volume.ratio >= 1.5 ? '#10F088' : data.volume.ratio < 0.7 ? '#FF3B5C' : undefined}
+                />
+              )}
+            </div>
+
+            {/* Trend Template badge — far right */}
+            <div className="ml-auto flex-shrink-0">
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-[0.16em] border',
+                  data.trendTemplate.passed
+                    ? 'bg-[#10F088]/15 text-[#10F088] border-[#10F088]/30'
+                    : 'bg-[#FF3B5C]/15 text-[#FF3B5C] border-[#FF3B5C]/30',
+                )}
+              >
+                {data.trendTemplate.passed
+                  ? <><Check className="w-3 h-3" strokeWidth={3.5} />Trend Template</>
+                  : <><X className="w-3 h-3" strokeWidth={3.5} />Fails Template</>}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatTileSm({ label, value, sub, subColor }: {
+  label: string;
+  value: string;
+  sub?: string;
+  subColor?: string;
+}) {
+  return (
+    <div className="flex flex-col leading-tight">
+      <span className="text-[8.5px] uppercase tracking-[0.16em] font-bold text-[var(--text-faint)]">
+        {label}
+      </span>
+      <span className="font-mono font-bold text-[12.5px] sm:text-[13px] text-[var(--text-secondary)] tabular-nums">
+        {value}
+        {sub && (
+          <span
+            className="ml-1 text-[10.5px] font-bold"
+            style={{ color: subColor ?? 'var(--text-faint)' }}
+          >
+            {sub}
+          </span>
+        )}
+      </span>
     </div>
   );
 }

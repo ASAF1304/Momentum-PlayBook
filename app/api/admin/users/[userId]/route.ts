@@ -1,11 +1,12 @@
 // app/api/admin/users/[userId]/route.ts
 //
 // POST /api/admin/users/[userId]
-// Body: { action: 'comp' | 'extend' | 'revoke' }
+// Body: { action: 'comp' | 'extend' | 'revoke' | 'setTier', tier?: 'starter'|'pro'|'elite' }
 //
-// comp   → sets status='comp', no trial_ends_at
-// extend → adds 30 days to trial_ends_at (or from NOW() if null/expired)
-// revoke → sets status='grace', trial_ends_at = NOW() + 30d (re-grants grace period)
+// comp    → sets status='comp', no trial_ends_at
+// extend  → adds 30 days to trial_ends_at (or from NOW() if null/expired)
+// revoke  → sets status='grace', trial_ends_at = NOW() + 30d (re-grants grace period)
+// setTier → sets subscription.tier to starter/pro/elite
 
 import { NextRequest, NextResponse } from 'next/server';
 import { guardAdmin } from '@/lib/auth/require-admin';
@@ -15,6 +16,9 @@ import { getServiceClient } from '@/lib/supabase-service';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDb = ReturnType<typeof import('@supabase/supabase-js').createClient<any>>;
 
+const VALID_TIERS = ['starter', 'pro', 'elite'] as const;
+type Tier = (typeof VALID_TIERS)[number];
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
@@ -23,11 +27,11 @@ export async function POST(
   if (denied) return denied;
 
   const { userId } = await params;
-  const body = await request.json().catch(() => ({})) as { action?: string; days?: number };
+  const body = await request.json().catch(() => ({})) as { action?: string; days?: number; tier?: string };
   const action = body.action;
   const days = Math.min(365, Math.max(1, typeof body.days === 'number' ? body.days : 30));
 
-  if (!['comp', 'extend', 'revoke'].includes(action ?? '')) {
+  if (!['comp', 'extend', 'revoke', 'setTier'].includes(action ?? '')) {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   }
 
@@ -70,6 +74,17 @@ export async function POST(
       status:        'grace',
       trial_ends_at: thirtyDaysOut.toISOString(),
       updated_at:    new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+
+  } else if (action === 'setTier') {
+    const tier = body.tier as Tier | undefined;
+    if (!tier || !VALID_TIERS.includes(tier)) {
+      return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
+    }
+    await db.from('subscriptions').upsert({
+      user_id:    userId,
+      tier,
+      updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
   }
 

@@ -48,7 +48,12 @@ ALTER TABLE trades ADD COLUMN IF NOT EXISTS system_status text CHECK (system_sta
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS trend_checks boolean[];
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS post_mortem jsonb;
 ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS monthly_loss_limit_usd numeric;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS tier text CHECK (tier IN ('starter','pro','elite'));
 ```
+
+## Admin gate
+`/admin/*` is protected by a password gate in addition to the `is_admin` DB check.
+Set `ADMIN_GATE_PASSWORD` env var (default: `idog2708`) and `ADMIN_GATE_SECRET` (any random string used for HMAC). 8-hour cookie session.
 
 ## Code conventions
 - No comments unless the WHY is non-obvious

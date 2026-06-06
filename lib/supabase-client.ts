@@ -30,11 +30,14 @@ export type SubscriptionStatus =
   | 'comp'           // permanent free access granted by admin
   | 'expired_grace'; // grace period ended, no active sub
 
+export type SubscriptionTier = 'starter' | 'pro' | 'elite';
+
 export interface Subscription {
   id: string;
   user_id: string;
   grow_subscription_id?: string | null;
   status: SubscriptionStatus;
+  tier: SubscriptionTier | null;
   trial_ends_at: string | null;
   current_period_end: string | null;
   created_at: string;

@@ -5,6 +5,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@/lib/supabase-server';
+import { ADMIN_GATE_COOKIE, verifyGateToken } from '@/lib/auth/admin-gate';
 
 // Unauthenticated access is allowed on these paths.
 const PUBLIC_PATHS = [
@@ -48,6 +49,17 @@ export async function middleware(request: NextRequest) {
   // Public paths — skip any auth or subscription checks
   if (PUBLIC_PATHS.some(p => path === p || path.startsWith(p + '/'))) {
     return response;
+  }
+
+  // Admin gate cookie required for /admin/* (except /admin/gate itself).
+  // This is layered on top of the layout's is_admin DB check — both must pass.
+  if (path.startsWith('/admin') && !path.startsWith('/admin/gate')) {
+    const gateToken = request.cookies.get(ADMIN_GATE_COOKIE)?.value;
+    if (!verifyGateToken(gateToken)) {
+      const url = new URL('/admin/gate', request.url);
+      url.searchParams.set('next', path);
+      return NextResponse.redirect(url);
+    }
   }
 
   // Single Supabase client per request — reused for both auth and subscription checks

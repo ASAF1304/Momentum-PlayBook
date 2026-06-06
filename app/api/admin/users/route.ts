@@ -20,7 +20,7 @@ export async function GET() {
 
   const [profilesResult, subsResult, authResult] = await Promise.all([
     db.from('user_profiles').select('id, display_name, created_at, is_admin'),
-    db.from('subscriptions').select('user_id, status, trial_ends_at, current_period_end'),
+    db.from('subscriptions').select('user_id, status, tier, trial_ends_at, current_period_end'),
     // Supabase admin API to get emails — requires service role key
     db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
@@ -29,7 +29,9 @@ export async function GET() {
     id: string; display_name: string | null; created_at: string; is_admin: boolean;
   }[];
   const subs = (subsResult.data ?? []) as {
-    user_id: string; status: string; trial_ends_at: string | null; current_period_end: string | null;
+    user_id: string; status: string;
+    tier: 'starter' | 'pro' | 'elite' | null;
+    trial_ends_at: string | null; current_period_end: string | null;
   }[];
   const authUsers = authResult.data?.users ?? [];
 
