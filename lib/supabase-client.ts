@@ -13,6 +13,7 @@ export interface UserProfile {
   account_size: number;
   max_risk_per_trade_pct: number;
   max_stop_distance_pct: number;
+  monthly_loss_limit_usd: number | null;
   created_at: string;
   accepted_terms_at: string | null;
   dismissed_onboarding_at: string | null;

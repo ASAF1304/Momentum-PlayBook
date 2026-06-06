@@ -160,6 +160,12 @@ export function AddTradeModal({
       fe.stopPrice = 'Stop price must be a positive number.';
     else if (Number.isFinite(ep) && ep > 0 && sp >= ep)
       fe.stopPrice = 'Stop must be below entry price for a long position.';
+    else if (Number.isFinite(ep) && ep > 0 && Number.isFinite(sp) && sp > 0) {
+      const dist = Math.abs(((sp - ep) / ep) * 100);
+      if (dist > 10) {
+        fe.stopPrice = `Stop is ${dist.toFixed(1)}% away — Minervini rule: never risk more than 10% per trade. Tighten your stop.`;
+      }
+    }
 
     if (Object.keys(fe).length > 0) { setFieldErrors(fe); return; }
     setFieldErrors({});
@@ -464,22 +470,36 @@ export function AddTradeModal({
               </div>
             )}
 
+            {calc?.stopReady && calc.stopDistPct > 10 && (
+              <div className="px-3 py-2.5 rounded-[9px] bg-[#FF3B5C]/[0.08] border border-[#FF3B5C]/40 text-xs text-[#FF3B5C] flex items-start gap-2.5">
+                <X className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" strokeWidth={3} />
+                <div className="leading-snug">
+                  <div className="font-extrabold uppercase tracking-wider text-[10px] mb-0.5">
+                    Stop too far — {calc.stopDistPct.toFixed(1)}% from entry
+                  </div>
+                  <div className="opacity-80">
+                    Minervini rule: never risk more than 10% per trade. Tighten your stop to log this trade as system.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-[10px] border border-white/[0.08] text-xs font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-200 hover:border-white/20 transition-all"
+                className="flex-1 py-3 rounded-[10px] border border-[var(--border-subtle)] text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-all"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={saving || uploading}
+                disabled={saving || uploading || (calc?.stopReady && calc.stopDistPct > 10)}
                 className={cn(
                   'flex-[2] py-3 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-2',
-                  saving || uploading
-                    ? 'bg-white/[0.04] text-zinc-600 cursor-not-allowed'
+                  saving || uploading || (calc?.stopReady && calc.stopDistPct > 10)
+                    ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed'
                     : 'bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black shadow-[0_0_24px_rgba(34,211,238,0.3)] hover:brightness-110 hover:-translate-y-px',
                 )}
               >

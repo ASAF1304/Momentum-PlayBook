@@ -14,6 +14,8 @@ import { AddTradeModal } from '@/components/journal/add-trade-modal';
 import { ImportExcelModal } from '@/components/journal/import-excel-modal';
 import { ReviewSetupModal } from '@/components/journal/review-setup-modal';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { MonthlyLossLock, computeCurrentMonthRealizedPnL } from '@/components/journal/monthly-loss-lock';
+import { PreTradeGate } from '@/components/journal/pre-trade-gate';
 import { useAuth } from '@/lib/auth-context';
 import {
   supabase,
@@ -52,6 +54,8 @@ export default function JournalPage() {
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
   const [selectedTrade,  setSelectedTrade]  = useState<Trade | null>(null);
   const [showAddModal,     setShowAddModal]     = useState(false);
+  const [showLossLock,     setShowLossLock]     = useState(false);
+  const [showPreGate,      setShowPreGate]      = useState(false);
   const [showImport,       setShowImport]       = useState(false);
   const [deleteConfirmId,  setDeleteConfirmId]  = useState<string | null>(null);
   const [systemFilter,     setSystemFilter]     = useState<SystemFilter>('all');
@@ -157,6 +161,22 @@ export default function JournalPage() {
   const openTickers = useMemo(() => openTrades.map(t => t.ticker), [openTrades]);
   const { prices: livePrices } = useLivePrices(openTickers);
 
+  // ── Monthly loss limit gate ────────────────────────────────────────────────
+
+  const monthPnL = useMemo(() => computeCurrentMonthRealizedPnL(trades), [trades]);
+  const monthlyLimit = profile?.monthly_loss_limit_usd ?? null;
+  const limitHit = monthlyLimit != null && monthlyLimit > 0 && monthPnL <= -monthlyLimit;
+
+  const handleOpenAdd = useCallback(() => {
+    if (limitHit) { setShowLossLock(true); return; }
+    setShowPreGate(true);
+  }, [limitHit]);
+
+  const handleProceedFromGate = useCallback(() => {
+    setShowPreGate(false);
+    setShowAddModal(true);
+  }, []);
+
   // ── Callbacks ──────────────────────────────────────────────────────────────
 
   const handleTradeUpdated = (updated: Trade) => {
@@ -222,7 +242,7 @@ export default function JournalPage() {
             </button>
             <button
               type="button"
-              onClick={() => setShowAddModal(true)}
+              onClick={handleOpenAdd}
               className="flex items-center gap-2 px-4 py-2.5 rounded-[10px] bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-extrabold uppercase tracking-wider hover:opacity-90 hover:-translate-y-px transition-all"
               style={{ boxShadow: 'var(--shadow-card)' }}
             >
@@ -380,7 +400,7 @@ export default function JournalPage() {
         {loading && <LoadingState slow={slowLoad} />}
         {!loading && fetchError && <ErrorState message={fetchError} onRetry={fetchTrades} />}
         {!loading && !fetchError && filteredTrades.length === 0 && trades.length === 0 && (
-          <EmptyState filter="all" onAdd={() => setShowAddModal(true)} />
+          <EmptyState filter="all" onAdd={handleOpenAdd} />
         )}
         {!loading && !fetchError && filteredTrades.length === 0 && trades.length > 0 && (
           <EmptyState filter="filtered" onAdd={() => { setTickerSearch(''); setDateFrom(''); setDateTo(''); setOutcomeFilter('all'); setStatusFilter('all'); }} />
@@ -443,6 +463,21 @@ export default function JournalPage() {
             setTrades(prev => prev.map(t => t.id === updated.id ? updated : t));
             setReviewTarget(null);
           }}
+        />
+      )}
+
+      {showLossLock && monthlyLimit != null && (
+        <MonthlyLossLock
+          monthPnL={monthPnL}
+          limitUsd={monthlyLimit}
+          onClose={() => setShowLossLock(false)}
+        />
+      )}
+
+      {showPreGate && (
+        <PreTradeGate
+          onProceed={handleProceedFromGate}
+          onClose={() => setShowPreGate(false)}
         />
       )}
     </div>

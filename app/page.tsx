@@ -13,6 +13,7 @@ import { ValidatorProvider, ChecklistCard, SizerCard }    from '@/components/val
 import { AddPositionModal }                                from '@/components/dashboard/add-position-modal';
 import { Stage2Leaders }                                   from '@/components/dashboard/stage2-leaders';
 import { OnboardingBanner }                                from '@/components/dashboard/onboarding-banner';
+import { MarketRegimeBanner }                              from '@/components/dashboard/market-regime-banner';
 import { supabase, type Trade }                            from '@/lib/supabase-client';
 import { useAuth }                                         from '@/lib/auth-context';
 import { useLivePrices, type LivePrice }                   from '@/lib/use-live-prices';
@@ -224,6 +225,7 @@ export default function Dashboard() {
       {showOnboarding && <OnboardingModal onDismiss={() => setOnboardingDone(true)} />}
       <GridOverlay />
       <AppNav />
+      <MarketRegimeBanner />
 
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 py-7 relative">
 

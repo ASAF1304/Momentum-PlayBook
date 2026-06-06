@@ -174,6 +174,10 @@ export function ValidatorProvider({
       if (!res.ok) { setError((body as TickerErrorResponse).error); setData(null); setEntry(''); setStop(''); return; }
       const td = body as TickerResponse;
       setData(td);
+      try {
+        const { recordValidatorSession } = await import('@/components/journal/pre-trade-gate');
+        recordValidatorSession(sym, td.trendTemplate.passed);
+      } catch { /* gate component not loaded — non-fatal */ }
       setEntry(td.price.last.toFixed(2));
       if (td.stops.recommended) setStop(td.stops.recommended.price.toFixed(2));
       else setStop('');
