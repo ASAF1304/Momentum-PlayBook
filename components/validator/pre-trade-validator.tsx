@@ -533,15 +533,13 @@ export function ChecklistCard({ className }: { className?: string }) {
 
 export function SizerCard({ className }: { className?: string }) {
   const {
-    ticker, setTicker, entry, setEntry, stop, setStop,
+    entry, setEntry, stop, setStop,
     amountInvested, onAmountChange, handleResetAmount,
-    data, loading, error,
+    data, error,
     sizing, effectiveSizing, stopExceedsMax, stopDistPct,
     exceedsBudget, maxPortfolioRisk, maxStopDistancePct,
-    canSubmit, allGreen, handleSubmit, accountSize, entryInvalid, tickerInvalid,
+    canSubmit, allGreen, handleSubmit, accountSize, entryInvalid,
   } = useValidator();
-
-  const [tickerTouched, setTickerTouched] = useState(false);
 
   const autoAmount = sizing.status === 'ok' ? sizing.totalNotional : null;
   const invested   = parseFloat(amountInvested);
@@ -563,34 +561,6 @@ export function SizerCard({ className }: { className?: string }) {
         <p className="text-xs text-[var(--text-muted)] leading-[1.55]">
           Stop loss capped at {maxStopDistancePct}%. Enter account size in Settings.
         </p>
-      </div>
-
-      {/* Ticker input */}
-      <div className="flex flex-col gap-1">
-        <div className="relative">
-          <input
-            value={ticker}
-            onChange={e => {
-              setTickerTouched(false);
-              setTicker(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5));
-            }}
-            onBlur={() => setTickerTouched(true)}
-            placeholder="TICKER"
-            className={cn(
-              'w-full bg-[var(--bg-input)] border rounded-[10px] px-4 py-[13px] font-mono text-[22px] font-bold tracking-tight uppercase text-[var(--text-primary)] focus:outline-none focus:ring-[2px] transition',
-              tickerTouched && tickerInvalid
-                ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
-                : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
-            )}
-          />
-          <span className="absolute top-2 right-3 text-[9px] text-[var(--text-faint)] tracking-[0.18em] font-semibold flex items-center gap-1.5 uppercase">
-            {loading && <Loader2 className="w-3 h-3 animate-spin text-[#22D3EE]" />}
-            Ticker
-          </span>
-        </div>
-        {tickerTouched && tickerInvalid && (
-          <p className="text-[11px] text-[#FF3B5C]">{TICKER_ERROR}</p>
-        )}
       </div>
 
       {error && (
@@ -1091,3 +1061,87 @@ function MaxLossChip({ sizing, invested }: { sizing: PositionSizerResult; invest
     </div>
   );
 }
+
+// ── TickerSearchBar ────────────────────────────────────────────────────────────
+// Standalone ticker input designed to sit at the very top of the dashboard.
+// Renders prominently on both mobile and desktop so the trader can search any
+// stock without scrolling. Wired to the same ValidatorProvider context that
+// ChecklistCard and SizerCard read from — single source of truth.
+
+export function TickerSearchBar({ className }: { className?: string }) {
+  const { ticker, setTicker, data, loading, tickerInvalid } = useValidator();
+  const [touched, setTouched] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        'rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5',
+        className,
+      )}
+      style={{ boxShadow: 'var(--shadow-card), var(--inner-highlight)' }}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <div className="flex-shrink-0">
+          <div className="text-[9.5px] uppercase tracking-[0.2em] font-extrabold text-[#22D3EE] mb-0.5">
+            Validator
+          </div>
+          <div className="text-[12.5px] sm:text-[13px] text-[var(--text-muted)] leading-snug">
+            Run the Trend Template on any ticker
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="relative">
+            <input
+              value={ticker}
+              onChange={e => {
+                setTouched(false);
+                setTicker(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5));
+              }}
+              onBlur={() => setTouched(true)}
+              placeholder="TICKER"
+              className={cn(
+                'w-full bg-[var(--bg-input)] border rounded-[10px] px-4 py-3 sm:py-3.5 pr-20 font-mono text-[20px] sm:text-[22px] font-bold tracking-tight uppercase text-[var(--text-primary)] focus:outline-none focus:ring-[3px] transition placeholder:text-[var(--text-faint)]',
+                touched && tickerInvalid
+                  ? 'border-[#FF3B5C] focus:border-[#FF3B5C] focus:ring-[#FF3B5C]/15'
+                  : 'border-[var(--border-subtle)] focus:border-[#22D3EE] focus:ring-[#22D3EE]/15',
+              )}
+            />
+            <div className="absolute top-1/2 right-3 -translate-y-1/2 flex items-center gap-1.5">
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#22D3EE]" />}
+              {!loading && data && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+                  <span className="text-[9px] font-mono text-[var(--text-faint)]">$</span>
+                  <span className="text-[11px] font-mono font-extrabold text-[var(--text-primary)] tabular-nums">
+                    {data.price.last.toFixed(2)}
+                  </span>
+                </span>
+              )}
+            </div>
+          </div>
+          {touched && tickerInvalid && (
+            <p className="text-[11px] text-[#FF3B5C] mt-1.5">{TICKER_ERROR}</p>
+          )}
+        </div>
+
+        {data && (
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[9.5px] font-extrabold uppercase tracking-[0.16em] border',
+                data.trendTemplate.passed
+                  ? 'bg-[#10F088]/15 text-[#10F088] border-[#10F088]/30'
+                  : 'bg-[#FF3B5C]/15 text-[#FF3B5C] border-[#FF3B5C]/30',
+              )}
+            >
+              {data.trendTemplate.passed
+                ? <><Check className="w-2.5 h-2.5" strokeWidth={3.5} />Trend Template</>
+                : <><X className="w-2.5 h-2.5" strokeWidth={3.5} />Fails Template</>}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

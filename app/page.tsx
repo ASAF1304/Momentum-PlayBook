@@ -9,7 +9,9 @@ import { AlertTriangle, ArrowRight, Loader2, Plus, RefreshCw, WifiOff } from 'lu
 import { AppNav }                                          from '@/components/nav/app-nav';
 import { GridOverlay }                                     from '@/components/ui/grid-overlay';
 import { OnboardingModal }                                 from '@/components/onboarding-modal';
-import { ValidatorProvider, ChecklistCard, SizerCard }    from '@/components/validator/pre-trade-validator';
+import { ValidatorProvider, ChecklistCard, SizerCard, TickerSearchBar } from '@/components/validator/pre-trade-validator';
+import { DailyTouchpoints }                                from '@/components/dashboard/daily-touchpoints';
+import { EdgeHeatmap }                                     from '@/components/dashboard/edge-heatmap';
 import { AddPositionModal }                                from '@/components/dashboard/add-position-modal';
 import { Stage2Leaders }                                   from '@/components/dashboard/stage2-leaders';
 import { OnboardingBanner }                                from '@/components/dashboard/onboarding-banner';
@@ -404,6 +406,11 @@ export default function Dashboard() {
           <EquityCurve data={equityCurveData} accountSize={accountSize} />
         )}
 
+        {/* ── Daily Ritual (4 touchpoints + streak) ──────────────────────────── */}
+        <div className="mb-5">
+          <DailyTouchpoints />
+        </div>
+
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
         <ValidatorProvider
           accountSize={sizerAccountSize}
@@ -412,6 +419,11 @@ export default function Dashboard() {
           initialTicker={prefilledTicker}
           onSubmit={handleLogPhase1}
         >
+          {/* Ticker search — always at top, mobile + desktop */}
+          <div className="mb-5">
+            <TickerSearchBar />
+          </div>
+
           <div ref={validatorRef} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[420px_1fr_380px] gap-5 items-start">
 
             {/* Col 1 — Checklist */}
@@ -525,6 +537,11 @@ export default function Dashboard() {
 
           </div>
         </ValidatorProvider>
+
+        {/* ── Personal Edge Discovery (Pillar 2) ─────────────────────────────── */}
+        <div className="mt-5">
+          <EdgeHeatmap trades={trades} loading={tradesLoading} />
+        </div>
 
       </main>
 
