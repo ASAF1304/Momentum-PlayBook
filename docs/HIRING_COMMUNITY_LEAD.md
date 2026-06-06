@@ -124,12 +124,12 @@ If that 12-month picture doesn't excite you, this isn't the right role.
 
 ## How to apply
 
-Send Asaf one email with:
+Send one email to Ido (technical co-founder, reviews every application) with:
 
 1. Two paragraphs on which of the five problems above you've solved before, with one specific example each. No cover letter format. Just the problem and what you did.
 2. A link to one piece of content you wrote that you're proud of — and one paragraph on why.
 3. The name of one momentum stock that broke out of a VCP in the last 90 days. (We'll know if you Googled it.)
 
-Do not send a resume in the first email. We'll ask if we want one. Send to **asaf.abllin@gmail.com** with subject line: `Community Lead — [your name]`.
+Do not send a resume in the first email. We'll ask if we want one. Send to **[INSERT IDO'S EMAIL]** with subject line: `Community Lead — [your name]`.
 
 We respond to every email within 7 days, even rejections. We don't ghost.
