@@ -8,13 +8,14 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowRight, BarChart2, BookOpen, Check, Eye, FileSpreadsheet, Quote,
+  ArrowRight, BarChart2, BookOpen, Eye, FileSpreadsheet, Quote,
   ShieldCheck, Star, Target, TrendingUp, Zap, Sparkles, LineChart,
 } from 'lucide-react';
 import {
   DashboardMockup, LeadersMockup, PlaybookMockup, SizerMockup,
 } from '@/components/landing/app-mockups';
 import { TRIAL_DAYS } from '@/lib/trial-config';
+import { cn } from '@/lib/utils';
 
 const FEATURES = [
   { icon: BookOpen,         color: '#22D3EE', title: 'יומן מסחר',         desc: 'תיעוד מלא של כל טרייד — פייז 1 ו-2, יציאות חלקיות, Stop, Screenshot, Post-Mortem.' },
@@ -25,17 +26,6 @@ const FEATURES = [
   { icon: ShieldCheck,      color: '#10F088', title: 'Validator',          desc: 'רשימת בדיקה pre-trade עם 12 נקודות לפי Trend Template של Minervini.' },
   { icon: Eye,              color: '#22D3EE', title: 'Watchlist',          desc: 'רשימת מעקב אישית עם גרפים מ-TradingView ופתיחה מהירה לטרייד.' },
   { icon: FileSpreadsheet,  color: '#10F088', title: 'ייבוא מברוקר',       desc: 'ייבוא אוטומטי מ-IBI, Meitav Trade, IBKR ו-eToro — אין הקלדה ידנית.' },
-];
-
-const PLAN_FEATURES = [
-  'יומן מסחר מלא עם פייזים ויציאות חלקיות',
-  'Live P&L על פוזיציות פתוחות',
-  'Playbook — ארכיון + ניתוח ביצועים',
-  'Position Sizer לפי % סיכון',
-  'Stage 2 Leaders — סריקה יומית',
-  'Validator — Minervini Trend Template',
-  'Watchlist עם גרפי TradingView',
-  'ייבוא אוטומטי מ-IBI / Meitav / IBKR / eToro',
 ];
 
 const STATS = [
@@ -439,70 +429,73 @@ export default function WelcomePage() {
         </div>
       </section>
 
-      {/* Plan card */}
-      <section className="relative z-10 max-w-[640px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
+      {/* Pricing tiers preview */}
+      <section className="relative z-10 max-w-[1100px] mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <Reveal>
-          <div className="text-center mb-8">
+          <div className="text-center mb-10">
             <h2 className="text-[11px] uppercase tracking-[0.22em] font-bold text-[var(--text-faint)] mb-2">
-              תוכנית פשוטה
+              תמחור
             </h2>
             <h3 className="text-[28px] sm:text-[40px] font-extrabold tracking-tight text-[var(--text-primary)]">
-              הכל פתוח, מחיר אחד
+              שכבה לכל סוג סוחר
             </h3>
+            <p className="text-[14px] text-[var(--text-secondary)] mt-3 max-w-[520px] mx-auto">
+              ניסיון חינמי {TRIAL_DAYS} ימים בכל שכבה. ללא כרטיס אשראי. ביטול בכל רגע.
+            </p>
           </div>
         </Reveal>
 
-        <Reveal delay={150}>
-          <div
-            className="rounded-[20px] border border-[#22D3EE]/30 p-7 sm:p-9 bg-[var(--bg-surface)] relative overflow-hidden"
-            style={{ boxShadow: 'var(--shadow-card), 0 0 60px rgba(34,211,238,0.10)' }}
-          >
-            <div
-              className="absolute top-0 left-0 right-0 h-[3px]"
-              style={{ background: 'linear-gradient(to right, #22D3EE, #10F088)' }}
-            />
-            <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#22D3EE] mb-1">
-                  Pro
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-mono text-[48px] font-extrabold tracking-tight text-[var(--text-primary)]">
-                    $19
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { name: 'Starter', price: 29, tagline: 'כלי הליבה של השיטה', accent: '#22D3EE', highlight: false },
+            { name: 'Pro',     price: 59, tagline: 'הכי פופולרי · לסוחר רציני', accent: '#10F088', highlight: true },
+            { name: 'Elite',   price: 149, tagline: 'לסוחר Full-Time', accent: '#A78BFA', highlight: false },
+          ].map((t, i) => (
+            <Reveal key={t.name} delay={i * 100}>
+              <div
+                className={cn(
+                  'relative p-6 rounded-[14px] transition-all duration-300 hover:-translate-y-1 h-full',
+                  t.highlight
+                    ? 'border-2 border-[#10F088]/40 bg-[var(--bg-surface)]'
+                    : 'border border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--border-strong)]',
+                )}
+                style={{
+                  boxShadow: t.highlight
+                    ? 'var(--shadow-card), 0 0 40px rgba(16,240,136,0.10), var(--inner-highlight)'
+                    : 'var(--shadow-card), var(--inner-highlight)',
+                }}
+              >
+                {t.highlight && (
+                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[8.5px] font-extrabold uppercase tracking-[0.18em] bg-gradient-to-r from-[#22D3EE] to-[#10F088] text-black shadow-[0_4px_16px_rgba(16,240,136,0.3)]">
+                    Popular
                   </span>
-                  <span className="text-[14px] text-[var(--text-muted)]">/ חודש</span>
+                )}
+                <div className="text-[10px] uppercase tracking-[0.18em] font-extrabold mb-1" style={{ color: t.accent }}>
+                  {t.name}
                 </div>
-                <p className="text-[11px] text-[var(--text-faint)] mt-1.5">
-                  {TRIAL_DAYS} ימי ניסיון חינמי · ביטול בכל רגע
-                </p>
+                <p className="text-[11px] text-[var(--text-muted)] mb-4">{t.tagline}</p>
+                <div className="flex items-baseline gap-1.5 mb-1">
+                  <span className="font-mono text-[36px] font-extrabold tracking-tight text-[var(--text-primary)] tabular-nums">${t.price}</span>
+                  <span className="text-[12px] text-[var(--text-muted)]">/ חודש</span>
+                </div>
+                <p className="text-[10.5px] text-[var(--text-faint)] mb-5">חיוב שנתי = חיסכון 20%</p>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-[#10F088]/15 text-[#10F088] border border-[#10F088]/30 text-[9px] font-extrabold uppercase tracking-[0.16em] flex-shrink-0">
-                ★ הכי פופולרי
-              </span>
-            </div>
+            </Reveal>
+          ))}
+        </div>
 
-            <ul className="space-y-2.5 mb-7">
-              {PLAN_FEATURES.map((f, i) => (
-                <li
-                  key={f}
-                  className="flex items-start gap-2.5 text-[13px] text-[var(--text-secondary)] animate-slide-up"
-                  style={{ animationDelay: `${i * 50 + 300}ms` }}
-                >
-                  <span className="w-4 h-4 rounded-full bg-[#10F088]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="w-2.5 h-2.5 text-[#10F088]" strokeWidth={3.5} />
-                  </span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-
+        <Reveal delay={350}>
+          <div className="text-center mt-7">
             <Link
-              href="/signup"
-              className="min-h-[52px] flex w-full text-center py-3.5 rounded-[12px] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black text-sm font-extrabold uppercase tracking-[0.05em] hover:brightness-110 hover:-translate-y-px transition-all shadow-[0_0_36px_rgba(34,211,238,0.35)] items-center justify-center gap-2 group"
+              href="/pricing"
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[12px] bg-gradient-to-br from-[#22D3EE] to-[#10F088] text-black text-sm font-extrabold uppercase tracking-[0.05em] hover:brightness-110 hover:-translate-y-px transition-all shadow-[0_0_36px_rgba(34,211,238,0.35)] min-h-[52px] group"
             >
-              התחל ניסיון חינמי
+              ראה השוואה מלאה
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
+            <p className="text-[11px] text-[var(--text-faint)] mt-3">
+              לקוחות קיימים נשארים במחיר המקורי לנצח · Founding Members
+            </p>
           </div>
         </Reveal>
       </section>
