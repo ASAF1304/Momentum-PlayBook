@@ -23,6 +23,7 @@ import {
   type PartialRecord,
   type TradeUpdate,
 } from '@/lib/broker-parser';
+import { suggestMapping } from '@/lib/broker-parser-manual';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
@@ -64,6 +65,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
   const [parseError,        setParseError]       = useState<string | null>(null);
   const [detectedFormat,    setDetectedFormat]   = useState<BrokerFormat | null>(null);
   const [rawHeaders,        setRawHeaders]       = useState<string[]>([]);
+  const [sampleRows,        setSampleRows]       = useState<Record<string, unknown>[]>([]);
   const [manualMapping,     setManualMapping]    = useState<ManualMapping>({ ticker: '', action: '', quantity: '', price: '', date: '' });
 
   // Parsed results
@@ -178,26 +180,41 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
         existingSignaturesRef.current,
       );
 
-      if (result.format === 'generic' && result.transactions.length === 0) {
-        // Need manual mapping — store headers and move to mapping step
+      // Helper: load file headers + 3 sample rows for the manual-mapping screen
+      const enterManualMapping = async (format: BrokerFormat | null) => {
         pendingFile.current = file;
         const XLSX = await import('xlsx');
         const buf  = await file.arrayBuffer();
-        const wb   = XLSX.read(new Uint8Array(buf), { type: 'array' });
+        const wb   = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
-        if (rows.length > 0) setRawHeaders(Object.keys(rows[0]));
-        setDetectedFormat('generic');
+        if (rows.length > 0) {
+          const headers = Object.keys(rows[0]);
+          setRawHeaders(headers);
+          setSampleRows(rows.slice(0, 3));
+          setManualMapping(suggestMapping(headers));
+        }
+        setDetectedFormat(format);
         setStep('mapping');
+      };
+
+      // Case 1: generic format with no transactions → manual mapping
+      if (result.format === 'generic' && result.transactions.length === 0) {
+        await enterManualMapping('generic');
         return;
       }
 
-      if (result.newTrades.length === 0 && result.updates.length === 0) {
-        if (result.dupSkipped > 0) {
-          setParseError(`All ${result.dupSkipped} transaction${result.dupSkipped !== 1 ? 's' : ''} in this file are already imported — nothing new to add.`);
-        } else {
-          setParseError('No trades detected in file. Check the format or make sure the file contains buy/sell transactions.');
-        }
+      // Case 2: detected a specific broker but produced 0 trades AND 0 duplicates.
+      // This is the bug the user reported — silent failure with no fallback.
+      // Auto-route to manual mapping instead of erroring out.
+      if (result.newTrades.length === 0 && result.updates.length === 0 && result.dupSkipped === 0) {
+        await enterManualMapping(result.format);
+        return;
+      }
+
+      // Case 3: everything skipped because already imported → real error
+      if (result.newTrades.length === 0 && result.updates.length === 0 && result.dupSkipped > 0) {
+        setParseError(`All ${result.dupSkipped} transaction${result.dupSkipped !== 1 ? 's' : ''} in this file are already imported — nothing new to add.`);
         return;
       }
 
@@ -208,6 +225,7 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
       setParsing(false);
     }
   }, []);
+
 
   const finishParse = useCallback((
     format:      BrokerFormat,
@@ -591,22 +609,79 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
             <div className="p-6 flex flex-col gap-5">
               <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-[10px] bg-[#22D3EE]/[0.07] border border-[#22D3EE]/20">
                 <AlertTriangle className="w-3.5 h-3.5 text-[#22D3EE] flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-[#22D3EE]/90 leading-relaxed">
-                  Could not auto-detect your broker format. Select which column maps to each field below.
-                </p>
+                <div className="flex-1">
+                  <p className="text-xs text-[#22D3EE] font-bold mb-0.5">
+                    {detectedFormat
+                      ? `We detected ${BROKER_LABELS[detectedFormat]} but couldn't parse any trades automatically.`
+                      : 'Map your file\'s columns to each field below.'}
+                  </p>
+                  <p className="text-[11.5px] text-[#22D3EE]/80 leading-relaxed">
+                    We pre-filled suggestions based on your column names. Adjust if needed and click Confirm.
+                  </p>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {(['ticker', 'action', 'quantity', 'price', 'date'] as const).map(field => (
-                  <div key={field} className="flex flex-col gap-1.5">
-                    <label className="text-xs uppercase tracking-[0.14em] font-semibold text-[var(--text-secondary)] capitalize">{field} column</label>
-                    <select value={manualMapping[field]} onChange={e => setManualMapping(prev => ({ ...prev, [field]: e.target.value }))}
-                      className="bg-[var(--bg-input)] border border-[var(--border-dim)] rounded-[8px] px-3 py-2.5 text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[#10F088] focus:ring-[3px] focus:ring-[#10F088]/15 transition appearance-none">
-                      <option value="">— select column —</option>
-                      {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(['ticker', 'action', 'quantity', 'price', 'date'] as const).map(field => {
+                  const selectedCol = manualMapping[field];
+                  const sampleValue = selectedCol && sampleRows[0]
+                    ? String(sampleRows[0][selectedCol] ?? '').slice(0, 40)
+                    : null;
+                  return (
+                    <div key={field} className="flex flex-col gap-1.5">
+                      <label className="text-[10.5px] uppercase tracking-[0.14em] font-bold text-[var(--text-secondary)] capitalize">
+                        {field} column
+                      </label>
+                      <select
+                        value={manualMapping[field]}
+                        onChange={e => setManualMapping(prev => ({ ...prev, [field]: e.target.value }))}
+                        className="bg-[var(--bg-input)] border border-[var(--border-dim)] rounded-[8px] px-3 py-2.5 text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[#10F088] focus:ring-[3px] focus:ring-[#10F088]/15 transition"
+                      >
+                        <option value="">— select column —</option>
+                        {rawHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      {sampleValue && (
+                        <p className="text-[10.5px] text-[var(--text-faint)] font-mono truncate">
+                          Sample: <span className="text-[var(--text-muted)] font-bold">{sampleValue}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {sampleRows.length > 0 && rawHeaders.length > 0 && (
+                <details className="rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] overflow-hidden">
+                  <summary className="px-3.5 py-2.5 text-[11px] uppercase tracking-[0.14em] font-bold text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-secondary)]">
+                    Show first 3 rows of file ({rawHeaders.length} columns)
+                  </summary>
+                  <div className="overflow-x-auto border-t border-[var(--border-subtle)]">
+                    <table className="w-full text-[10.5px]">
+                      <thead className="bg-[var(--bg-subtle)] text-[var(--text-faint)]">
+                        <tr>
+                          {rawHeaders.map(h => (
+                            <th key={h} className="px-2 py-1.5 text-left font-bold uppercase tracking-wider whitespace-nowrap">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="font-mono">
+                        {sampleRows.map((row, i) => (
+                          <tr key={i} className="border-t border-[var(--border-subtle)]">
+                            {rawHeaders.map(h => (
+                              <td key={h} className="px-2 py-1.5 text-[var(--text-secondary)] whitespace-nowrap max-w-[140px] truncate">
+                                {String(row[h] ?? '—')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                ))}
-              </div>
+                </details>
+              )}
+
               <div className="flex gap-2.5 pt-1">
                 <button onClick={() => setStep('upload')} className="flex-1 py-2.5 rounded-[10px] border border-[var(--border-strong)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all">Back</button>
                 <button onClick={() => void handleManualMapping()} disabled={Object.values(manualMapping).some(v => !v)}
