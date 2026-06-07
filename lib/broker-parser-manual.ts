@@ -7,12 +7,17 @@
 //   - English actions:  buy, sell, b, s, bot, sld, bought, sold, purchase, redemption
 //   - Hebrew actions:   קניה, רכישה, מכירה, שורט, קניה לכיסוי, פדיון
 //   - Date formats:     YYYY-MM-DD, D/M/Y, D.M.Y, D-M-Y, M/D/Y (with US/EU sniffing),
-//                       and Date.parse() fallback for ISO-ish strings
+//                       8-digit YYYYMMDD, and Date.parse() fallback
+//
+// Returns granular skip reasons so the UI can show users why specific rows
+// were dropped — no more silent failures.
 
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { groupToTrades } from './broker-parser-internal';
-import type { ExistingPosition, ImportedTrade, TradeUpdate } from './broker-parser';
+import type {
+  ExistingPosition, ImportedTrade, SkipReason, TradeUpdate,
+} from './broker-parser';
 
 interface ManualMapping {
   ticker:   string;
@@ -43,18 +48,47 @@ function classifyAction(rawAction: string): 'buy' | 'sell' | null {
   return null;
 }
 
+interface SkipTracker {
+  add(reason: string, sample: string): void;
+  toArray(): SkipReason[];
+}
+
+function makeSkipTracker(): SkipTracker {
+  const map = new Map<string, { count: number; samples: Set<string> }>();
+  return {
+    add(reason, sample) {
+      const safeSample = (sample || '').toString().trim().slice(0, 60);
+      const e = map.get(reason) ?? { count: 0, samples: new Set() };
+      e.count += 1;
+      if (safeSample && e.samples.size < 5) e.samples.add(safeSample);
+      map.set(reason, e);
+    },
+    toArray() {
+      return Array.from(map.entries())
+        .map(([reason, e]) => ({ reason, count: e.count, samples: Array.from(e.samples) }))
+        .sort((a, b) => b.count - a.count);
+    },
+  };
+}
+
 export async function manualMapToTransactions(
   file:               File,
   mapping:            ManualMapping,
   existingPositions:  Map<string, ExistingPosition> = new Map(),
   existingSignatures: Set<string>                  = new Set(),
-): Promise<{ newTrades: ImportedTrade[]; updates: TradeUpdate[]; skippedRows: number; dupSkipped: number }> {
+): Promise<{
+  newTrades:    ImportedTrade[];
+  updates:      TradeUpdate[];
+  skippedRows:  number;
+  dupSkipped:   number;
+  skipReasons:  SkipReason[];
+  totalRows:    number;
+}> {
   const rows = await readFile(file);
+  const skipTracker = makeSkipTracker();
   let skippedRows = 0;
 
-  // Heuristic: detect whether the date column uses US (M/D/Y) or EU (D/M/Y) format
-  // by looking at sample values. If any value has first part >12, it must be D/M/Y.
-  let isEuropeanDate = inferEuropeanDate(rows.map(r => String(r[mapping.date] ?? '')));
+  const isEuropeanDate = inferEuropeanDate(rows.map(r => String(r[mapping.date] ?? '')));
 
   const transactions = [];
   for (const row of rows) {
@@ -65,18 +99,35 @@ export async function manualMapToTransactions(
       const rawPrice  = String(row[mapping.price] ?? '').replace(/[,$₪€£\s]/g, '');
       const rawDate   = String(row[mapping.date] ?? '').trim();
 
-      // Ticker: allow A-Z, digits, dot, dash (some IL/EU tickers)
-      if (!rawTicker || !/^[A-Z0-9.\-]{1,12}$/.test(rawTicker)) { skippedRows++; continue; }
+      if (!rawTicker) { skipTracker.add('Empty ticker (likely summary/total row)', ''); skippedRows++; continue; }
+      if (!/^[A-Z0-9.\-]{1,12}$/.test(rawTicker)) {
+        skipTracker.add('Ticker contains invalid characters', rawTicker);
+        skippedRows++; continue;
+      }
 
       const action = classifyAction(rawAction);
-      if (!action) { skippedRows++; continue; }
+      if (!action) {
+        skipTracker.add('Unrecognized action value', rawAction || '(empty)');
+        skippedRows++; continue;
+      }
 
       const quantity = Math.abs(parseFloat(rawQty));
-      const price    = parseFloat(rawPrice);
-      if (!isFinite(quantity) || quantity <= 0 || !isFinite(price) || price <= 0) { skippedRows++; continue; }
+      if (!isFinite(quantity) || quantity <= 0) {
+        skipTracker.add('Quantity not a positive number', rawQty || '(empty)');
+        skippedRows++; continue;
+      }
+
+      const price = parseFloat(rawPrice);
+      if (!isFinite(price) || price <= 0) {
+        skipTracker.add('Price not a positive number', rawPrice || '(empty)');
+        skippedRows++; continue;
+      }
 
       const date = normaliseDate(rawDate, isEuropeanDate);
-      if (!date) { skippedRows++; continue; }
+      if (!date) {
+        skipTracker.add('Date format not recognized', rawDate || '(empty)');
+        skippedRows++; continue;
+      }
 
       transactions.push({
         ticker:   rawTicker,
@@ -89,6 +140,7 @@ export async function manualMapToTransactions(
         isShort:  false,
       });
     } catch {
+      skipTracker.add('Unexpected error parsing row', '');
       skippedRows++;
     }
   }
@@ -99,7 +151,14 @@ export async function manualMapToTransactions(
     existingPositions,
     existingSignatures,
   );
-  return { newTrades, updates, skippedRows, dupSkipped };
+  return {
+    newTrades,
+    updates,
+    skippedRows,
+    dupSkipped,
+    skipReasons: skipTracker.toArray(),
+    totalRows:   rows.length,
+  };
 }
 
 async function readFile(file: File): Promise<Record<string, unknown>[]> {
@@ -121,28 +180,25 @@ async function readFile(file: File): Promise<Record<string, unknown>[]> {
 }
 
 function inferEuropeanDate(samples: string[]): boolean {
-  // Default to European (D/M/Y) because Israeli brokers + most non-US use it.
-  // If ANY sample has first part > 12, we're certain it's D/M/Y → European.
-  // If ALL samples have last part 2-digit and middle part > 12, it might be Y/D/M (rare).
-  let euCertain = false;
   for (const s of samples) {
     const m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
     if (!m) continue;
-    const first  = parseInt(m[1], 10);
-    if (first > 12) { euCertain = true; break; }
+    const first = parseInt(m[1], 10);
+    if (first > 12) return true;
   }
-  return euCertain || true; // default European for safety in IL market
+  return true; // default European for IL market safety
 }
 
 function normaliseDate(raw: string, isEuropean: boolean): string | null {
   if (!raw) return null;
   const s = raw.trim();
 
-  // ISO YYYY-MM-DD (or with time)
+  if (/^\d{8}$/.test(s)) {
+    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  }
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
-  // ISO with slash YYYY/MM/DD
   const isoSlash = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
   if (isoSlash) {
     const m = isoSlash[2].padStart(2, '0');
@@ -150,11 +206,10 @@ function normaliseDate(raw: string, isEuropean: boolean): string | null {
     return `${isoSlash[1]}-${m}-${d}`;
   }
 
-  // D/M/Y or M/D/Y (with /, ., or -)
   const slash = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
   if (slash) {
-    let a = parseInt(slash[1], 10);
-    let b = parseInt(slash[2], 10);
+    const a = parseInt(slash[1], 10);
+    const b = parseInt(slash[2], 10);
     const c = slash[3];
     const year = c.length === 2 ? `20${c}` : c;
     let day:  number;
@@ -166,7 +221,6 @@ function normaliseDate(raw: string, isEuropean: boolean): string | null {
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
-  // Final fallback — Date.parse handles "May 4 2026", "2026-05-04T..", etc.
   const ts = Date.parse(s);
   if (!isNaN(ts)) {
     const d = new Date(ts);
@@ -178,17 +232,13 @@ function normaliseDate(raw: string, isEuropean: boolean): string | null {
   return null;
 }
 
-// ── Exported helper for the import modal: suggest a mapping based on headers ──
-
 export function suggestMapping(headers: string[]): ManualMapping {
   const lower = headers.map(h => h.toLowerCase().trim());
   const match = (kw: string[]): string => {
-    // exact match first
     for (const k of kw) {
       const i = lower.indexOf(k);
       if (i >= 0) return headers[i];
     }
-    // partial match
     for (const k of kw) {
       const i = lower.findIndex(h => h.includes(k));
       if (i >= 0) return headers[i];

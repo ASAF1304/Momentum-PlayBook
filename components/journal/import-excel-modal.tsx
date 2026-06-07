@@ -21,6 +21,7 @@ import {
   type ExistingPosition,
   type ImportedTrade,
   type PartialRecord,
+  type SkipReason,
   type TradeUpdate,
 } from '@/lib/broker-parser';
 import { suggestMapping } from '@/lib/broker-parser-manual';
@@ -66,6 +67,8 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
   const [detectedFormat,    setDetectedFormat]   = useState<BrokerFormat | null>(null);
   const [rawHeaders,        setRawHeaders]       = useState<string[]>([]);
   const [sampleRows,        setSampleRows]       = useState<Record<string, unknown>[]>([]);
+  const [skipReasons,       setSkipReasons]      = useState<SkipReason[]>([]);
+  const [totalRows,         setTotalRows]        = useState(0);
   const [manualMapping,     setManualMapping]    = useState<ManualMapping>({ ticker: '', action: '', quantity: '', price: '', date: '' });
 
   // Parsed results
@@ -264,9 +267,10 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
         existingPositionsRef.current,
         existingSignaturesRef.current,
       );
+      setSkipReasons(result.skipReasons ?? []);
+      setTotalRows(result.totalRows ?? 0);
       if (result.newTrades.length === 0 && result.updates.length === 0) {
-        setParseError('No trades could be built with this mapping. Check column selection.');
-        setStep('upload');
+        // Stay on mapping screen so user can see WHY rows were skipped and fix the mapping
         return;
       }
       finishParse('generic', result.newTrades, result.updates, result.skippedRows, result.dupSkipped);
@@ -277,6 +281,32 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
       setParsing(false);
     }
   }, [manualMapping, finishParse]);
+
+  const copyDiagnostic = useCallback(() => {
+    const lines: string[] = [
+      '── Momentum Playbook Import Diagnostic ──',
+      `File:        ${pendingFile.current?.name ?? '(unknown)'}`,
+      `Total rows:  ${totalRows}`,
+      `Detected:    ${detectedFormat ?? 'unknown'}`,
+      `Columns:     ${rawHeaders.join(', ')}`,
+      `Mapping:`,
+      `  ticker   → ${manualMapping.ticker}`,
+      `  action   → ${manualMapping.action}`,
+      `  quantity → ${manualMapping.quantity}`,
+      `  price    → ${manualMapping.price}`,
+      `  date     → ${manualMapping.date}`,
+      '',
+      `Skipped rows (${skipReasons.reduce((s, r) => s + r.count, 0)}):`,
+    ];
+    for (const r of skipReasons) {
+      lines.push(`  • ${r.count} × ${r.reason}`);
+      if (r.samples.length > 0) {
+        lines.push(`     samples: ${r.samples.map(s => `"${s}"`).join(', ')}`);
+      }
+    }
+    void navigator.clipboard.writeText(lines.join('\n'));
+    toast({ title: 'Diagnostic copied to clipboard', variant: 'success' });
+  }, [detectedFormat, manualMapping, rawHeaders, skipReasons, totalRows]);
 
   // ── Selection ─────────────────────────────────────────────────────────────
 
@@ -682,12 +712,61 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                 </details>
               )}
 
+              {/* ── Diagnostic panel: shows when mapping produced 0 trades ─── */}
+              {skipReasons.length > 0 && (
+                <div className="rounded-[10px] border border-[#FF3B5C]/30 bg-[#FF3B5C]/[0.06] overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#FF3B5C]/20 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-[#FF3B5C] flex-shrink-0 mt-0.5" />
+                      <div>
+                        <div className="text-[11px] uppercase tracking-[0.16em] font-extrabold text-[#FF3B5C] mb-0.5">
+                          {skipReasons.reduce((s, r) => s + r.count, 0)} of {totalRows} rows could not be parsed
+                        </div>
+                        <p className="text-[11.5px] text-[var(--text-secondary)] leading-snug">
+                          See WHY each group failed below. Adjust the mapping above, or copy the diagnostic and send it to support.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={copyDiagnostic}
+                      className="flex-shrink-0 px-3 py-1.5 rounded-md border border-[#FF3B5C]/30 text-[10px] font-extrabold uppercase tracking-wider text-[#FF3B5C] hover:bg-[#FF3B5C]/10 transition-colors"
+                    >
+                      Copy diagnostic
+                    </button>
+                  </div>
+                  <ul className="divide-y divide-[var(--border-subtle)]">
+                    {skipReasons.map(r => (
+                      <li key={r.reason} className="px-4 py-2.5">
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <span className="text-[12px] font-bold text-[var(--text-primary)] leading-snug">
+                            {r.reason}
+                          </span>
+                          <span className="font-mono text-[11px] font-extrabold text-[#FF3B5C] tabular-nums flex-shrink-0">
+                            {r.count} rows
+                          </span>
+                        </div>
+                        {r.samples.length > 0 && (
+                          <div className="text-[10.5px] text-[var(--text-muted)] font-mono leading-snug">
+                            Values seen: {r.samples.map((s, i) => (
+                              <span key={i} className="inline-block px-1.5 py-0.5 mr-1 rounded bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
+                                {s || '(empty)'}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex gap-2.5 pt-1">
                 <button onClick={() => setStep('upload')} className="flex-1 py-2.5 rounded-[10px] border border-[var(--border-strong)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-dim)] transition-all">Back</button>
                 <button onClick={() => void handleManualMapping()} disabled={Object.values(manualMapping).some(v => !v)}
                   className={cn('flex-[2] py-2.5 rounded-[10px] text-xs font-extrabold uppercase tracking-wider transition-all',
                     Object.values(manualMapping).some(v => !v) ? 'bg-[var(--bg-elevated)] text-[var(--text-faint)] cursor-not-allowed' : 'bg-gradient-to-br from-[#10F088] to-[#22D3EE] text-black hover:brightness-110')}>
-                  Confirm Mapping
+                  {skipReasons.length > 0 ? 'Try Again with New Mapping' : 'Confirm Mapping'}
                 </button>
               </div>
             </div>

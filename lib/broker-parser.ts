@@ -95,6 +95,12 @@ export interface TradeUpdate {
   closePrice:         number | null;
 }
 
+export interface SkipReason {
+  reason:  string;
+  count:   number;
+  samples: string[];  // up to 5 sanitized sample values
+}
+
 export interface ParseResult {
   format:       BrokerFormat;
   transactions: RawTransaction[];
@@ -102,6 +108,8 @@ export interface ParseResult {
   updates:      TradeUpdate[];
   skippedRows:  number;
   dupSkipped:   number;
+  skipReasons?: SkipReason[];
+  totalRows?:   number;
 }
 
 // ── File → raw rows ────────────────────────────────────────────────────────────
