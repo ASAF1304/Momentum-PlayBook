@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, Check, ChevronDown, ChevronUp,
-  FileSpreadsheet, Loader2, RefreshCw, Upload, X,
+  FileSpreadsheet, Loader2, RefreshCw, Sparkles, Upload, X,
 } from 'lucide-react';
 import { supabase, type Trade } from '@/lib/supabase-client';
 import {
@@ -247,14 +247,92 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
     setStep('preview');
   }, []);
 
+  // ── Manual mapping submit ─────────────────────────────────────────────────
+
+  // ── AI Smart Import ───────────────────────────────────────────────────────
+
+  const [aiCost, setAiCost] = useState<number | null>(null);
+  const [aiWarning, setAiWarning] = useState<string | null>(null);
+
+  const handleAIImport = useCallback(async (file: File) => {
+    setParseError(null);
+    setAiCost(null);
+    setAiWarning(null);
+
+    if (file.size > 5 * 1024 * 1024) {
+      setParseError('File too large (max 5 MB). Try splitting into multiple files.');
+      return;
+    }
+
+    setParsing(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+
+      const res = await fetch('/api/import/ai-parse', { method: 'POST', body: form });
+      const body = await res.json();
+
+      if (!res.ok) {
+        setParseError(body.error || 'AI parse failed. Try the legacy parser below.');
+        return;
+      }
+
+      const aiTrades = (body.trades ?? []) as Array<{
+        ticker: string; action: 'buy' | 'sell';
+        quantity: number; price: number; date: string;
+      }>;
+
+      if (aiTrades.length === 0) {
+        setParseError('AI could not find any trades in this file. Try the legacy parser below.');
+        return;
+      }
+
+      setAiCost(typeof body.cost_usd === 'number' ? body.cost_usd : null);
+      setAiWarning(typeof body.warning === 'string' ? body.warning : null);
+
+      // Run AI-extracted transactions through the same grouping logic the
+      // existing parsers use — gets FIFO position tracking + duplicate dedup
+      const { groupToTrades } = await import('@/lib/broker-parser-internal');
+      const transactions = aiTrades.map(t => ({
+        ticker:   t.ticker,
+        action:   t.action,
+        quantity: t.quantity,
+        price:    t.price,
+        date:     t.date,
+        fees:     0,
+        currency: 'USD' as const,
+        isShort:  false,
+      }));
+      const { newTrades, updates, skippedCount } = groupToTrades(
+        transactions,
+        'generic',
+        existingPositionsRef.current,
+        existingSignaturesRef.current,
+      );
+
+      if (newTrades.length === 0 && updates.length === 0) {
+        if (skippedCount > 0) {
+          setParseError(`AI extracted ${aiTrades.length} trades but all ${skippedCount} are already in your journal.`);
+        } else {
+          setParseError('AI extracted trades but they could not be matched to any position. Try the legacy parser below.');
+        }
+        return;
+      }
+
+      finishParse('generic', newTrades, updates, 0, skippedCount);
+    } catch (err) {
+      setParseError(`AI Smart Import failed: ${err instanceof Error ? err.message : 'Unknown error'}. Try the legacy parser below.`);
+    } finally {
+      setParsing(false);
+    }
+  }, [finishParse]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) void handleFile(file);
-  }, [handleFile]);
-
-  // ── Manual mapping submit ─────────────────────────────────────────────────
+    if (file) void handleAIImport(file);
+  }, [handleAIImport]);
 
   const handleManualMapping = useCallback(async () => {
     if (!pendingFile.current) return;
@@ -509,10 +587,15 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
           {/* ── Upload step ────────────────────────────────────────── */}
           {(step === 'upload' || parsing) && (
             <div className="p-6 flex flex-col gap-4">
-              <div className="flex gap-2 flex-wrap">
-                {Object.entries(BROKER_LABELS).map(([k, v]) => (
-                  <span key={k} className="text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-subtle)]">{v}</span>
-                ))}
+              {/* AI Smart Import badge */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#22D3EE]/15 to-[#10F088]/15 border border-[#22D3EE]/30 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#22D3EE]">
+                    <Sparkles className="w-3 h-3" />
+                    AI Smart Import
+                  </span>
+                  <span className="text-[11px] text-[var(--text-muted)]">Works with any broker, any format</span>
+                </div>
               </div>
 
               <div
@@ -522,26 +605,38 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
                 onClick={() => fileRef.current?.click()}
                 className={cn(
                   'cursor-pointer rounded-[14px] border-2 border-dashed p-10 flex flex-col items-center justify-center gap-3 transition-all select-none',
-                  isDragging ? 'border-[#10F088]/60 bg-[#10F088]/[0.06]' : 'border-[var(--border-strong)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-elevated)]',
+                  isDragging
+                    ? 'border-[#22D3EE]/60 bg-[#22D3EE]/[0.06]'
+                    : 'border-[#22D3EE]/30 bg-gradient-to-br from-[#22D3EE]/[0.04] to-[#10F088]/[0.04] hover:border-[#22D3EE]/50',
                 )}
               >
                 {parsing ? (
                   <>
-                    <Loader2 className="w-8 h-8 text-[#10F088] animate-spin" />
-                    <p className="text-[13px] font-semibold text-[var(--text-secondary)]">Parsing file…</p>
+                    <div className="relative">
+                      <Sparkles className="w-9 h-9 text-[#22D3EE] animate-pulse" strokeWidth={1.8} />
+                      <Loader2 className="absolute -bottom-1 -right-1 w-4 h-4 text-[#10F088] animate-spin" />
+                    </div>
+                    <p className="text-[13px] font-semibold text-[var(--text-secondary)]">
+                      Claude is reading your trades…
+                    </p>
+                    <p className="text-[11px] text-[var(--text-faint)]">
+                      This can take 10-30 seconds for large files.
+                    </p>
                   </>
                 ) : (
                   <>
-                    <div className="w-12 h-12 rounded-xl bg-[#10F088]/10 flex items-center justify-center">
-                      <Upload className={cn('w-6 h-6 transition-colors', isDragging ? 'text-[#10F088]' : 'text-[var(--text-muted)]')} />
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#22D3EE]/15 to-[#10F088]/15 border border-[#22D3EE]/30 flex items-center justify-center">
+                      <Sparkles className={cn('w-7 h-7 transition-colors', isDragging ? 'text-[#22D3EE]' : 'text-[#22D3EE]/70')} strokeWidth={1.8} />
                     </div>
                     <div className="text-center">
-                      <p className="text-[14px] font-semibold text-[var(--text-secondary)]">Drop your broker export here</p>
-                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        or <span className="text-[#10F088] font-semibold">click to browse</span> — .xlsx, .xls, .csv
+                      <p className="text-[15px] font-bold text-[var(--text-primary)]">Drop any broker export here</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+                        Excel, CSV, or text from <strong>any broker</strong> — IBKR, Meitav, IBI, Blink, eToro, Excellence, Robinhood, Schwab.
+                        <br />
+                        Claude reads it directly — no column mapping, no setup.
                       </p>
                     </div>
-                    <p className="text-xs text-[var(--text-faint)]">Max 5 MB · Multiple files supported (upload one at a time)</p>
+                    <p className="text-[10.5px] text-[var(--text-faint)]">Max 5 MB · .xlsx · .xls · .csv</p>
                   </>
                 )}
               </div>
@@ -630,7 +725,27 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
               )}
 
               <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="sr-only"
-                onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} />
+                onChange={e => { const f = e.target.files?.[0]; if (f) void handleAIImport(f); }} />
+
+              {/* Legacy parser fallback link */}
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.xlsx,.xls,.csv';
+                    input.onchange = (e) => {
+                      const f = (e.target as HTMLInputElement).files?.[0];
+                      if (f) void handleFile(f);
+                    };
+                    input.click();
+                  }}
+                  className="text-[10.5px] text-[var(--text-faint)] hover:text-[var(--text-muted)] underline"
+                >
+                  Or use the legacy parser (Meitav / IBI / IBKR / eToro)
+                </button>
+              </div>
             </div>
           )}
 
@@ -775,11 +890,34 @@ export function ImportExcelModal({ userId, onClose, onImported }: ImportExcelMod
           {/* ── Preview step ────────────────────────────────────────── */}
           {step === 'preview' && (
             <div className="flex flex-col">
+              {/* AI Smart Import status (when aiCost is set) */}
+              {aiCost !== null && (
+                <div className="px-5 py-2.5 border-b border-[var(--border-subtle)] bg-gradient-to-r from-[#22D3EE]/[0.05] to-[#10F088]/[0.05]">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#22D3EE]/15 border border-[#22D3EE]/30 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#22D3EE]">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      AI Parsed
+                    </span>
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      Claude extracted these trades from your file
+                    </span>
+                    <span className="text-[10px] text-[var(--text-faint)] font-mono ml-auto">
+                      ${aiCost.toFixed(4)} cost
+                    </span>
+                  </div>
+                  {aiWarning && (
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-1.5 leading-snug">
+                      <strong className="text-[#F59E0B]">Note:</strong> {aiWarning}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* ── Layer 5: Summary bar ───────────────────────────── */}
               <div className="px-5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)] flex items-center justify-between gap-3 flex-shrink-0">
                 <div className="flex items-center gap-3 text-xs flex-wrap">
                   <span className="font-semibold text-[var(--text-secondary)]">
-                    Detected: <span className="text-[#10F088] font-bold">{BROKER_LABELS[detectedFormat ?? 'generic']}</span>
+                    Detected: <span className="text-[#10F088] font-bold">{aiCost !== null ? 'AI Smart Import' : BROKER_LABELS[detectedFormat ?? 'generic']}</span>
                   </span>
                   <span className="text-[var(--text-faint)]">·</span>
                   {newTrades.length > 0 && (

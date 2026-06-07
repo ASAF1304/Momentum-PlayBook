@@ -55,6 +55,11 @@ ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS tier text CHECK (tier IN ('st
 `/admin/*` is protected by a password gate in addition to the `is_admin` DB check.
 Set `ADMIN_GATE_PASSWORD` env var (default: `idog2708`) and `ADMIN_GATE_SECRET` (any random string used for HMAC). 8-hour cookie session.
 
+## AI Smart Import
+`/api/import/ai-parse` uses Claude Haiku 4.5 to parse broker exports from any format.
+Requires `ANTHROPIC_API_KEY` env var. Cost: ~$0.13 per 500-trade file.
+Falls through to legacy parsers (Meitav / IBI / IBKR / eToro) if AI fails.
+
 ## Code conventions
 - No comments unless the WHY is non-obvious
 - No emojis unless explicitly requested
