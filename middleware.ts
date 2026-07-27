@@ -34,7 +34,11 @@ const SUBSCRIPTION_EXEMPT = [
 
 // Allow Playwright e2e tests to bypass auth. Set PLAYWRIGHT_AUTH_BYPASS=true
 // on the test dev-server process only — never set in production.
-const E2E_BYPASS = process.env.PLAYWRIGHT_AUTH_BYPASS === 'true';
+// NODE_ENV !== 'production' is enforced in code (not just by convention) so a
+// stray env var can't disable auth on the live site.
+const E2E_BYPASS =
+  process.env.NODE_ENV !== 'production' &&
+  process.env.PLAYWRIGHT_AUTH_BYPASS === 'true';
 
 // Informational — does not gate access, just indicates payment provider is wired up.
 const GROW_ENABLED = !!process.env.GROW_API_KEY;

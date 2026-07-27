@@ -15,6 +15,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -66,6 +68,15 @@ function pricePerInputToken(): number  { return 1.00 / 1_000_000; }  // Haiku 4.
 function pricePerOutputToken(): number { return 5.00 / 1_000_000; }  // Haiku 4.5 output
 
 export async function POST(request: NextRequest) {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } },
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'AI Smart Import is not configured on the server (missing ANTHROPIC_API_KEY).' }, { status: 500 });
   }

@@ -13,7 +13,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 export function verifyGrowWebhook(payload: string, signature: string): boolean {
   const secret = process.env.GROW_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn('[GROW-WEBHOOK] GROW_WEBHOOK_SECRET not set — skipping verification');
+    console.error('[GROW-WEBHOOK] GROW_WEBHOOK_SECRET not set — rejecting all webhooks until configured');
     return false;
   }
   if (!signature) return false;

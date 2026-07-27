@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, TrendingUp, CreditCard, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { TRIAL_DAYS } from '@/lib/trial-config';
 
 export default function CheckoutPage() {
   const { user, loading } = useAuth();
@@ -85,7 +86,7 @@ export default function CheckoutPage() {
 
         <div className="rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-surface)] backdrop-blur p-8">
           <h1 className="text-[20px] font-extrabold tracking-tight text-[var(--text-primary)] mb-2">
-            30 ימים חינם, ללא מחויבות
+            {TRIAL_DAYS} ימים חינם, ללא מחויבות
           </h1>
           <p className="text-sm text-[var(--text-muted)] mb-6 leading-relaxed">
             לאחר תקופת הניסיון: 50 ₪ / חודש. ניתן לבטל בכל עת.

@@ -13,12 +13,25 @@ import { createHmac, timingSafeEqual } from 'crypto';
 export const ADMIN_GATE_COOKIE = 'mp_admin_gate';
 export const ADMIN_GATE_TTL_HOURS = 8;
 
+const DEV_FALLBACK_SECRET   = 'mp-default-admin-secret-please-change';
+const DEV_FALLBACK_PASSWORD = 'idog2708';
+
 function getSecret(): string {
-  return process.env.ADMIN_GATE_SECRET || 'mp-default-admin-secret-please-change';
+  const value = process.env.ADMIN_GATE_SECRET;
+  if (value) return value;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('ADMIN_GATE_SECRET is not set — refusing to fall back to a default in production.');
+  }
+  return DEV_FALLBACK_SECRET;
 }
 
 export function getAdminGatePassword(): string {
-  return process.env.ADMIN_GATE_PASSWORD || 'idog2708';
+  const value = process.env.ADMIN_GATE_PASSWORD;
+  if (value) return value;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('ADMIN_GATE_PASSWORD is not set — refusing to fall back to a default in production.');
+  }
+  return DEV_FALLBACK_PASSWORD;
 }
 
 export function makeGateToken(): string {

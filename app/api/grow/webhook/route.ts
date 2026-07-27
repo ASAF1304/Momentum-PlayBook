@@ -39,12 +39,13 @@ export async function POST(request: NextRequest) {
   const db = getServiceClient() as any;
 
   // Log the raw event regardless of type
-  await db.from('webhook_events').insert({
+  const { error: logError } = await db.from('webhook_events').insert({
     provider:   'grow',
     event_type: type,
     payload:    event,
     created_at: new Date().toISOString(),
-  }).then(() => null).catch(() => null); // non-fatal
+  });
+  if (logError) console.error('[GROW-WEBHOOK] Failed to log to webhook_events:', logError.message); // non-fatal, but now visible
 
   const newStatus = EVENT_STATUS_MAP[type];
   if (!newStatus) {
@@ -81,7 +82,9 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     console.error('[GROW-WEBHOOK] DB update failed:', err);
-    // Return 200 so Grow doesn't retry indefinitely — we logged the event above
+    // 500 so Grow retries — the event was logged to webhook_events above, but the
+    // subscriptions row is now out of sync until this succeeds.
+    return NextResponse.json({ error: 'DB update failed' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

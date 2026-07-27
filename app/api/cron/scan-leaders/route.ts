@@ -214,7 +214,11 @@ export async function GET(request: Request) {
     // ── Auth ──────────────────────────────────────────────────────────────────
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      log('MISSING: CRON_SECRET — refusing to run unauthenticated');
+      return NextResponse.json({ ok: false, step: 'auth', error: 'CRON_SECRET not configured' }, { status: 500 });
+    }
+    if (authHeader !== `Bearer ${cronSecret}`) {
       log('Auth failed');
       return NextResponse.json({ ok: false, step: 'auth', error: 'Unauthorized' }, { status: 401 });
     }
